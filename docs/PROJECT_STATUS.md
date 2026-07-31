@@ -2,11 +2,11 @@
 
 ## Overall status
 
-**WP-00 repository baseline and WP-01 governance are complete and owner-approved. Production implementation remains deferred pending Stage 0 evidence and go/no-go approval.**
+**WP-00 repository baseline and WP-01 governance are complete and owner-approved. WP-02 licensing and SBOM control design is complete for the named candidate stack. Production implementation remains deferred pending architecture, security, pilot, benchmark, and final go/no-go approval.**
 
 ## Current gate
 
-WP-02 dependency, licensing, SBOM, commercial-use, network-use, self-hosting, and replacement analysis.
+WP-03 architecture decisions informed by the WP-02 licensing findings.
 
 ## Work-package status
 
@@ -14,8 +14,8 @@ WP-02 dependency, licensing, SBOM, commercial-use, network-use, self-hosting, an
 |---|---|---|---|
 | WP-00 Repository baseline | Complete | `REPOSITORY_BASELINE.md`, `DOCUMENT_OWNERSHIP_MAP.md`, `BRANCH_AND_PR_POLICY.md` | None |
 | WP-01 Governance/customer | Complete | `governance/GOVERNANCE_BASELINE.md`; owner approval July 31, 2026 | None |
-| WP-02 Licensing/SBOM | Authorized | Approved customer and pilot scope narrow the candidate stack | Candidate versions, transitive dependencies, licenses, and obligations require evidence review |
-| WP-03 Architecture | Not started | Candidate stack listed | WP-02 findings required before final ADR decisions |
+| WP-02 Licensing/SBOM | Complete for named candidate stack | `licensing/DEPENDENCY_DECISION_MATRIX.md`, `licensing/SBOM_AND_LICENSE_CONTROL_PLAN.md`, `licensing/UPGRADE_AND_REPLACEMENT_PLAN.md` | Actual transitive SBOMs require future manifests and built artifacts |
+| WP-03 Architecture | Authorized | PostgreSQL ADOPT; Payload, Temporal, LangGraph PILOT; n8n REPLACE | ADRs and architecture comparison required |
 | WP-04 Security/reliability | Not started | Approved data classes and sensitive-content boundaries | Candidate architecture required |
 | WP-05 Pilot/economics | In planning | Content-first agency pilot approved | Budget, pricing, and operating assumptions require analysis |
 | WP-06 Benchmarks/evaluation | In planning | Content-first pilot sequence approved | Rubrics, corpus, and acceptance thresholds required |
@@ -31,17 +31,24 @@ WP-02 dependency, licensing, SBOM, commercial-use, network-use, self-hosting, an
 - Restricted-data exclusions and human-approval matrix are approved.
 - Grant/proposal workflows remain research-scoped until dedicated controls pass.
 
+## WP-02 component decisions
+
+- PostgreSQL: `ADOPT` as the canonical relational data layer, subject to supported-version selection and implementation validation.
+- Payload: `PILOT` as the control-plane candidate.
+- Temporal: `PILOT` only if durable execution proves necessary and affordable.
+- LangGraph: `PILOT` with portability and reproducibility controls.
+- n8n: `REPLACE` for the proposed customer-facing platform role under the reviewed Sustainable Use License. Reconsider only with an approved commercial agreement granting the required rights.
+
 ## Current authorization
 
 Allowed:
 
-- WP-02 dependency pinning and license research
-- SBOM strategy and generation against any disposable candidate manifests
-- Commercial-use, network-use, redistribution, client-delivery, and self-hosting analysis
-- Architecture analysis and ADR preparation
+- WP-03 architecture comparison and ADR preparation
+- Selection of object storage, search/retrieval, evidence storage, evaluation, observability, and secrets-management approaches
 - Threat modeling and disposable proofs of concept
 - Benchmark and evaluation design
 - Cost modeling and pilot definition
+- Creation of disposable manifests solely for architecture or SBOM verification, provided they are not represented as a production scaffold
 
 Not allowed:
 
@@ -51,7 +58,8 @@ Not allowed:
 - External purchasing or account changes
 - Use of real sensitive client data
 - Autonomous grant submission or content publication
+- Adding n8n as a required production dependency without a separately approved commercial license
 
 ## Required next action
 
-Execute WP-02. Produce a pinned candidate dependency inventory, SBOM plan and artifacts, license matrix, obligation analysis, adopt/pilot/replace/reject decisions, and upgrade/replacement plan. Open a focused pull request and stop at any material licensing or commercial-use decision gate.
+Execute WP-03. Confirm or revise the control plane, data layer, durable execution, AI orchestration, and integration strategy. Define object storage, search and retrieval, source/citation storage, evaluation infrastructure, observability, and secrets management. Produce architecture decision records with alternatives, costs, tenant-isolation implications, license implications, and replacement paths.
