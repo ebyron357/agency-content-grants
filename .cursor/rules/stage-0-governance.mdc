@@ -1,0 +1,15 @@
+---
+description: Governs all work on the Agency Content and Grant Intelligence Platform during Stage 0
+globs:
+alwaysApply: true
+---
+
+# Stage 0 Governance Rule
+
+Read `AGENTS.md`, `docs/PROGRAM_CHARTER.md`, `docs/STAGE_0_EXECUTION_PLAN.md`, and `docs/PROJECT_STATUS.md` before changing anything.
+
+The repository is in Stage 0. Research, governance, licensing analysis, architecture decisions, threat modeling, evaluation design, budgeting, and pilot definition are authorized. Production application implementation is prohibited until `docs/GO_NO_GO_DECISION.md` contains a human-approved `GO`.
+
+Never invent evidence or approvals. Use primary sources, record URLs and retrieval dates, distinguish facts from assumptions, update the canonical status document, work in a dedicated branch, open a focused pull request, and never merge or deploy automatically.
+
+Stop at human decision gates involving customer selection, commercial or network-use licensing obligations, major architecture tradeoffs, critical residual security risk, budget approval, pilot pricing, and the final go/no-go decision.
