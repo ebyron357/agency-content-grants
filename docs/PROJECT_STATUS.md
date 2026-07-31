@@ -2,32 +2,43 @@
 
 ## Overall status
 
-**WP-00 repository baseline complete. WP-01 governance baseline drafted and awaiting owner decisions. Production implementation remains deferred.**
+**WP-00 repository baseline and WP-01 governance are complete and owner-approved. Production implementation remains deferred pending Stage 0 evidence and go/no-go approval.**
 
 ## Current gate
 
-Owner approval of the exact customer, pilot client type, scale interpretation, ownership model, restricted-data boundaries, approval matrix, and initial workflow family.
+WP-02 dependency, licensing, SBOM, commercial-use, network-use, self-hosting, and replacement analysis.
 
 ## Work-package status
 
 | Work package | Status | Evidence | Blocking issue |
 |---|---|---|---|
 | WP-00 Repository baseline | Complete | `REPOSITORY_BASELINE.md`, `DOCUMENT_OWNERSHIP_MAP.md`, `BRANCH_AND_PR_POLICY.md` | None |
-| WP-01 Governance/customer | In progress | `governance/GOVERNANCE_BASELINE.md` | Seven owner decisions remain open |
-| WP-02 Licensing/SBOM | Blocked | None | Candidate dependency list cannot be pinned until governance choices narrow the product scope |
-| WP-03 Architecture | Not started | Candidate stack listed | Licensing and customer assumptions unresolved |
-| WP-04 Security/reliability | Not started | Data classes and sensitive-content draft created | Candidate architecture required |
-| WP-05 Pilot/economics | Not started | Customer hypothesis documented | Pilot type and budget approval required |
-| WP-06 Benchmarks/evaluation | Not started | Required benchmark topics listed | Initial workflow family and rubric required |
+| WP-01 Governance/customer | Complete | `governance/GOVERNANCE_BASELINE.md`; owner approval July 31, 2026 | None |
+| WP-02 Licensing/SBOM | Authorized | Approved customer and pilot scope narrow the candidate stack | Candidate versions, transitive dependencies, licenses, and obligations require evidence review |
+| WP-03 Architecture | Not started | Candidate stack listed | WP-02 findings required before final ADR decisions |
+| WP-04 Security/reliability | Not started | Approved data classes and sensitive-content boundaries | Candidate architecture required |
+| WP-05 Pilot/economics | In planning | Content-first agency pilot approved | Budget, pricing, and operating assumptions require analysis |
+| WP-06 Benchmarks/evaluation | In planning | Content-first pilot sequence approved | Rubrics, corpus, and acceptance thresholds required |
 | WP-07 Go/no-go | Blocked | None | WP-00 through WP-06 must be accepted |
+
+## Approved Stage 0 decisions
+
+- First customer: small-to-mid-sized marketing or professional-services agency.
+- Pilot: one agency, small controlled user group, content-first.
+- Initial scale: approximately 5 to 20 active workspaces.
+- Long-term design target: 300-plus total logical workspaces, not day-one concurrency.
+- Tenant model: one tenant owner per workspace with no implicit cross-tenant access.
+- Restricted-data exclusions and human-approval matrix are approved.
+- Grant/proposal workflows remain research-scoped until dedicated controls pass.
 
 ## Current authorization
 
 Allowed:
 
-- Complete owner decisions for WP-01
-- Research and licensing analysis after scope approval
-- Architecture analysis and ADRs
+- WP-02 dependency pinning and license research
+- SBOM strategy and generation against any disposable candidate manifests
+- Commercial-use, network-use, redistribution, client-delivery, and self-hosting analysis
+- Architecture analysis and ADR preparation
 - Threat modeling and disposable proofs of concept
 - Benchmark and evaluation design
 - Cost modeling and pilot definition
@@ -43,4 +54,4 @@ Not allowed:
 
 ## Required next action
 
-Review and approve or revise the seven decisions in `docs/governance/GOVERNANCE_BASELINE.md`. After approval, begin WP-02 dependency pinning, SBOM planning, and license review.
+Execute WP-02. Produce a pinned candidate dependency inventory, SBOM plan and artifacts, license matrix, obligation analysis, adopt/pilot/replace/reject decisions, and upgrade/replacement plan. Open a focused pull request and stop at any material licensing or commercial-use decision gate.
