@@ -65,6 +65,17 @@ complete; WP-02 licensing/SBOM remains the next program work package after the
 recovery baseline is accepted. WP-03 through WP-07 remain gated as documented
 in `docs/STAGE_0_EXECUTION_PLAN.md`.
 
+## Post-recovery production readiness
+
+A production readiness audit has been completed in
+`docs/audits/POST_RECOVERY_PRODUCTION_READINESS.md`. The recovered baseline
+passes all validation gates but is **not production-ready** due to critical gaps
+in authentication, authorization, multi-tenancy, and deployment infrastructure.
+
+A phased closeout plan is documented in
+`docs/plans/CONTENT_MACHINE_PRODUCTION_CLOSEOUT_PLAN.md`. Execution requires a
+new human-approved GO decision replacing the current LIMITED GO.
+
 ## Next authorized stage
 
 Obtain human review and merge approval for the stabilization pull request into
