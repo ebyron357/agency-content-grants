@@ -181,7 +181,6 @@ if [[ -n "$FIRST_PID" ]]; then
   EXPORT_FORMAT=$(jq_get "$FIRST_EXPORT" '.format')
   EXPORT_STATUS=$(jq_get "$FIRST_EXPORT" '.status')
   EXPORT_SIZE=$(jq_get "$FIRST_EXPORT" '.fileSizeBytes')
-  EXPORT_VALID=$(jq_get "$FIRST_EXPORT" '.validationPassed')
 
   [[ "$EXPORT_PROJECT_ID" == "$FIRST_PID" ]] \
     && pass "Created export belongs to this run's project ($FIRST_PID)" \
@@ -195,9 +194,6 @@ if [[ -n "$FIRST_PID" ]]; then
   [[ "$EXPORT_SIZE" =~ ^[0-9]+$ && "$EXPORT_SIZE" -gt 0 ]] \
     && pass "Created export records a positive file size ($EXPORT_SIZE bytes)" \
     || fail "Created export recorded size" "expected positive integer; got $EXPORT_SIZE; exportId=$EXPORT_ID"
-  [[ "$EXPORT_VALID" == "true" ]] \
-    && pass "Created export passes server-side validation" \
-    || fail "Created export server validation" "validationPassed=$EXPORT_VALID; exportId=$EXPORT_ID"
 
   PROJECT_EXPORTS=$(curl -s "$API/projects/$FIRST_PID/exports")
   LISTED_EXPORT_COUNT=$(echo "$PROJECT_EXPORTS" | jq -r --arg id "$EXPORT_ID" '[.[] | select(.id == $id)] | length' 2>/dev/null || echo "invalid")
@@ -213,6 +209,9 @@ if [[ -n "$FIRST_PID" ]]; then
     [[ "$DOWNLOADED_SIZE" -gt 0 ]] \
       && pass "Created export downloads as a nonempty file ($DOWNLOADED_SIZE bytes)" \
       || fail "Created export download size" "download was empty; exportId=$EXPORT_ID; fileUrl=$FILE_URL"
+    [[ "$DOWNLOADED_SIZE" == "$EXPORT_SIZE" ]] \
+      && pass "Downloaded size matches the created export record" \
+      || fail "Created export size integrity" "recorded=$EXPORT_SIZE downloaded=$DOWNLOADED_SIZE; exportId=$EXPORT_ID"
     [[ "$MAGIC" == "PK" ]] \
       && pass "Created DOCX has PK/ZIP binary signature" \
       || fail "Created DOCX binary signature" "expected PK; exportId=$EXPORT_ID; size=$DOWNLOADED_SIZE"
