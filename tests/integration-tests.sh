@@ -123,10 +123,14 @@ PROJ2_ID=$(jq_get "$PROJ2_JSON" '.id')
 if [[ -n "$PROJ2_ID" && "$PROJ2_ID" != "null" ]]; then
   pass "Create project for guard test ($PROJ2_ID)"
 
-  # Advance to drafting via PATCH
-  curl -s -X PATCH "$API/projects/$PROJ2_ID" \
-    -H "Content-Type: application/json" \
-    -d '{"workflowStage":"drafting"}' > /dev/null
+  FIRST_BRIEF=$(curl -s -X POST "$API/projects/$PROJ2_ID/generate-brief" \
+    -H "Content-Type: application/json")
+  FIRST_STAGE=$(jq_get "$FIRST_BRIEF" '.workflowStage')
+  if [[ "$FIRST_STAGE" == "drafting" ]]; then
+    pass "Initial generate-brief advances guard-test project to drafting"
+  else
+    fail "Initial generate-brief advances guard-test project" "stage=$FIRST_STAGE; resp=${FIRST_BRIEF:0:200}"
+  fi
 
   GUARD_JSON=$(curl -s -X POST "$API/projects/$PROJ2_ID/generate-brief" \
     -H "Content-Type: application/json")
@@ -146,14 +150,22 @@ fi
 # =============================================================================
 section "4. Export binary signatures"
 
-EXPORTS_JSON=$(curl -s "$API/projects" | jq -r '.[0].id // empty' 2>/dev/null || echo "")
-FIRST_PID="$EXPORTS_JSON"
+FIRST_PID="$PROJECT_ID"
 
 if [[ -n "$FIRST_PID" ]]; then
-  EXPORT_LIST=$(curl -s "$API/projects/$FIRST_PID/exports")
-  FIRST_EXPORT=$(echo "$EXPORT_LIST" | jq -r 'map(select(.status=="completed" and .fileUrl != null)) | first // empty' 2>/dev/null || echo "")
-  FILE_URL=$(echo "$FIRST_EXPORT" | jq -r '.fileUrl // empty' 2>/dev/null || echo "")
-  FORMAT=$(echo "$FIRST_EXPORT" | jq -r '.format // empty' 2>/dev/null || echo "")
+  EXPORT_CREATE=$(curl -s -X POST "$API/projects/$FIRST_PID/exports" \
+    -H "Content-Type: application/json" -d '{"format":"docx"}')
+  EXPORT_ID=$(jq_get "$EXPORT_CREATE" '.id')
+  FILE_URL=""
+  FORMAT="docx"
+  if [[ -n "$EXPORT_ID" && "$EXPORT_ID" != "null" ]]; then
+    for _ in 1 2 3 4 5 6; do
+      sleep 5
+      FIRST_EXPORT=$(curl -s "$API/exports/$EXPORT_ID" 2>/dev/null || echo '{}')
+      FILE_URL=$(jq_get "$FIRST_EXPORT" '.fileUrl')
+      [[ "$(jq_get "$FIRST_EXPORT" '.status')" == "completed" ]] && break
+    done
+  fi
 
   if [[ -n "$FILE_URL" && "$FILE_URL" != "null" ]]; then
     TMP_FILE=$(mktemp)
@@ -173,10 +185,10 @@ if [[ -n "$FIRST_PID" ]]; then
     fi
     rm -f "$TMP_FILE"
   else
-    skip "Binary signature (no completed exports found for first project)"
+    fail "Binary signature" "no completed DOCX export URL after polling"
   fi
 else
-  skip "Binary signature (no projects)"
+  fail "Binary signature" "no generated project available"
 fi
 
 # =============================================================================
