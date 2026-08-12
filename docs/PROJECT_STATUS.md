@@ -13,10 +13,11 @@ evidence-backed. That human authorization is recorded in
 
 Recovery baseline validation on `fix/recovery-baseline-validation` is complete.
 The frozen install, repository-wide typecheck, 249 API tests, 10 Content OS
-tests, 30 shell integration checks, repeat migration/reset, service lifecycle,
-and aggregate production build pass in the isolated GitHub Actions environment
-defined by `.github/workflows/recovery-baseline-validation.yml`. Review-driven
-export verification hardening is now pending complete revalidation.
+tests, 38 shell integration checks, repeat migration/reset, service lifecycle,
+and aggregate production build pass in isolated GitHub Actions run
+`31628224081`. Review-driven export verification now proves a new project starts
+without stale exports and validates exact project/format association, unique API
+listing, completed status, matching positive file sizes, and DOCX signature.
 
 ## Recovered baseline
 

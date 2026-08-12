@@ -64,7 +64,7 @@ paths.
 | `pnpm --filter @workspace/content-os test` | PASS       | 1 file passed; 10 tests passed; 0 failed.                                                                   |
 | `pnpm run build`                           | PASS       | Mockup Sandbox, API Server, and Content OS production builds completed after aggregate typecheck.           |
 | `pnpm --filter @workspace/api-server test` | PASS       | 24 test files passed; 249 tests passed; 0 failed. All previously blocked database suites loaded.            |
-| `bash tests/integration-tests.sh`          | PENDING    | Review hardening now requires a fresh project, zero preexisting exports, exact project/format association, unique API listing, completed status, positive recorded/download size, server validation, and DOCX signature. |
+| `bash tests/integration-tests.sh`          | PASS       | 38 passed; 0 failed; 0 skipped. Export verification proves a fresh project starts with zero exports, then checks exact project/format association, unique API listing, completed status, matching positive recorded/download sizes, and DOCX signature. |
 
 ## Build-warning investigation
 
@@ -91,7 +91,9 @@ database/password values and the pre-existing `.env.example` placeholder. No
 
 ## Gate
 
-PENDING. The previously passing baseline is being revalidated after review-driven
-export-check hardening and creation of the required traceable human-authorization
-artifact. This gate returns to PASS only after the complete workflow succeeds
-with zero skipped checks. No deployment or merge has occurred.
+PASS. GitHub Actions run `31628224081` completed successfully against review-fix
+commit `e666362c8b9f6c31cf039cd2a87e3a7a3b1d2f55`: frozen install,
+repository-wide typecheck, 249 API tests, 10 Content OS tests, migration reset
+and replay, 38 integration checks with zero failures or skips, isolated service
+cleanup, and aggregate production build all passed. No deployment or merge has
+occurred.
