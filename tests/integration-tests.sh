@@ -12,6 +12,8 @@ set -uo pipefail
 
 API="http://localhost:8080/api"
 SKIP_E2E="${1:-}"
+TEST_ADMIN_PASSWORD="${TEST_ADMIN_PASSWORD:-}"
+COOKIE_JAR=$(mktemp)
 PASS=0
 FAIL=0
 SKIP=0
@@ -29,9 +31,38 @@ assert_status() {
 }
 
 jq_get() { echo "$1" | jq -r "$2" 2>/dev/null || echo ""; }
+curl() { command curl -b "$COOKIE_JAR" -c "$COOKIE_JAR" "$@"; }
+api_curl() { curl -s "$@"; }
+
+cleanup() { rm -f "$COOKIE_JAR"; }
+trap cleanup EXIT
+
+if [[ -z "$TEST_ADMIN_PASSWORD" ]]; then
+  echo "TEST_ADMIN_PASSWORD is required"
+  exit 1
+fi
+
+LOGIN_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/auth/login" \
+  -H "Content-Type: application/json" -d "{\"password\":\"$TEST_ADMIN_PASSWORD\"}")
+assert_status "Authenticate isolated integration-test session" "200" "$LOGIN_STATUS"
+
+UNLOCK_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/auth/admin-unlock" \
+  -H "Content-Type: application/json" -d "{\"password\":\"$TEST_ADMIN_PASSWORD\"}")
+assert_status "Unlock isolated integration-test admin session" "200" "$UNLOCK_STATUS"
+
+SEED_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/seed")
+if [[ "$SEED_STATUS" == "200" ]]; then
+  pass "Seed disposable integration database"
+else
+  fail "Seed disposable integration database" "status: $SEED_STATUS"
+fi
 
 # ── Seed data ─────────────────────────────────────────────────────────────────
-BRAND_ID="bdf550f7-5965-4b5a-a3d2-dc79eb654a33"
+BRAND_ID=$(api_curl "$API/brands" | jq -r 'map(select(.name == "AutoInsight")) | first | .id // empty')
+if [[ -z "$BRAND_ID" ]]; then
+  echo "AutoInsight seed brand was not found"
+  exit 1
+fi
 
 echo "============================================================"
 echo "Content OS — Integration Tests"
@@ -43,10 +74,10 @@ echo "============================================================"
 # =============================================================================
 section "1. Server reachability"
 
-S1=$(curl -s -o /dev/null -w "%{http_code}" "$API/brands")
+S1=$(api_curl -o /dev/null -w "%{http_code}" "$API/brands")
 assert_status "GET /api/brands returns 200" "200" "$S1"
 
-S2=$(curl -s -o /dev/null -w "%{http_code}" "$API/projects")
+S2=$(api_curl -o /dev/null -w "%{http_code}" "$API/projects")
 assert_status "GET /api/projects returns 200" "200" "$S2"
 
 # =============================================================================
@@ -416,7 +447,7 @@ echo "============================================================"
 echo "Results: $PASS passed | $FAIL failed | $SKIP skipped"
 echo "============================================================"
 
-if [[ "$FAIL" -gt "0" ]]; then
+if [[ "$FAIL" -gt "0" || "$SKIP" -gt "0" ]]; then
   echo "MILESTONE: BLOCKED — $FAIL test(s) failed"
   exit 1
 else

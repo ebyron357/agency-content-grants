@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowUpRight,
   Copy,
@@ -11,13 +11,13 @@ import {
   Instagram,
   Youtube,
   Twitter,
-} from 'lucide-react';
+} from "lucide-react";
 
-const GRAY = '#c9c9c9';
+const GRAY = "#c9c9c9";
 
 /* ---------- tiny memphis SVG bits ---------- */
 
-const Squiggle = ({ className = '', stroke = '#000', width = 90 }) => (
+const Squiggle = ({ className = "", stroke = "#000", width = 90 }) => (
   <svg
     className={className}
     width={width}
@@ -35,8 +35,16 @@ const Squiggle = ({ className = '', stroke = '#000', width = 90 }) => (
   </svg>
 );
 
-const ZigZag = ({ className = '', stroke = '#000' }) => (
-  <svg className={className} width="100%" height="14" viewBox="0 0 320 14" preserveAspectRatio="none" fill="none" aria-hidden="true">
+const ZigZag = ({ className = "", stroke = "#000" }) => (
+  <svg
+    className={className}
+    width="100%"
+    height="14"
+    viewBox="0 0 320 14"
+    preserveAspectRatio="none"
+    fill="none"
+    aria-hidden="true"
+  >
     <path
       d="M0 12 L16 2 L32 12 L48 2 L64 12 L80 2 L96 12 L112 2 L128 12 L144 2 L160 12 L176 2 L192 12 L208 2 L224 12 L240 2 L256 12 L272 2 L288 12 L304 2 L320 12"
       stroke={stroke}
@@ -45,21 +53,55 @@ const ZigZag = ({ className = '', stroke = '#000' }) => (
   </svg>
 );
 
-const Cross = ({ className = '', size = 18, color = '#000' }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 18 18" aria-hidden="true">
-    <path d="M2 2 L16 16 M16 2 L2 16" stroke={color} strokeWidth="3.5" strokeLinecap="round" />
+const Cross = ({ className = "", size = 18, color = "#000" }) => (
+  <svg
+    className={className}
+    width={size}
+    height={size}
+    viewBox="0 0 18 18"
+    aria-hidden="true"
+  >
+    <path
+      d="M2 2 L16 16 M16 2 L2 16"
+      stroke={color}
+      strokeWidth="3.5"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
-const HalfCircle = ({ className = '', size = 36, fill = '#000' }) => (
-  <svg className={className} width={size} height={size / 2} viewBox="0 0 36 18" aria-hidden="true">
+const HalfCircle = ({ className = "", size = 36, fill = "#000" }) => (
+  <svg
+    className={className}
+    width={size}
+    height={size / 2}
+    viewBox="0 0 36 18"
+    aria-hidden="true"
+  >
     <path d="M0 18 A18 18 0 0 1 36 18 Z" fill={fill} />
   </svg>
 );
 
-const Triangle = ({ className = '', size = 26, fill = 'none', stroke = '#000' }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">
-    <path d="M13 2 L24 23 L2 23 Z" fill={fill} stroke={stroke} strokeWidth="3" strokeLinejoin="round" />
+const Triangle = ({
+  className = "",
+  size = 26,
+  fill = "none",
+  stroke = "#000",
+}) => (
+  <svg
+    className={className}
+    width={size}
+    height={size}
+    viewBox="0 0 26 26"
+    aria-hidden="true"
+  >
+    <path
+      d="M13 2 L24 23 L2 23 Z"
+      fill={fill}
+      stroke={stroke}
+      strokeWidth="3"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
@@ -68,53 +110,53 @@ const Triangle = ({ className = '', size = 26, fill = 'none', stroke = '#000' })
 const LINKS = [
   {
     icon: ArrowUpRight,
-    label: 'Order the Launch Box',
-    sub: '4 dinners · serves 2 · $54 flat. That’s it.',
-    badge: 'NEW',
-    href: '#',
+    label: "Order the Launch Box",
+    sub: "4 dinners · serves 2 · $54 flat. That’s it.",
+    badge: "NEW",
+    href: "#",
     big: true,
   },
   {
     icon: Play,
-    label: 'Watch us cook box #1',
-    sub: '11 min, one take, no jump cuts hiding the mess',
-    href: '#',
+    label: "Watch us cook box #1",
+    sub: "11 min, one take, no jump cuts hiding the mess",
+    href: "#",
   },
   {
     icon: BookOpen,
-    label: 'This week’s 4 recipes',
-    sub: 'Smashed chickpea melts → 22 minutes',
-    href: '#',
+    label: "This week’s 4 recipes",
+    sub: "Smashed chickpea melts → 22 minutes",
+    href: "#",
   },
   {
     icon: Receipt,
-    label: 'The honest pricing page',
-    sub: 'Where every dollar of the $54 actually goes',
-    href: '#',
+    label: "The honest pricing page",
+    sub: "Where every dollar of the $54 actually goes",
+    href: "#",
   },
   {
     icon: Mail,
-    label: 'Tuesday email (1 per week)',
-    sub: 'A grocery list you can ignore and one good idea',
-    href: '#',
+    label: "Tuesday email (1 per week)",
+    sub: "A grocery list you can ignore and one good idea",
+    href: "#",
   },
 ];
 
 const SOCIALS = [
-  { icon: Instagram, label: 'Instagram' },
-  { icon: Youtube, label: 'YouTube' },
-  { icon: Twitter, label: 'Twitter' },
+  { icon: Instagram, label: "Instagram" },
+  { icon: Youtube, label: "YouTube" },
+  { icon: Twitter, label: "Twitter" },
 ];
 
 /* ---------- component ---------- */
 
 export default function App() {
   const [copied, setCopied] = useState(false);
-  const [hovered, setHovered] = useState(null);
+  const [hovered, setHovered] = useState<number | null>(null);
 
   const copyCode = () => {
     try {
-      navigator.clipboard?.writeText('FIRSTBOX');
+      navigator.clipboard?.writeText("FIRSTBOX");
     } catch (e) {}
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
@@ -179,11 +221,24 @@ export default function App() {
           {[...Array(2)].map((_, i) => (
             <span key={i} className="flex items-center">
               {[...Array(8)].map((_, j) => (
-                <span key={j} className="flex items-center text-white text-xs tracking-[0.3em] db-display">
+                <span
+                  key={j}
+                  className="flex items-center text-white text-xs tracking-[0.3em] db-display"
+                >
                   <span className="px-4">NOW SHIPPING</span>
-                  <span className="text-base leading-none" style={{ color: GRAY }}>✕</span>
+                  <span
+                    className="text-base leading-none"
+                    style={{ color: GRAY }}
+                  >
+                    ✕
+                  </span>
                   <span className="px-4">BOX №1</span>
-                  <span className="text-base leading-none" style={{ color: GRAY }}>●</span>
+                  <span
+                    className="text-base leading-none"
+                    style={{ color: GRAY }}
+                  >
+                    ●
+                  </span>
                 </span>
               ))}
             </span>
@@ -193,11 +248,25 @@ export default function App() {
 
       <main className="mx-auto w-full max-w-[640px] px-5 pb-20 pt-12 relative">
         {/* scattered decorations along the column */}
-        <Cross className="absolute left-1 top-40 rotate-12" color={GRAY} size={22} />
-        <Triangle className="absolute right-0 top-72 -rotate-12" stroke={GRAY} />
-        <HalfCircle className="absolute -left-2 top-[560px] rotate-90" fill={GRAY} />
+        <Cross
+          className="absolute left-1 top-40 rotate-12"
+          color={GRAY}
+          size={22}
+        />
+        <Triangle
+          className="absolute right-0 top-72 -rotate-12"
+          stroke={GRAY}
+        />
+        <HalfCircle
+          className="absolute -left-2 top-[560px] rotate-90"
+          fill={GRAY}
+        />
         <Cross className="absolute right-2 top-[760px] -rotate-12" size={16} />
-        <Squiggle className="absolute left-2 top-[980px] -rotate-6" stroke={GRAY} width={70} />
+        <Squiggle
+          className="absolute left-2 top-[980px] -rotate-6"
+          stroke={GRAY}
+          width={70}
+        />
 
         {/* ===== header ===== */}
         <motion.header
@@ -219,9 +288,7 @@ export default function App() {
                 className="h-full w-full object-cover grayscale contrast-125"
               />
             </div>
-            <div
-              className="absolute -bottom-3 -right-4 rotate-6 border-[3px] border-black bg-white px-2 py-0.5 text-[11px] db-display tracking-wide hard-shadow-sm"
-            >
+            <div className="absolute -bottom-3 -right-4 rotate-6 border-[3px] border-black bg-white px-2 py-0.5 text-[11px] db-display tracking-wide hard-shadow-sm">
               EST. TUESDAY
             </div>
           </div>
@@ -231,11 +298,17 @@ export default function App() {
             <br />
             <span className="relative inline-block">
               BASICALLY<span className="text-black">.</span>
-              <ZigZag className="absolute -bottom-3 left-0 w-full" stroke={GRAY} />
+              <ZigZag
+                className="absolute -bottom-3 left-0 w-full"
+                stroke={GRAY}
+              />
             </span>
           </h1>
 
-          <p className="mt-6 max-w-[440px] text-[15px] leading-relaxed font-medium" style={{ color: '#000' }}>
+          <p
+            className="mt-6 max-w-[440px] text-[15px] leading-relaxed font-medium"
+            style={{ color: "#000" }}
+          >
             We’re a meal kit for people who are not “foodies.” Four normal,
             genuinely good dinners a week. No 14-step sauces. No ingredients
             you’ll use once and bury in the pantry.
@@ -244,18 +317,20 @@ export default function App() {
           {/* stat strip */}
           <div className="mt-7 flex w-full border-4 border-black bg-white hard-shadow-gray">
             {[
-              ['22', 'min avg cook'],
-              ['$6.75', 'per plate'],
-              ['0', 'weird gadgets'],
+              ["22", "min avg cook"],
+              ["$6.75", "per plate"],
+              ["0", "weird gadgets"],
             ].map(([num, label], i) => (
               <div
                 key={label}
-                className={`flex-1 px-2 py-3 text-center ${i < 2 ? 'border-r-4 border-black' : ''} ${
-                  i === 1 ? 'bg-black text-white' : 'bg-white'
+                className={`flex-1 px-2 py-3 text-center ${i < 2 ? "border-r-4 border-black" : ""} ${
+                  i === 1 ? "bg-black text-white" : "bg-white"
                 }`}
               >
                 <div className="db-display text-xl leading-none">{num}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">{label}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">
+                  {label}
+                </div>
               </div>
             ))}
           </div>
@@ -284,9 +359,10 @@ export default function App() {
               Box №1 ships this Friday.
             </h2>
             <p className="mt-3 text-[14px] leading-relaxed font-medium">
-              We made 500 of them. Not artificial scarcity — that’s honestly all the
-              fridge space we could rent. Code below takes <span className="db-display">$10</span> off
-              your first box, forever-no-strings, cancel from the same page you ordered on.
+              We made 500 of them. Not artificial scarcity — that’s honestly all
+              the fridge space we could rent. Code below takes{" "}
+              <span className="db-display">$10</span> off your first box,
+              forever-no-strings, cancel from the same page you ordered on.
             </p>
 
             {/* promo code */}
@@ -296,17 +372,26 @@ export default function App() {
               style={{ boxShadow: `4px 4px 0 0 ${GRAY}` }}
             >
               <span className="flex items-center gap-3">
-                <span className="db-display text-lg tracking-[0.25em] text-white">FIRSTBOX</span>
-                <span className="hidden sm:inline text-[11px] uppercase tracking-widest font-bold" style={{ color: GRAY }}>
+                <span className="db-display text-lg tracking-[0.25em] text-white">
+                  FIRSTBOX
+                </span>
+                <span
+                  className="hidden sm:inline text-[11px] uppercase tracking-widest font-bold"
+                  style={{ color: GRAY }}
+                >
                   $10 off · tap to copy
                 </span>
               </span>
               <span className="grid h-9 w-9 place-items-center border-2 border-white bg-white text-black">
-                {copied ? <Check size={18} strokeWidth={3} /> : <Copy size={18} strokeWidth={2.5} />}
+                {copied ? (
+                  <Check size={18} strokeWidth={3} />
+                ) : (
+                  <Copy size={18} strokeWidth={2.5} />
+                )}
               </span>
             </button>
             <div className="mt-2 h-5 text-center text-[11px] font-bold uppercase tracking-[0.2em]">
-              {copied ? 'Copied. See? Easy.' : ''}
+              {copied ? "Copied. See? Easy." : ""}
             </div>
           </div>
         </motion.section>
@@ -335,35 +420,50 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.18 + i * 0.07 }}
                 className={`db-link hard-shadow group relative flex items-center gap-4 border-4 border-black px-5 py-4 ${
-                  link.big ? 'bg-black text-white' : 'bg-white text-black'
-                } ${i % 2 === 0 ? 'rotate-[-0.6deg]' : 'rotate-[0.6deg]'}`}
+                  link.big ? "bg-black text-white" : "bg-white text-black"
+                } ${i % 2 === 0 ? "rotate-[-0.6deg]" : "rotate-[0.6deg]"}`}
               >
                 <span
                   className={`grid h-12 w-12 shrink-0 place-items-center border-[3px] ${
-                    link.big ? 'border-white bg-white text-black' : 'border-black'
-                  } ${!link.big && isHover ? 'bg-black text-white' : ''} transition-colors duration-150 ${
-                    i % 2 === 0 ? 'rounded-full' : ''
+                    link.big
+                      ? "border-white bg-white text-black"
+                      : "border-black"
+                  } ${!link.big && isHover ? "bg-black text-white" : ""} transition-colors duration-150 ${
+                    i % 2 === 0 ? "rounded-full" : ""
                   }`}
-                  style={!link.big && !isHover && i % 3 === 1 ? { backgroundColor: GRAY } : undefined}
+                  style={
+                    !link.big && !isHover && i % 3 === 1
+                      ? { backgroundColor: GRAY }
+                      : undefined
+                  }
                 >
                   <Icon size={22} strokeWidth={2.5} />
                 </span>
 
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="db-display text-[15px] leading-snug">{link.label}</span>
+                    <span className="db-display text-[15px] leading-snug">
+                      {link.label}
+                    </span>
                     {link.badge && (
                       <span
                         className="db-display rotate-[-3deg] border-2 border-white px-1.5 py-0.5 text-[10px] tracking-widest"
-                        style={{ backgroundColor: GRAY, color: '#000', borderColor: '#000' }}
+                        style={{
+                          backgroundColor: GRAY,
+                          color: "#000",
+                          borderColor: "#000",
+                        }}
                       >
                         {link.badge}
                       </span>
                     )}
                   </span>
                   <span
-                    className={`mt-0.5 block truncate text-[12px] font-medium ${link.big ? '' : ''}`}
-                    style={{ color: link.big ? GRAY : '#000', opacity: link.big ? 1 : 0.65 }}
+                    className={`mt-0.5 block truncate text-[12px] font-medium ${link.big ? "" : ""}`}
+                    style={{
+                      color: link.big ? GRAY : "#000",
+                      opacity: link.big ? 1 : 0.65,
+                    }}
                   >
                     {link.sub}
                   </span>
@@ -372,7 +472,7 @@ export default function App() {
                 <ArrowUpRight
                   size={20}
                   strokeWidth={3}
-                  className={`shrink-0 transition-transform duration-150 ${isHover ? 'translate-x-1 -translate-y-1' : ''}`}
+                  className={`shrink-0 transition-transform duration-150 ${isHover ? "translate-x-1 -translate-y-1" : ""}`}
                 />
               </motion.a>
             );
@@ -389,11 +489,13 @@ export default function App() {
         >
           <HalfCircle className="absolute -top-[18px] left-8" />
           <p className="text-[13px] leading-relaxed font-bold">
-            Full honesty corner: we’re three people, one rented kitchen, and a van
-            named Gravy. If your box is late, it’s because the van is. Reply to any
-            email and a real person (probably Dana) answers within a day.
+            Full honesty corner: we’re three people, one rented kitchen, and a
+            van named Gravy. If your box is late, it’s because the van is. Reply
+            to any email and a real person (probably Dana) answers within a day.
           </p>
-          <p className="db-display mt-3 text-xs tracking-[0.2em]">— SAM, DANA & PRIYA</p>
+          <p className="db-display mt-3 text-xs tracking-[0.2em]">
+            — SAM, DANA & PRIYA
+          </p>
         </motion.section>
 
         {/* ===== footer ===== */}
@@ -405,7 +507,13 @@ export default function App() {
                 href="#"
                 aria-label={label}
                 className="db-link hard-shadow-sm grid h-12 w-12 place-items-center border-[3px] border-black bg-white"
-                style={i === 1 ? { borderRadius: '9999px' } : i === 2 ? { backgroundColor: GRAY } : undefined}
+                style={
+                  i === 1
+                    ? { borderRadius: "9999px" }
+                    : i === 2
+                      ? { backgroundColor: GRAY }
+                      : undefined
+                }
               >
                 <Icon size={20} strokeWidth={2.5} />
               </a>
@@ -414,7 +522,10 @@ export default function App() {
 
           <ZigZag className="w-40" />
 
-          <p className="text-center text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: '#000', opacity: 0.55 }}>
+          <p
+            className="text-center text-[11px] font-bold uppercase tracking-[0.25em]"
+            style={{ color: "#000", opacity: 0.55 }}
+          >
             dinner-basically.com · made in a regular kitchen · 2025
           </p>
         </footer>
