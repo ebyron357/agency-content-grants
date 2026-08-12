@@ -10,12 +10,11 @@ evidence-backed. Product implementation remains deferred.
 
 ## Current gate
 
-Recovery baseline validation on `fix/recovery-baseline-validation`. The local
-frozen install, repository-wide typecheck, Content OS tests, and aggregate
-production build pass. PostgreSQL-backed API and integration validation runs in
-the isolated GitHub Actions environment defined by
-`.github/workflows/recovery-baseline-validation.yml`; its final evidence must be
-recorded before the gate can pass.
+Recovery baseline validation on `fix/recovery-baseline-validation` is complete.
+The frozen install, repository-wide typecheck, 249 API tests, 10 Content OS
+tests, 30 shell integration checks, repeat migration/reset, service lifecycle,
+and aggregate production build pass in the isolated GitHub Actions environment
+defined by `.github/workflows/recovery-baseline-validation.yml`.
 
 ## Recovered baseline
 
@@ -64,7 +63,6 @@ in `docs/STAGE_0_EXECUTION_PLAN.md`.
 
 ## Next authorized stage
 
-Finish the isolated PostgreSQL CI validation, record exact test and build
-evidence, and obtain human review of the stabilization pull request into
-`recovery/replit-content-machine-source`. After that branch is accepted, PR #4
-may be recommended for human merge. No agent is authorized to merge or deploy.
+Obtain human review and merge approval for the stabilization pull request into
+`recovery/replit-content-machine-source`. With that stabilization included, PR
+#4 is recommended for human merge. No agent is authorized to merge or deploy.

@@ -59,8 +59,8 @@ paths.
 | `pnpm run typecheck`                       | PASS       | All library builds and all four typechecked workspace targets exited 0 with no diagnostics.                 |
 | `pnpm --filter @workspace/content-os test` | PASS       | 1 file passed; 10 tests passed; 0 failed.                                                                   |
 | `pnpm run build`                           | PASS       | Mockup Sandbox, API Server, and Content OS production builds completed after aggregate typecheck.           |
-| `pnpm --filter @workspace/api-server test` | CI PENDING | Runs against isolated PostgreSQL; exact totals will replace this entry.                                     |
-| `bash tests/integration-tests.sh`          | CI PENDING | Runs against the built API and isolated PostgreSQL with no skip flag; exact totals will replace this entry. |
+| `pnpm --filter @workspace/api-server test` | PASS       | 24 test files passed; 249 tests passed; 0 failed. All previously blocked database suites loaded.            |
+| `bash tests/integration-tests.sh`          | PASS       | 30 passed; 0 failed; 0 skipped against the built API and controlled test data.                              |
 
 ## Build-warning investigation
 
@@ -87,6 +87,6 @@ database/password values and the pre-existing `.env.example` placeholder. No
 
 ## Gate
 
-PENDING until the PostgreSQL-backed GitHub Actions run supplies complete API and
-integration totals with zero failures and zero skips. No deployment or merge has
-occurred.
+PASS. GitHub Actions run `31623061894` completed successfully: frozen install,
+typecheck, migrations, all test suites, full unskipped integration, service
+cleanup, and aggregate build passed. No deployment or merge occurred.
