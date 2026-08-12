@@ -1,0 +1,75 @@
+name: Recovery baseline validation
+
+on:
+  pull_request:
+    branches:
+      - recovery/replit-content-machine-source
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: content_machine_test
+          POSTGRES_PASSWORD: content_machine_test
+          POSTGRES_DB: content_machine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U content_machine_test -d content_machine_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      ALLOW_TEST_DATABASE_RESET: "true"
+      DATABASE_URL: postgresql://content_machine_test:content_machine_test@localhost:5432/content_machine_test
+      MIGRATIONS_DIR: ${{ github.workspace }}/lib/db/drizzle
+      SESSION_SECRET: test-session-secret-not-for-production
+      ADMIN_PASSWORD: test-admin-password-not-for-production
+      TEST_ADMIN_PASSWORD: test-admin-password-not-for-production
+      PORT: "8080"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck workspace
+        run: pnpm run typecheck
+      - name: Run API tests
+        run: pnpm --filter @workspace/api-server test
+      - name: Run Content OS tests
+        run: pnpm --filter @workspace/content-os test
+      - name: Prepare isolated integration database
+        run: pnpm --filter @workspace/api-server test:db:prepare
+      - name: Build API for integration tests
+        run: pnpm --filter @workspace/api-server build
+      - name: Start isolated API
+        run: |
+          pnpm --filter @workspace/api-server start > "$RUNNER_TEMP/content-machine-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/content-machine-api.pid"
+          for attempt in {1..30}; do
+            curl --fail --silent http://localhost:8080/api/healthz && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/content-machine-api.log"
+          exit 1
+      - name: Run integration tests
+        run: bash tests/integration-tests.sh
+      - name: Stop isolated API
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/content-machine-api.pid" ]]; then
+            kill "$(cat "$RUNNER_TEMP/content-machine-api.pid")" || true
+          fi
+      - name: Build complete workspace
+        run: pnpm run build

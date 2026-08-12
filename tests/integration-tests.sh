@@ -12,6 +12,8 @@ set -uo pipefail
 
 API="http://localhost:8080/api"
 SKIP_E2E="${1:-}"
+TEST_ADMIN_PASSWORD="${TEST_ADMIN_PASSWORD:-}"
+COOKIE_JAR=$(mktemp)
 PASS=0
 FAIL=0
 SKIP=0
@@ -29,9 +31,38 @@ assert_status() {
 }
 
 jq_get() { echo "$1" | jq -r "$2" 2>/dev/null || echo ""; }
+curl() { command curl -b "$COOKIE_JAR" -c "$COOKIE_JAR" "$@"; }
+api_curl() { curl -s "$@"; }
+
+cleanup() { rm -f "$COOKIE_JAR"; }
+trap cleanup EXIT
+
+if [[ -z "$TEST_ADMIN_PASSWORD" ]]; then
+  echo "TEST_ADMIN_PASSWORD is required"
+  exit 1
+fi
+
+LOGIN_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/auth/login" \
+  -H "Content-Type: application/json" -d "{\"password\":\"$TEST_ADMIN_PASSWORD\"}")
+assert_status "Authenticate isolated integration-test session" "200" "$LOGIN_STATUS"
+
+UNLOCK_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/auth/admin-unlock" \
+  -H "Content-Type: application/json" -d "{\"password\":\"$TEST_ADMIN_PASSWORD\"}")
+assert_status "Unlock isolated integration-test admin session" "200" "$UNLOCK_STATUS"
+
+SEED_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/seed")
+if [[ "$SEED_STATUS" == "200" ]]; then
+  pass "Seed disposable integration database"
+else
+  fail "Seed disposable integration database" "status: $SEED_STATUS"
+fi
 
 # ── Seed data ─────────────────────────────────────────────────────────────────
-BRAND_ID="bdf550f7-5965-4b5a-a3d2-dc79eb654a33"
+BRAND_ID=$(api_curl "$API/brands" | jq -r 'map(select(.name == "AutoInsight")) | first | .id // empty')
+if [[ -z "$BRAND_ID" ]]; then
+  echo "AutoInsight seed brand was not found"
+  exit 1
+fi
 
 echo "============================================================"
 echo "Content OS — Integration Tests"
@@ -43,10 +74,10 @@ echo "============================================================"
 # =============================================================================
 section "1. Server reachability"
 
-S1=$(curl -s -o /dev/null -w "%{http_code}" "$API/brands")
+S1=$(api_curl -o /dev/null -w "%{http_code}" "$API/brands")
 assert_status "GET /api/brands returns 200" "200" "$S1"
 
-S2=$(curl -s -o /dev/null -w "%{http_code}" "$API/projects")
+S2=$(api_curl -o /dev/null -w "%{http_code}" "$API/projects")
 assert_status "GET /api/projects returns 200" "200" "$S2"
 
 # =============================================================================
@@ -92,10 +123,14 @@ PROJ2_ID=$(jq_get "$PROJ2_JSON" '.id')
 if [[ -n "$PROJ2_ID" && "$PROJ2_ID" != "null" ]]; then
   pass "Create project for guard test ($PROJ2_ID)"
 
-  # Advance to drafting via PATCH
-  curl -s -X PATCH "$API/projects/$PROJ2_ID" \
-    -H "Content-Type: application/json" \
-    -d '{"workflowStage":"drafting"}' > /dev/null
+  FIRST_BRIEF=$(curl -s -X POST "$API/projects/$PROJ2_ID/generate-brief" \
+    -H "Content-Type: application/json")
+  FIRST_STAGE=$(jq_get "$FIRST_BRIEF" '.workflowStage')
+  if [[ "$FIRST_STAGE" == "drafting" ]]; then
+    pass "Initial generate-brief advances guard-test project to drafting"
+  else
+    fail "Initial generate-brief advances guard-test project" "stage=$FIRST_STAGE; resp=${FIRST_BRIEF:0:200}"
+  fi
 
   GUARD_JSON=$(curl -s -X POST "$API/projects/$PROJ2_ID/generate-brief" \
     -H "Content-Type: application/json")
@@ -115,37 +150,77 @@ fi
 # =============================================================================
 section "4. Export binary signatures"
 
-EXPORTS_JSON=$(curl -s "$API/projects" | jq -r '.[0].id // empty' 2>/dev/null || echo "")
-FIRST_PID="$EXPORTS_JSON"
+FIRST_PID="$PROJECT_ID"
 
 if [[ -n "$FIRST_PID" ]]; then
-  EXPORT_LIST=$(curl -s "$API/projects/$FIRST_PID/exports")
-  FIRST_EXPORT=$(echo "$EXPORT_LIST" | jq -r 'map(select(.status=="completed" and .fileUrl != null)) | first // empty' 2>/dev/null || echo "")
-  FILE_URL=$(echo "$FIRST_EXPORT" | jq -r '.fileUrl // empty' 2>/dev/null || echo "")
-  FORMAT=$(echo "$FIRST_EXPORT" | jq -r '.format // empty' 2>/dev/null || echo "")
+  # PROJECT_ID was created during this run after the disposable database reset.
+  # Requiring an empty export list proves a later artifact cannot be stale.
+  PRE_EXPORTS=$(curl -s "$API/projects/$FIRST_PID/exports")
+  PRE_EXPORT_COUNT=$(echo "$PRE_EXPORTS" | jq -r 'length' 2>/dev/null || echo "invalid")
+  if [[ "$PRE_EXPORT_COUNT" == "0" ]]; then
+    pass "Fresh test project has no preexisting exports"
+  else
+    fail "Fresh test project export isolation" "expected 0 exports before creation; got $PRE_EXPORT_COUNT; response=${PRE_EXPORTS:0:300}"
+  fi
+
+  EXPORT_CREATE=$(curl -s -X POST "$API/projects/$FIRST_PID/exports" \
+    -H "Content-Type: application/json" -d '{"format":"docx"}')
+  EXPORT_ID=$(jq_get "$EXPORT_CREATE" '.id')
+  FILE_URL=""
+  FIRST_EXPORT='{}'
+  if [[ -n "$EXPORT_ID" && "$EXPORT_ID" != "null" ]]; then
+    for _ in 1 2 3 4 5 6; do
+      sleep 5
+      FIRST_EXPORT=$(curl -s "$API/exports/$EXPORT_ID" 2>/dev/null || echo '{}')
+      FILE_URL=$(jq_get "$FIRST_EXPORT" '.fileUrl')
+      [[ "$(jq_get "$FIRST_EXPORT" '.status')" == "completed" ]] && break
+    done
+  fi
+
+  EXPORT_PROJECT_ID=$(jq_get "$FIRST_EXPORT" '.projectId')
+  EXPORT_FORMAT=$(jq_get "$FIRST_EXPORT" '.format')
+  EXPORT_STATUS=$(jq_get "$FIRST_EXPORT" '.status')
+  EXPORT_SIZE=$(jq_get "$FIRST_EXPORT" '.fileSizeBytes')
+
+  [[ "$EXPORT_PROJECT_ID" == "$FIRST_PID" ]] \
+    && pass "Created export belongs to this run's project ($FIRST_PID)" \
+    || fail "Created export project association" "expected projectId=$FIRST_PID; got $EXPORT_PROJECT_ID; exportId=$EXPORT_ID"
+  [[ "$EXPORT_FORMAT" == "docx" ]] \
+    && pass "Created export records requested format=docx" \
+    || fail "Created export format" "expected docx; got $EXPORT_FORMAT; exportId=$EXPORT_ID"
+  [[ "$EXPORT_STATUS" == "completed" ]] \
+    && pass "Created export reaches status=completed" \
+    || fail "Created export completion" "status=$EXPORT_STATUS; exportId=$EXPORT_ID; response=${FIRST_EXPORT:0:300}"
+  [[ "$EXPORT_SIZE" =~ ^[0-9]+$ && "$EXPORT_SIZE" -gt 0 ]] \
+    && pass "Created export records a positive file size ($EXPORT_SIZE bytes)" \
+    || fail "Created export recorded size" "expected positive integer; got $EXPORT_SIZE; exportId=$EXPORT_ID"
+
+  PROJECT_EXPORTS=$(curl -s "$API/projects/$FIRST_PID/exports")
+  LISTED_EXPORT_COUNT=$(echo "$PROJECT_EXPORTS" | jq -r --arg id "$EXPORT_ID" '[.[] | select(.id == $id)] | length' 2>/dev/null || echo "invalid")
+  [[ "$LISTED_EXPORT_COUNT" == "1" ]] \
+    && pass "Created export is uniquely listed for this run's project" \
+    || fail "Created export project listing" "expected one record for exportId=$EXPORT_ID; got $LISTED_EXPORT_COUNT"
 
   if [[ -n "$FILE_URL" && "$FILE_URL" != "null" ]]; then
     TMP_FILE=$(mktemp)
     curl -s "http://localhost:8080$FILE_URL" -o "$TMP_FILE"
-    if [[ "$FORMAT" == "docx" ]]; then
-      MAGIC=$(xxd -l 4 "$TMP_FILE" 2>/dev/null | head -1 | awk '{print $2}' || echo "")
-      if echo "$MAGIC" | grep -qi "504b"; then
-        pass "DOCX export has PK/ZIP binary header — real .docx file"
-      else fail "DOCX binary signature" "magic: $MAGIC"; fi
-    elif [[ "$FORMAT" == "pdf" ]]; then
-      MAGIC=$(head -c 4 "$TMP_FILE")
-      if [[ "$MAGIC" == "%PDF" ]]; then
-        pass "PDF export has %PDF header — real .pdf file"
-      else fail "PDF binary signature" "header: $MAGIC"; fi
-    else
-      pass "Export file exists (format=$FORMAT)"
-    fi
+    DOWNLOADED_SIZE=$(wc -c < "$TMP_FILE" 2>/dev/null || echo "0")
+    MAGIC=$(head -c 2 "$TMP_FILE")
+    [[ "$DOWNLOADED_SIZE" -gt 0 ]] \
+      && pass "Created export downloads as a nonempty file ($DOWNLOADED_SIZE bytes)" \
+      || fail "Created export download size" "download was empty; exportId=$EXPORT_ID; fileUrl=$FILE_URL"
+    [[ "$DOWNLOADED_SIZE" == "$EXPORT_SIZE" ]] \
+      && pass "Downloaded size matches the created export record" \
+      || fail "Created export size integrity" "recorded=$EXPORT_SIZE downloaded=$DOWNLOADED_SIZE; exportId=$EXPORT_ID"
+    [[ "$MAGIC" == "PK" ]] \
+      && pass "Created DOCX has PK/ZIP binary signature" \
+      || fail "Created DOCX binary signature" "expected PK; exportId=$EXPORT_ID; size=$DOWNLOADED_SIZE"
     rm -f "$TMP_FILE"
   else
-    skip "Binary signature (no completed exports found for first project)"
+    fail "Binary signature" "no completed DOCX export URL after polling"
   fi
 else
-  skip "Binary signature (no projects)"
+  fail "Binary signature" "no generated project available"
 fi
 
 # =============================================================================
@@ -416,7 +491,7 @@ echo "============================================================"
 echo "Results: $PASS passed | $FAIL failed | $SKIP skipped"
 echo "============================================================"
 
-if [[ "$FAIL" -gt "0" ]]; then
+if [[ "$FAIL" -gt "0" || "$SKIP" -gt "0" ]]; then
   echo "MILESTONE: BLOCKED — $FAIL test(s) failed"
   exit 1
 else
