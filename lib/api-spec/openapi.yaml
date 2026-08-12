@@ -1,0 +1,4244 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Multi-Brand AI Content Operating System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: brands
+  - name: projects
+  - name: research
+  - name: sources
+  - name: claims
+  - name: outlines
+  - name: documents
+  - name: quality
+  - name: repurposing
+  - name: exports
+  - name: providers
+  - name: blueprints
+  - name: dependencies
+  - name: dashboard
+  - name: storage
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Dashboard ───────────────────────────────────────────────────────────────
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard overview statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      responses:
+        "200":
+          description: Recent activity items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  # ─── Brands ──────────────────────────────────────────────────────────────────
+  /brands:
+    get:
+      operationId: listBrands
+      tags: [brands]
+      summary: List all brands
+      responses:
+        "200":
+          description: List of brands
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Brand"
+    post:
+      operationId: createBrand
+      tags: [brands]
+      summary: Create a new brand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+
+  /brands/{id}:
+    get:
+      operationId: getBrand
+      tags: [brands]
+      summary: Get a brand by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateBrand
+      tags: [brands]
+      summary: Update a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandUpdate"
+      responses:
+        "200":
+          description: Updated brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+    delete:
+      operationId: deleteBrand
+      tags: [brands]
+      summary: Delete a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /brands/{id}/audience-profiles:
+    get:
+      operationId: listAudienceProfiles
+      tags: [brands]
+      summary: List audience profiles for a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audience profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AudienceProfile"
+    post:
+      operationId: createAudienceProfile
+      tags: [brands]
+      summary: Add an audience profile to a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudienceProfileInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudienceProfile"
+
+  /audience-profiles/{id}:
+    patch:
+      operationId: updateAudienceProfile
+      tags: [brands]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudienceProfileUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudienceProfile"
+    delete:
+      operationId: deleteAudienceProfile
+      tags: [brands]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /brands/{id}/brand-facts:
+    get:
+      operationId: listBrandFacts
+      tags: [brands]
+      summary: List approved facts for a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Brand facts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrandFact"
+    post:
+      operationId: createBrandFact
+      tags: [brands]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandFactInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandFact"
+
+  /brand-facts/{id}:
+    patch:
+      operationId: updateBrandFact
+      tags: [brands]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandFactUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandFact"
+    delete:
+      operationId: deleteBrandFact
+      tags: [brands]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Projects ────────────────────────────────────────────────────────────────
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all content projects
+      parameters:
+        - name: brandId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new content project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get project details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{id}/workflow-status:
+    get:
+      operationId: getProjectWorkflowStatus
+      tags: [projects]
+      summary: Get the current workflow stage and progress for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Workflow status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowStatus"
+
+  # ─── Research ─────────────────────────────────────────────────────────────────
+  /projects/{id}/research-plan:
+    get:
+      operationId: getResearchPlan
+      tags: [research]
+      summary: Get the research plan for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Research plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchPlan"
+        "404":
+          description: Not found
+    post:
+      operationId: generateResearchPlan
+      tags: [research]
+      summary: Generate a research plan for a project (AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchPlanGenerate"
+      responses:
+        "200":
+          description: Research plan generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchPlan"
+
+  /research-plans/{id}:
+    patch:
+      operationId: updateResearchPlan
+      tags: [research]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchPlanUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchPlan"
+
+  /research-plans/{id}/approve:
+    post:
+      operationId: approveResearchPlan
+      tags: [research]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved research plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchPlan"
+
+  # ─── Sources ──────────────────────────────────────────────────────────────────
+  /projects/{id}/sources:
+    get:
+      operationId: listSources
+      tags: [sources]
+      summary: List sources for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+    post:
+      operationId: createSource
+      tags: [sources]
+      summary: Add a source to a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+
+  /sources/{id}:
+    get:
+      operationId: getSource
+      tags: [sources]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+    patch:
+      operationId: updateSource
+      tags: [sources]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceUpdate"
+      responses:
+        "200":
+          description: Updated source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+    delete:
+      operationId: deleteSource
+      tags: [sources]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /sources/{id}/approve:
+    post:
+      operationId: approveSource
+      tags: [sources]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+
+  /sources/{id}/reject:
+    post:
+      operationId: rejectSource
+      tags: [sources]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectNote"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+
+  /sources/{id}/fetch:
+    post:
+      operationId: fetchSourceContent
+      tags: [sources]
+      summary: Re-fetch and extract content from a URL source
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated source with extracted content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+
+  /projects/{id}/sources/upload-pdf:
+    post:
+      operationId: uploadPdfSource
+      tags: [sources]
+      summary: Upload a PDF file as a source for a project
+      description: |
+        Accepts a multipart/form-data upload containing a PDF file and optional
+        metadata. Extracts text from the PDF and stores the file in object
+        storage. Returns the created source record with extracted text.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PdfSourceUpload"
+      responses:
+        "201":
+          description: Source created with extracted PDF text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "400":
+          description: Missing file or invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Upload or extraction failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ─── Storage ──────────────────────────────────────────────────────────────────
+  /storage/uploads/request-url:
+    post:
+      tags: [storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [storage]
+      operationId: getPublicObject
+      summary: Serve a public asset from object storage
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ─── Claims ───────────────────────────────────────────────────────────────────
+  /projects/{id}/claims:
+    get:
+      operationId: listClaims
+      tags: [claims]
+      summary: List claims for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Claims
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Claim"
+    post:
+      operationId: createClaim
+      tags: [claims]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Claim"
+
+  /claims/{id}:
+    patch:
+      operationId: updateClaim
+      tags: [claims]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimUpdate"
+      responses:
+        "200":
+          description: Updated claim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Claim"
+    delete:
+      operationId: deleteClaim
+      tags: [claims]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /claims/{id}/verify:
+    post:
+      operationId: verifyClaim
+      tags: [claims]
+      summary: AI-verify a factual claim against its sources
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Claim with updated verification status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Claim"
+
+  # ─── Outlines ─────────────────────────────────────────────────────────────────
+  /projects/{id}/outline:
+    get:
+      operationId: getOutline
+      tags: [outlines]
+      summary: Get the outline for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Outline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outline"
+        "404":
+          description: Not found
+    post:
+      operationId: generateOutline
+      tags: [outlines]
+      summary: Generate an outline for a project (AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OutlineGenerate"
+      responses:
+        "200":
+          description: Generated outline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outline"
+
+  /outlines/{id}/approve:
+    post:
+      operationId: approveOutline
+      tags: [outlines]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved outline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outline"
+
+  /outline-sections/{id}:
+    patch:
+      operationId: updateOutlineSection
+      tags: [outlines]
+      summary: Update an outline section
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OutlineSectionUpdate"
+      responses:
+        "200":
+          description: Updated outline section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutlineSection"
+    delete:
+      operationId: deleteOutlineSection
+      tags: [outlines]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /outlines/{id}/sections:
+    post:
+      operationId: addOutlineSection
+      tags: [outlines]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OutlineSectionInput"
+      responses:
+        "201":
+          description: Created section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutlineSection"
+
+  /outlines/{id}/reorder:
+    post:
+      operationId: reorderOutlineSections
+      tags: [outlines]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectionOrder"
+      responses:
+        "200":
+          description: Reordered outline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outline"
+
+  # ─── Documents ────────────────────────────────────────────────────────────────
+  /projects/{id}/document:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get the document for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document with sections
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Not found
+    post:
+      operationId: initDocument
+      tags: [documents]
+      summary: Initialize a document from an approved outline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Document initialized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /document-sections/{id}:
+    get:
+      operationId: getDocumentSection
+      tags: [documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+    patch:
+      operationId: updateDocumentSection
+      tags: [documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentSectionUpdate"
+      responses:
+        "200":
+          description: Updated section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+
+  /document-sections/{id}/draft:
+    post:
+      operationId: draftDocumentSection
+      tags: [documents]
+      summary: Draft a document section using AI
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drafted section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+
+  /document-sections/{id}/edit:
+    post:
+      operationId: editDocumentSection
+      tags: [documents]
+      summary: AI edit a section (natural tone, developmental, continuity, proofread)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectionEditRequest"
+      responses:
+        "200":
+          description: Edited section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+
+  /document-sections/{id}/lock:
+    post:
+      operationId: lockDocumentSection
+      tags: [documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Locked section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+
+  /document-sections/{id}/unlock:
+    post:
+      operationId: unlockDocumentSection
+      tags: [documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Unlocked section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+
+  /document-sections/{id}/approve:
+    post:
+      operationId: approveDocumentSection
+      tags: [documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+
+  /document-sections/{id}/revisions:
+    get:
+      operationId: listSectionRevisions
+      tags: [documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Section revision history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SectionRevision"
+
+  /document-sections/{id}/restore:
+    post:
+      operationId: restoreSectionRevision
+      tags: [documents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreRevision"
+      responses:
+        "200":
+          description: Restored section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSection"
+
+  # ─── Quality ─────────────────────────────────────────────────────────────────
+  /projects/{id}/quality:
+    get:
+      operationId: getQualityEvaluation
+      tags: [quality]
+      summary: Get the latest quality evaluation for a project's document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quality evaluation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityEvaluation"
+        "404":
+          description: Not found
+    post:
+      operationId: runQualityEvaluation
+      tags: [quality]
+      summary: Run a quality evaluation on the project document (AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quality evaluation results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityEvaluation"
+
+  /quality-evaluations/{id}/issues/{issueId}/fix:
+    post:
+      operationId: fixQualityIssue
+      tags: [quality]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: issueId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Issue fixed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityIssue"
+
+  /projects/{id}/publication-readiness:
+    get:
+      operationId: getPublicationReadiness
+      tags: [quality]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Publication readiness status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicationReadiness"
+
+  # ─── Repurposing Engine ────────────────────────────────────────────────────────
+  /repurposing-channels:
+    get:
+      operationId: listRepurposingChannels
+      tags: [repurposing]
+      summary: List available repurposing channels and their guidance metadata
+      responses:
+        "200":
+          description: Channel catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepurposingChannel"
+
+  /projects/{id}/repurposing-batches:
+    get:
+      operationId: listRepurposingBatches
+      tags: [repurposing]
+      summary: List repurposing batches for a project, each with its generated assets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of batches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepurposingBatch"
+    post:
+      operationId: createRepurposingBatch
+      tags: [repurposing]
+      summary: Start a repurposing batch (generates one derivative asset per channel)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepurposingBatchInput"
+      responses:
+        "201":
+          description: Batch created (generation runs async)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposingBatch"
+
+  /repurposing-batches/{id}:
+    get:
+      operationId: getRepurposingBatch
+      tags: [repurposing]
+      summary: Poll a repurposing batch's status and generated assets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Batch with assets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposingBatch"
+
+  /projects/{id}/repurposed-assets:
+    get:
+      operationId: listRepurposedAssets
+      tags: [repurposing]
+      summary: Flat list of all repurposed assets for a project (review queue)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepurposedAsset"
+
+  /repurposed-assets/{id}:
+    get:
+      operationId: getRepurposedAsset
+      tags: [repurposing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposedAsset"
+    patch:
+      operationId: updateRepurposedAsset
+      tags: [repurposing]
+      summary: Edit an asset's title/content (versions the prior content before overwriting)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepurposedAssetUpdate"
+      responses:
+        "200":
+          description: Updated asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposedAsset"
+
+  /repurposed-assets/{id}/regenerate:
+    post:
+      operationId: regenerateRepurposedAsset
+      tags: [repurposing]
+      summary: Regenerate this asset (versions the prior content, resets approval)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Regenerated asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposedAsset"
+
+  /repurposed-assets/{id}/approve:
+    post:
+      operationId: approveRepurposedAsset
+      tags: [repurposing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposedAsset"
+
+  /repurposed-assets/{id}/reject:
+    post:
+      operationId: rejectRepurposedAsset
+      tags: [repurposing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rejected asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposedAsset"
+
+  /repurposed-assets/{id}/revisions:
+    get:
+      operationId: listRepurposedAssetRevisions
+      tags: [repurposing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Revision history, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepurposedAssetRevision"
+
+  /repurposed-assets/{id}/restore:
+    post:
+      operationId: restoreRepurposedAssetRevision
+      tags: [repurposing]
+      summary: Restore a prior revision's content (versions the current content first)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreRepurposedAssetRevisionInput"
+      responses:
+        "200":
+          description: Restored asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposedAsset"
+
+  /brands/{id}/repurposing-presets:
+    get:
+      operationId: listRepurposingPresets
+      tags: [repurposing]
+      summary: List saved tone/audience/CTA/length presets for a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Presets for this brand
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepurposingPreset"
+    post:
+      operationId: createRepurposingPreset
+      tags: [repurposing]
+      summary: Save the current tone/audience/CTA/length combination as a named preset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepurposingPresetInput"
+      responses:
+        "201":
+          description: Created preset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepurposingPreset"
+
+  /repurposing-presets/{id}:
+    delete:
+      operationId: deleteRepurposingPreset
+      tags: [repurposing]
+      summary: Delete a saved repurposing preset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Exports ─────────────────────────────────────────────────────────────────
+  /projects/{id}/exports:
+    get:
+      operationId: listExports
+      tags: [exports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of exports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Export"
+    post:
+      operationId: createExport
+      tags: [exports]
+      summary: Export the document in a specified format
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportInput"
+      responses:
+        "201":
+          description: Export created (may be async)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Export"
+
+  /exports/{id}:
+    get:
+      operationId: getExport
+      tags: [exports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Export record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Export"
+
+  # ─── Providers / Model Config ─────────────────────────────────────────────────
+  /providers:
+    get:
+      operationId: listProviders
+      tags: [providers]
+      summary: List AI provider configurations and status
+      responses:
+        "200":
+          description: Provider list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProviderConfig"
+    post:
+      operationId: upsertProvider
+      tags: [providers]
+      summary: Configure an AI provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderInput"
+      responses:
+        "200":
+          description: Updated provider config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderConfig"
+
+  /providers/{name}/test:
+    post:
+      operationId: testProvider
+      tags: [providers]
+      summary: Test connectivity for a provider
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderTestResult"
+
+  /model-config:
+    get:
+      operationId: getModelConfig
+      tags: [providers]
+      summary: Get the global model-role assignments
+      responses:
+        "200":
+          description: Model configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelConfig"
+    patch:
+      operationId: updateModelConfig
+      tags: [providers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelConfigUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelConfig"
+
+  # ─── Content Blueprints ───────────────────────────────────────────────────────
+  /blueprints:
+    get:
+      operationId: listBlueprints
+      tags: [blueprints]
+      summary: List content type blueprints
+      responses:
+        "200":
+          description: Blueprints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentBlueprint"
+    post:
+      operationId: createBlueprint
+      tags: [blueprints]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentBlueprintInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentBlueprint"
+
+  /blueprints/{id}:
+    get:
+      operationId: getBlueprint
+      tags: [blueprints]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Blueprint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentBlueprint"
+    patch:
+      operationId: updateBlueprint
+      tags: [blueprints]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentBlueprintUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentBlueprint"
+
+  # ─── Dependency Registry ──────────────────────────────────────────────────────
+  /dependencies:
+    get:
+      operationId: listDependencies
+      tags: [dependencies]
+      summary: List open-source dependency registry
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dependencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Dependency"
+
+  /dependencies/{id}:
+    patch:
+      operationId: updateDependency
+      tags: [dependencies]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DependencyUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dependency"
+
+  # ─── Generation Runs ──────────────────────────────────────────────────────────
+  /projects/{id}/generation-runs:
+    get:
+      operationId: listGenerationRuns
+      tags: [projects]
+      summary: List AI generation runs for a project (cost/usage tracking)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Generation runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GenerationRun"
+
+  # ─── Content Distribution (publishing) ─────────────────────────────────────────
+  /publishing-providers:
+    get:
+      operationId: listPublishProviders
+      tags: [publishing]
+      summary: List registered publish providers and whether each is configured
+      responses:
+        "200":
+          description: Provider status list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublishProviderStatus"
+
+  /brands/{id}/publishing-destinations:
+    get:
+      operationId: listPublishingDestinations
+      tags: [publishing]
+      summary: List publishing destinations connected to a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Destinations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublishingDestination"
+    post:
+      operationId: createPublishingDestination
+      tags: [publishing]
+      summary: Connect a new publishing destination for a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishingDestinationInput"
+      responses:
+        "201":
+          description: Created destination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishingDestination"
+
+  /publishing-destinations/{id}:
+    patch:
+      operationId: updatePublishingDestination
+      tags: [publishing]
+      summary: Update a publishing destination's label, account link, config, or active state
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishingDestinationUpdate"
+      responses:
+        "200":
+          description: Updated destination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishingDestination"
+    delete:
+      operationId: deletePublishingDestination
+      tags: [publishing]
+      summary: Remove a publishing destination
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "409":
+          description: >-
+            Refused — one or more scheduled/published publications still
+            reference this destination. Deactivate it (PATCH isActive=false)
+            instead of deleting, to keep that history intact.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  inUse:
+                    type: boolean
+                  publicationCount:
+                    type: number
+
+  /brands/{id}/scheduled-publications:
+    get:
+      operationId: listScheduledPublications
+      tags: [publishing]
+      summary: List scheduled/published items for a brand (calendar view)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scheduled publications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduledPublication"
+
+  /scheduled-publications:
+    post:
+      operationId: createScheduledPublication
+      tags: [publishing]
+      summary: Schedule (or immediately publish) an approved document or repurposed asset to a destination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduledPublicationInput"
+      responses:
+        "201":
+          description: Created scheduled publication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledPublication"
+
+  /scheduled-publications/{id}:
+    get:
+      operationId: getScheduledPublication
+      tags: [publishing]
+      summary: Get a scheduled publication with its attempt history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scheduled publication with attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledPublicationWithAttempts"
+
+  /scheduled-publications/{id}/attempts:
+    get:
+      operationId: listPublicationAttempts
+      tags: [publishing]
+      summary: List the visible attempt history for a scheduled publication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Attempt history, unsorted-safe (client should sort by attemptNumber)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicationAttempt"
+
+  /scheduled-publications/{id}/cancel:
+    patch:
+      operationId: cancelScheduledPublication
+      tags: [publishing]
+      summary: >-
+        Cancel a scheduled publication. A "pending" (never submitted) row is
+        cancelled purely in our database. A "queued" (already submitted to the
+        provider, not yet confirmed) row triggers a real provider-side
+        cancellation, not just a local status flip. If a provider call is in
+        flight right now, the cancel is recorded as best-effort and honored by
+        that call once it finishes.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cancelled publication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledPublication"
+        "202":
+          description: >-
+            Cancellation could not be confirmed immediately (a provider call
+            is in flight, or the provider could not cancel it right now) —
+            it will be honored if still possible once that finishes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelPendingResponse"
+        "409":
+          description: >-
+            The provider had already published this post before the
+            cancellation could take effect — it is published, not cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelPendingResponse"
+
+  /scheduled-publications/{id}/reschedule:
+    patch:
+      operationId: rescheduleScheduledPublication
+      tags: [publishing]
+      summary: Move a pending scheduled publication to a new time
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RescheduleInput"
+      responses:
+        "200":
+          description: Rescheduled publication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledPublication"
+
+  # ─── Content Performance Engine ────────────────────────────────────────────
+  /performance/publications:
+    get:
+      operationId: listPerformanceRows
+      tags: [performance]
+      summary: Every ingested publication's latest performance metrics, optionally scoped to one brand
+      parameters:
+        - name: brandId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Performance rows (only publications with at least one real ingested snapshot)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PerformanceRow"
+
+  /performance/best-worst:
+    get:
+      operationId: getPerformanceBestWorst
+      tags: [performance]
+      summary: Best/worst performer aggregation by channel, format, topic, campaign, or brand
+      parameters:
+        - name: brandId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dimension
+          in: query
+          required: false
+          schema:
+            type: string
+            description: "channel | format | topic | campaign | brand"
+        - name: metric
+          in: query
+          required: false
+          schema:
+            type: string
+            description: "impressions | engagementTotal | engagementRate | likes"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Best and worst aggregates for the requested dimension/metric
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformanceBestWorst"
+
+  /performance/publications/{id}/history:
+    get:
+      operationId: getPerformancePublicationHistory
+      tags: [performance]
+      summary: Full ordered snapshot history for one publication (for a trend chart)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Snapshot history, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PerformanceSnapshot"
+
+  /performance/ingest:
+    post:
+      operationId: triggerPerformanceIngest
+      tags: [performance]
+      summary: Manually trigger metrics ingestion now (bypasses the background scheduler's throttle), scoped to the caller's own brand(s)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerformanceIngestInput"
+      responses:
+        "200":
+          description: Ingestion result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformanceIngestResult"
+
+  /performance/recommendations:
+    get:
+      operationId: listPerformanceRecommendations
+      tags: [performance]
+      summary: Recompute (from real ingested data) and list evidence-backed recommendations
+      parameters:
+        - name: brandId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recommendations, pending first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PerformanceRecommendation"
+
+  /performance/recommendations/{id}:
+    patch:
+      operationId: updatePerformanceRecommendation
+      tags: [performance]
+      summary: Accept, dismiss, or reset a recommendation — the acceptance-tracking mechanism
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerformanceRecommendationUpdate"
+      responses:
+        "200":
+          description: Updated recommendation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformanceRecommendation"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    # ─── Dashboard ──────────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      required: [totalBrands, totalProjects, activeProjects, completedProjects, totalDocuments, totalSources, totalExports, projectsByStatus]
+      properties:
+        totalBrands:
+          type: number
+        totalProjects:
+          type: number
+        activeProjects:
+          type: number
+        completedProjects:
+          type: number
+        totalDocuments:
+          type: number
+        totalSources:
+          type: number
+        totalExports:
+          type: number
+        projectsByStatus:
+          type: object
+          additionalProperties:
+            type: number
+
+    ActivityItem:
+      type: object
+      required: [id, type, description, projectId, projectTitle, createdAt]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        projectId:
+          type: string
+        projectTitle:
+          type: string
+        brandName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Brands ──────────────────────────────────────────────────────────────────
+    Brand:
+      type: object
+      required: [id, name, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        industry:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        voiceDescription:
+          type: ["string", "null"]
+        tonePreferences:
+          type: ["string", "null"]
+        readingLevel:
+          type: ["string", "null"]
+        preferredVocabulary:
+          type: ["string", "null"]
+        prohibitedVocabulary:
+          type: ["string", "null"]
+        geographicFocus:
+          type: ["string", "null"]
+        complianceNotes:
+          type: ["string", "null"]
+        status:
+          type: string
+        projectCount:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BrandInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        industry:
+          type: string
+        website:
+          type: string
+        voiceDescription:
+          type: string
+        tonePreferences:
+          type: string
+        readingLevel:
+          type: string
+        preferredVocabulary:
+          type: string
+        prohibitedVocabulary:
+          type: string
+        geographicFocus:
+          type: string
+        complianceNotes:
+          type: string
+
+    BrandUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        industry:
+          type: string
+        website:
+          type: string
+        voiceDescription:
+          type: string
+        tonePreferences:
+          type: string
+        readingLevel:
+          type: string
+        preferredVocabulary:
+          type: string
+        prohibitedVocabulary:
+          type: string
+        geographicFocus:
+          type: string
+        complianceNotes:
+          type: string
+        status:
+          type: string
+
+    AudienceProfile:
+      type: object
+      required: [id, brandId, name, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        brandId:
+          type: string
+        name:
+          type: string
+        demographics:
+          type: ["string", "null"]
+        knowledgeLevel:
+          type: ["string", "null"]
+        painPoints:
+          type: ["string", "null"]
+        goals:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AudienceProfileInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        demographics:
+          type: string
+        knowledgeLevel:
+          type: string
+        painPoints:
+          type: string
+        goals:
+          type: string
+
+    AudienceProfileUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        demographics:
+          type: string
+        knowledgeLevel:
+          type: string
+        painPoints:
+          type: string
+        goals:
+          type: string
+
+    BrandFact:
+      type: object
+      required: [id, brandId, claim, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        brandId:
+          type: string
+        claim:
+          type: string
+        source:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BrandFactInput:
+      type: object
+      required: [claim]
+      properties:
+        claim:
+          type: string
+        source:
+          type: string
+
+    BrandFactUpdate:
+      type: object
+      properties:
+        claim:
+          type: string
+        source:
+          type: string
+        status:
+          type: string
+
+    # ─── Projects ────────────────────────────────────────────────────────────────
+    Project:
+      type: object
+      required: [id, brandId, title, contentType, status, workflowStage, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        brandId:
+          type: string
+        brandName:
+          type: ["string", "null"]
+        title:
+          type: string
+        topic:
+          type: ["string", "null"]
+        contentType:
+          type: string
+        purpose:
+          type: ["string", "null"]
+        intendedAudience:
+          type: ["string", "null"]
+        audienceKnowledgeLevel:
+          type: ["string", "null"]
+        desiredReaderOutcome:
+          type: ["string", "null"]
+        geographicFocus:
+          type: ["string", "null"]
+        targetLength:
+          type: ["string", "null"]
+        tone:
+          type: ["string", "null"]
+        readingLevel:
+          type: ["string", "null"]
+        pointOfView:
+          type: ["string", "null"]
+        researchFreshness:
+          type: ["string", "null"]
+        citationRequirement:
+          type: ["string", "null"]
+        requiredSections:
+          type: ["string", "null"]
+        subjectsToAvoid:
+          type: ["string", "null"]
+        wordsToAvoid:
+          type: ["string", "null"]
+        additionalInstructions:
+          type: ["string", "null"]
+        status:
+          type: string
+        workflowStage:
+          type: string
+        blueprintId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProjectInput:
+      type: object
+      required: [brandId, title, contentType]
+      properties:
+        brandId:
+          type: string
+        title:
+          type: string
+          minLength: 1
+        topic:
+          type: string
+        contentType:
+          type: string
+        purpose:
+          type: string
+        intendedAudience:
+          type: string
+        audienceKnowledgeLevel:
+          type: string
+        desiredReaderOutcome:
+          type: string
+        geographicFocus:
+          type: string
+        targetLength:
+          type: string
+        tone:
+          type: string
+        readingLevel:
+          type: string
+        pointOfView:
+          type: string
+        researchFreshness:
+          type: string
+        citationRequirement:
+          type: string
+        requiredSections:
+          type: string
+        subjectsToAvoid:
+          type: string
+        wordsToAvoid:
+          type: string
+        additionalInstructions:
+          type: string
+        blueprintId:
+          type: string
+
+    ProjectUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        topic:
+          type: string
+        contentType:
+          type: string
+        purpose:
+          type: string
+        intendedAudience:
+          type: string
+        audienceKnowledgeLevel:
+          type: string
+        desiredReaderOutcome:
+          type: string
+        geographicFocus:
+          type: string
+        targetLength:
+          type: string
+        tone:
+          type: string
+        readingLevel:
+          type: string
+        pointOfView:
+          type: string
+        researchFreshness:
+          type: string
+        citationRequirement:
+          type: string
+        requiredSections:
+          type: string
+        subjectsToAvoid:
+          type: string
+        wordsToAvoid:
+          type: string
+        additionalInstructions:
+          type: string
+        status:
+          type: string
+        workflowStage:
+          type: string
+
+    WorkflowStatus:
+      type: object
+      required: [projectId, currentStage, stages]
+      properties:
+        projectId:
+          type: string
+        currentStage:
+          type: string
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowStageStatus"
+        isBlocked:
+          type: boolean
+        blockingReason:
+          type: ["string", "null"]
+
+    WorkflowStageStatus:
+      type: object
+      required: [stage, label, status]
+      properties:
+        stage:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+
+    # ─── Research ─────────────────────────────────────────────────────────────────
+    ResearchPlan:
+      type: object
+      required: [id, projectId, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        summary:
+          type: ["string", "null"]
+        timeframeStart:
+          type: ["string", "null"]
+        timeframeEnd:
+          type: ["string", "null"]
+        geographicBoundaries:
+          type: ["string", "null"]
+        sourceCategories:
+          type: ["string", "null"]
+        potentialConflicts:
+          type: ["string", "null"]
+        missingInformation:
+          type: ["string", "null"]
+        status:
+          type: string
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResearchQuestion"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ResearchQuestion:
+      type: object
+      required: [id, researchPlanId, question, priority, status]
+      properties:
+        id:
+          type: string
+        researchPlanId:
+          type: string
+        question:
+          type: string
+        priority:
+          type: number
+        status:
+          type: string
+        answer:
+          type: ["string", "null"]
+
+    ResearchPlanGenerate:
+      type: object
+      properties:
+        additionalContext:
+          type: string
+
+    ResearchPlanUpdate:
+      type: object
+      properties:
+        summary:
+          type: string
+        timeframeStart:
+          type: string
+        timeframeEnd:
+          type: string
+        geographicBoundaries:
+          type: string
+        sourceCategories:
+          type: string
+        potentialConflicts:
+          type: string
+        missingInformation:
+          type: string
+
+    # ─── Sources ─────────────────────────────────────────────────────────────────
+    Source:
+      type: object
+      required: [id, projectId, title, sourceType, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        url:
+          type: ["string", "null"]
+        publisher:
+          type: ["string", "null"]
+        author:
+          type: ["string", "null"]
+        publicationDate:
+          type: ["string", "null"]
+        retrievalDate:
+          type: ["string", "null"]
+        sourceType:
+          type: string
+        extractedText:
+          type: ["string", "null"]
+        relevantExcerpts:
+          type: ["string", "null"]
+        authorityScore:
+          type: ["number", "null"]
+        freshnessScore:
+          type: ["number", "null"]
+        isPrimarySource:
+          type: boolean
+        status:
+          type: string
+        rejectionReason:
+          type: ["string", "null"]
+        fileObjectPath:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SourceInput:
+      type: object
+      required: [title, sourceType]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        publisher:
+          type: string
+        author:
+          type: string
+        publicationDate:
+          type: string
+        sourceType:
+          type: string
+        extractedText:
+          type: string
+        relevantExcerpts:
+          type: string
+        isPrimarySource:
+          type: boolean
+
+    SourceUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        publisher:
+          type: string
+        author:
+          type: string
+        publicationDate:
+          type: string
+        relevantExcerpts:
+          type: string
+        authorityScore:
+          type: number
+        freshnessScore:
+          type: number
+        isPrimarySource:
+          type: boolean
+
+    RejectNote:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    PdfSourceUpload:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          description: PDF file to upload (binary)
+        title:
+          type: string
+          description: Source title (defaults to filename if omitted)
+        publisher:
+          type: string
+        author:
+          type: string
+        publicationDate:
+          type: string
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+        size:
+          type: number
+        contentType:
+          type: string
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    # ─── Claims ──────────────────────────────────────────────────────────────────
+    Claim:
+      type: object
+      required: [id, projectId, claimText, claimType, verificationStatus, conflictStatus, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        claimText:
+          type: string
+        claimType:
+          type: string
+        sourceId:
+          type: ["string", "null"]
+        sourceTitle:
+          type: ["string", "null"]
+        supportingExcerpt:
+          type: ["string", "null"]
+        confidence:
+          type: ["number", "null"]
+        timeSensitive:
+          type: boolean
+        verificationStatus:
+          type: string
+        conflictStatus:
+          type: string
+        reviewerDecision:
+          type: ["string", "null"]
+        reviewerNotes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ClaimInput:
+      type: object
+      required: [claimText, claimType]
+      properties:
+        claimText:
+          type: string
+        claimType:
+          type: string
+        sourceId:
+          type: string
+        supportingExcerpt:
+          type: string
+        confidence:
+          type: number
+        timeSensitive:
+          type: boolean
+
+    ClaimUpdate:
+      type: object
+      properties:
+        claimText:
+          type: string
+        verificationStatus:
+          type: string
+        conflictStatus:
+          type: string
+        reviewerDecision:
+          type: string
+        reviewerNotes:
+          type: string
+
+    # ─── Outlines ─────────────────────────────────────────────────────────────────
+    Outline:
+      type: object
+      required: [id, projectId, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        status:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/OutlineSection"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OutlineSection:
+      type: object
+      required: [id, outlineId, title, sortOrder, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        outlineId:
+          type: string
+        title:
+          type: string
+        purpose:
+          type: ["string", "null"]
+        questionsAnswered:
+          type: ["string", "null"]
+        targetWordCount:
+          type: ["number", "null"]
+        readerOutcome:
+          type: ["string", "null"]
+        examples:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        sortOrder:
+          type: number
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OutlineSectionInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        purpose:
+          type: string
+        questionsAnswered:
+          type: string
+        targetWordCount:
+          type: number
+        readerOutcome:
+          type: string
+        examples:
+          type: string
+        notes:
+          type: string
+        sortOrder:
+          type: number
+
+    OutlineSectionUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        purpose:
+          type: string
+        questionsAnswered:
+          type: string
+        targetWordCount:
+          type: number
+        readerOutcome:
+          type: string
+        examples:
+          type: string
+        notes:
+          type: string
+        sortOrder:
+          type: number
+        status:
+          type: string
+
+    OutlineGenerate:
+      type: object
+      properties:
+        additionalContext:
+          type: string
+
+    SectionOrder:
+      type: object
+      required: [sectionIds]
+      properties:
+        sectionIds:
+          type: array
+          items:
+            type: string
+
+    # ─── Documents ────────────────────────────────────────────────────────────────
+    Document:
+      type: object
+      required: [id, projectId, title, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        wordCount:
+          type: ["number", "null"]
+        isPublicationReady:
+          type: boolean
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSection"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DocumentSection:
+      type: object
+      required: [id, documentId, title, sortOrder, status, isLocked, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        documentId:
+          type: string
+        outlineSectionId:
+          type: ["string", "null"]
+        title:
+          type: string
+        content:
+          type: ["string", "null"]
+        wordCount:
+          type: ["number", "null"]
+        sortOrder:
+          type: number
+        status:
+          type: string
+        isLocked:
+          type: boolean
+        isApproved:
+          type: boolean
+        naturalToneScore:
+          type: ["number", "null"]
+        factAccuracyScore:
+          type: ["number", "null"]
+        revisionCount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DocumentSectionUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+
+    SectionEditRequest:
+      type: object
+      required: [editType]
+      properties:
+        editType:
+          type: string
+          description: "natural_tone | developmental | continuity | proofread | shorten | expand | simplify"
+        instructions:
+          type: string
+
+    SectionRevision:
+      type: object
+      required: [id, documentSectionId, content, revisionNumber, editType, createdAt]
+      properties:
+        id:
+          type: string
+        documentSectionId:
+          type: string
+        content:
+          type: string
+        revisionNumber:
+          type: number
+        editType:
+          type: string
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    RestoreRevision:
+      type: object
+      required: [revisionId]
+      properties:
+        revisionId:
+          type: string
+
+    # ─── Quality ─────────────────────────────────────────────────────────────────
+    QualityEvaluation:
+      type: object
+      required: [id, projectId, documentId, overallPass, isPublicationReady, createdAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        documentId:
+          type: string
+        accuracyScore:
+          type: ["number", "null"]
+        citationScore:
+          type: ["number", "null"]
+        sourceQualityScore:
+          type: ["number", "null"]
+        coverageScore:
+          type: ["number", "null"]
+        coherenceScore:
+          type: ["number", "null"]
+        continuityScore:
+          type: ["number", "null"]
+        naturalnessScore:
+          type: ["number", "null"]
+        usefulnessScore:
+          type: ["number", "null"]
+        audienceFitScore:
+          type: ["number", "null"]
+        brandFitScore:
+          type: ["number", "null"]
+        readabilityScore:
+          type: ["number", "null"]
+        repetitionScore:
+          type: ["number", "null"]
+        overallPass:
+          type: boolean
+        isPublicationReady:
+          type: boolean
+        summary:
+          type: ["string", "null"]
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/QualityIssue"
+        createdAt:
+          type: string
+          format: date-time
+
+    QualityIssue:
+      type: object
+      required: [id, evaluationId, category, severity, description, status]
+      properties:
+        id:
+          type: string
+        evaluationId:
+          type: string
+        documentSectionId:
+          type: ["string", "null"]
+        category:
+          type: string
+        severity:
+          type: string
+        description:
+          type: string
+        suggestedFix:
+          type: ["string", "null"]
+        status:
+          type: string
+
+    PublicationReadiness:
+      type: object
+      required: [projectId, isReady, blockers, warnings]
+      properties:
+        projectId:
+          type: string
+        isReady:
+          type: boolean
+        blockers:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        completedChecks:
+          type: array
+          items:
+            type: string
+
+    # ─── Exports ─────────────────────────────────────────────────────────────────
+    Export:
+      type: object
+      required: [id, projectId, documentId, format, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        documentId:
+          type: string
+        format:
+          type: string
+        status:
+          type: string
+        fileUrl:
+          type: ["string", "null"]
+        fileSizeBytes:
+          type: ["number", "null"]
+        validationPassed:
+          type: ["boolean", "null"]
+        validationNotes:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ExportInput:
+      type: object
+      required: [format]
+      properties:
+        format:
+          type: string
+          description: "docx | pdf | markdown | html | txt"
+
+    # ─── Repurposing Engine ─────────────────────────────────────────────────────────
+    RepurposingChannel:
+      type: object
+      required: [key, label, platform, defaultLength, guidance]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        platform:
+          type: string
+        defaultLength:
+          type: string
+        guidance:
+          type: string
+
+    RepurposedAsset:
+      type: object
+      required: [id, projectId, batchId, documentId, channel, content, status, isApproved, versionNumber, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        batchId:
+          type: string
+        documentId:
+          type: string
+        documentSectionId:
+          type: ["string", "null"]
+        channel:
+          type: string
+        title:
+          type: ["string", "null"]
+        content:
+          type: string
+        tone:
+          type: ["string", "null"]
+        audience:
+          type: ["string", "null"]
+        cta:
+          type: ["string", "null"]
+        targetLength:
+          type: ["string", "null"]
+        status:
+          type: string
+          description: "draft | approved | rejected"
+        isApproved:
+          type: boolean
+        versionNumber:
+          type: number
+        brandCheckScore:
+          type: ["number", "null"]
+        brandCheckPassed:
+          type: ["boolean", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    RepurposedAssetUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+
+    RepurposedAssetRevision:
+      type: object
+      required: [id, repurposedAssetId, content, versionNumber, wasApproved, editType, createdAt]
+      properties:
+        id:
+          type: string
+        repurposedAssetId:
+          type: string
+        title:
+          type: ["string", "null"]
+        content:
+          type: string
+        versionNumber:
+          type: number
+        wasApproved:
+          type: boolean
+        editType:
+          type: string
+          description: "regenerate | manual_edit"
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    RepurposingBatch:
+      type: object
+      required: [id, projectId, documentId, channels, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        documentId:
+          type: string
+        documentSectionId:
+          type: ["string", "null"]
+        campaignName:
+          type: ["string", "null"]
+        channels:
+          type: array
+          items:
+            type: string
+        tone:
+          type: ["string", "null"]
+        audience:
+          type: ["string", "null"]
+        cta:
+          type: ["string", "null"]
+        targetLength:
+          type: ["string", "null"]
+        additionalInstructions:
+          type: ["string", "null"]
+        status:
+          type: string
+          description: "processing | completed | failed | partial"
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepurposedAsset"
+
+    RestoreRepurposedAssetRevisionInput:
+      type: object
+      required: [revisionId]
+      properties:
+        revisionId:
+          type: string
+
+    RepurposingBatchInput:
+      type: object
+      required: [channels]
+      properties:
+        channels:
+          type: array
+          items:
+            type: string
+        documentSectionId:
+          type: string
+          description: "Omit to repurpose the whole document"
+        campaignName:
+          type: string
+        tone:
+          type: string
+        audience:
+          type: string
+        cta:
+          type: string
+        targetLength:
+          type: string
+        additionalInstructions:
+          type: string
+
+    RepurposingPreset:
+      type: object
+      required: [id, brandId, name, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        brandId:
+          type: string
+        name:
+          type: string
+        tone:
+          type: ["string", "null"]
+        audience:
+          type: ["string", "null"]
+        cta:
+          type: ["string", "null"]
+        targetLength:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    RepurposingPresetInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        tone:
+          type: string
+        audience:
+          type: string
+        cta:
+          type: string
+        targetLength:
+          type: string
+
+    # ─── Providers ────────────────────────────────────────────────────────────────
+    ProviderConfig:
+      type: object
+      required: [name, displayName, isConfigured, status]
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: ["string", "null"]
+        isConfigured:
+          type: boolean
+        status:
+          type: string
+        availableModels:
+          type: array
+          items:
+            type: string
+        lastTestedAt:
+          type: ["string", "null"]
+
+    ProviderInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        isEnabled:
+          type: boolean
+        defaultModel:
+          type: string
+
+    ProviderTestResult:
+      type: object
+      required: [provider, success, message]
+      properties:
+        provider:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+        latencyMs:
+          type: ["number", "null"]
+
+    ModelConfig:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        planningModel:
+          type: ["string", "null"]
+        researchModel:
+          type: ["string", "null"]
+        outlineModel:
+          type: ["string", "null"]
+        writingModel:
+          type: ["string", "null"]
+        editingModel:
+          type: ["string", "null"]
+        verificationModel:
+          type: ["string", "null"]
+        evaluationModel:
+          type: ["string", "null"]
+        utilityModel:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+          format: date-time
+
+    ModelConfigUpdate:
+      type: object
+      properties:
+        planningModel:
+          type: string
+        researchModel:
+          type: string
+        outlineModel:
+          type: string
+        writingModel:
+          type: string
+        editingModel:
+          type: string
+        verificationModel:
+          type: string
+        evaluationModel:
+          type: string
+        utilityModel:
+          type: string
+
+    # ─── Blueprints ──────────────────────────────────────────────────────────────
+    ContentBlueprint:
+      type: object
+      required: [id, name, contentType, isDefault, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        contentType:
+          type: string
+        description:
+          type: ["string", "null"]
+        structureDefinition:
+          type: ["string", "null"]
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ContentBlueprintInput:
+      type: object
+      required: [name, contentType]
+      properties:
+        name:
+          type: string
+        contentType:
+          type: string
+        description:
+          type: string
+        structureDefinition:
+          type: string
+        isDefault:
+          type: boolean
+
+    ContentBlueprintUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        structureDefinition:
+          type: string
+        isDefault:
+          type: boolean
+
+    # ─── Dependencies ────────────────────────────────────────────────────────────
+    Dependency:
+      type: object
+      required: [id, repositorySlug, componentName, purpose, category, installStatus, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        repositorySlug:
+          type: string
+        componentName:
+          type: string
+        purpose:
+          type: string
+        category:
+          type: string
+        installedVersion:
+          type: ["string", "null"]
+        pinnedVersion:
+          type: ["string", "null"]
+        license:
+          type: ["string", "null"]
+        repositoryStatus:
+          type: ["string", "null"]
+        installStatus:
+          type: string
+        replacementOption:
+          type: ["string", "null"]
+        securityReviewStatus:
+          type: ["string", "null"]
+        maintenanceNotes:
+          type: ["string", "null"]
+        knownRisks:
+          type: ["string", "null"]
+        decisionReason:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DependencyUpdate:
+      type: object
+      properties:
+        installedVersion:
+          type: string
+        pinnedVersion:
+          type: string
+        installStatus:
+          type: string
+        securityReviewStatus:
+          type: string
+        maintenanceNotes:
+          type: string
+        knownRisks:
+          type: string
+
+    # ─── Generation Runs ─────────────────────────────────────────────────────────
+    GenerationRun:
+      type: object
+      required: [id, projectId, pipelineStage, provider, model, status, createdAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        documentSectionId:
+          type: ["string", "null"]
+        pipelineStage:
+          type: string
+        provider:
+          type: string
+        model:
+          type: string
+        inputTokens:
+          type: ["number", "null"]
+        outputTokens:
+          type: ["number", "null"]
+        estimatedCostUsd:
+          type: ["number", "null"]
+        latencyMs:
+          type: ["number", "null"]
+        retryCount:
+          type: number
+        status:
+          type: string
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Content Distribution (publishing) ─────────────────────────────────────────
+    PublishProviderStatus:
+      type: object
+      required: [name, isConfigured]
+      properties:
+        name:
+          type: string
+        isConfigured:
+          type: boolean
+
+    PublishingDestination:
+      type: object
+      required: [id, brandId, provider, platform, label, isActive, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        brandId:
+          type: string
+        provider:
+          type: string
+          description: "demo | typefully"
+        platform:
+          type: string
+          description: "x | linkedin | threads | bluesky | mastodon | demo"
+        label:
+          type: string
+        externalAccountId:
+          type: ["string", "null"]
+        config:
+          type: ["object", "null"]
+          additionalProperties: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PublishingDestinationInput:
+      type: object
+      required: [provider, platform, label]
+      properties:
+        provider:
+          type: string
+        platform:
+          type: string
+        label:
+          type: string
+        externalAccountId:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+
+    PublishingDestinationUpdate:
+      type: object
+      properties:
+        label:
+          type: string
+        externalAccountId:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+        isActive:
+          type: boolean
+
+    ScheduledPublication:
+      type: object
+      required: [id, brandId, projectId, destinationId, sourceType, content, scheduledFor, status, attemptCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        brandId:
+          type: string
+        projectId:
+          type: string
+        destinationId:
+          type: string
+        sourceType:
+          type: string
+          description: "document | repurposed_asset"
+        documentId:
+          type: ["string", "null"]
+        repurposedAssetId:
+          type: ["string", "null"]
+        title:
+          type: ["string", "null"]
+        content:
+          type: string
+        scheduledFor:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: >-
+            pending | publishing | queued | confirming | published | failed |
+            cancelled | cancelling. "publishing"/"confirming"/"cancelling" are
+            short-lived states while a provider call is actually in flight —
+            treat them the same as "pending"/"queued" for display purposes.
+        attemptCount:
+          type: number
+        lastAttemptAt:
+          type: ["string", "null"]
+          format: date-time
+        lastError:
+          type: ["string", "null"]
+        externalPostId:
+          type: ["string", "null"]
+        externalUrl:
+          type: ["string", "null"]
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CancelPendingResponse:
+      type: object
+      required: [message, publication]
+      properties:
+        message:
+          type: string
+        publication:
+          $ref: "#/components/schemas/ScheduledPublication"
+
+    ScheduledPublicationWithAttempts:
+      allOf:
+        - $ref: "#/components/schemas/ScheduledPublication"
+        - type: object
+          properties:
+            attempts:
+              type: array
+              items:
+                $ref: "#/components/schemas/PublicationAttempt"
+
+    ScheduledPublicationInput:
+      type: object
+      required: [destinationId, sourceType]
+      properties:
+        destinationId:
+          type: string
+        sourceType:
+          type: string
+          description: "document | repurposed_asset"
+        documentId:
+          type: string
+        repurposedAssetId:
+          type: string
+        scheduledFor:
+          type: string
+          format: date-time
+          description: "Omit to publish immediately"
+
+    RescheduleInput:
+      type: object
+      required: [scheduledFor]
+      properties:
+        scheduledFor:
+          type: string
+          format: date-time
+
+    PublicationAttempt:
+      type: object
+      required: [id, scheduledPublicationId, attemptNumber, outcome, createdAt]
+      properties:
+        id:
+          type: string
+        scheduledPublicationId:
+          type: string
+        attemptNumber:
+          type: number
+        outcome:
+          type: string
+          description: "success | failure | confirmed | still_pending"
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Content Performance Engine ────────────────────────────────────────────
+    PerformanceLatestMetrics:
+      type: object
+      required: [impressions, engagementTotal, likes, comments, shares]
+      properties:
+        impressions:
+          type: number
+        engagementTotal:
+          type: number
+        likes:
+          type: number
+        comments:
+          type: number
+        shares:
+          type: number
+
+    PerformanceGrowth:
+      type: object
+      required: [impressions, engagementTotal]
+      properties:
+        impressions:
+          type: number
+        engagementTotal:
+          type: number
+
+    PerformanceRow:
+      type: object
+      required:
+        - scheduledPublicationId
+        - brandId
+        - brandName
+        - projectId
+        - projectTitle
+        - destinationId
+        - channel
+        - format
+        - source
+        - snapshotCount
+        - firstCapturedAt
+        - latestCapturedAt
+        - latest
+        - growth
+      properties:
+        scheduledPublicationId:
+          type: string
+        brandId:
+          type: string
+        brandName:
+          type: string
+        projectId:
+          type: string
+        projectTitle:
+          type: string
+        topic:
+          type: ["string", "null"]
+        destinationId:
+          type: string
+        channel:
+          type: string
+        format:
+          type: string
+          description: "'document' (full-length original) or the repurposed asset's channel key"
+        campaignId:
+          type: ["string", "null"]
+        campaignName:
+          type: ["string", "null"]
+        title:
+          type: ["string", "null"]
+        externalUrl:
+          type: ["string", "null"]
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        source:
+          type: string
+          description: "Which provider produced the latest snapshot: 'typefully' | 'demo'. Demo rows are simulated data, never real platform numbers."
+        snapshotCount:
+          type: number
+        firstCapturedAt:
+          type: string
+          format: date-time
+        latestCapturedAt:
+          type: string
+          format: date-time
+        latest:
+          $ref: "#/components/schemas/PerformanceLatestMetrics"
+        growth:
+          $ref: "#/components/schemas/PerformanceGrowth"
+        engagementRate:
+          type: ["number", "null"]
+
+    PerformanceDimensionAggregate:
+      type: object
+      required: [label, value, publicationCount]
+      properties:
+        label:
+          type: string
+        value:
+          type: number
+        publicationCount:
+          type: number
+
+    PerformanceBestWorst:
+      type: object
+      required: [best, worst, excludedSimulatedPublications]
+      properties:
+        best:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceDimensionAggregate"
+        worst:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceDimensionAggregate"
+        excludedSimulatedPublications:
+          type: number
+          description: >-
+            Count of published items excluded from these rankings because
+            their metrics came from the local demo/simulated provider, not a
+            real connected platform. Rankings are only ever computed from
+            real ingested data; a non-zero count here means simulated data
+            exists but was correctly left out of "best/worst" evidence.
+
+    PerformanceSnapshot:
+      type: object
+      required: [id, scheduledPublicationId, source, externalPostId, impressions, engagementTotal, likes, comments, shares, capturedAt]
+      properties:
+        id:
+          type: string
+        scheduledPublicationId:
+          type: string
+        source:
+          type: string
+        externalPostId:
+          type: string
+        postUrl:
+          type: ["string", "null"]
+        impressions:
+          type: number
+        engagementTotal:
+          type: number
+        likes:
+          type: number
+        comments:
+          type: number
+        shares:
+          type: number
+        quotes:
+          type: ["number", "null"]
+        saves:
+          type: ["number", "null"]
+        profileClicks:
+          type: ["number", "null"]
+        linkClicks:
+          type: ["number", "null"]
+        capturedAt:
+          type: string
+          format: date-time
+
+    PerformanceIngestInput:
+      type: object
+      properties:
+        brandId:
+          type: string
+          description: "Omit to ingest across every brand the caller owns"
+
+    PerformanceIngestResult:
+      type: object
+      required: [destinationsChecked, snapshotsInserted]
+      properties:
+        destinationsChecked:
+          type: number
+        snapshotsInserted:
+          type: number
+
+    PerformanceRecommendation:
+      type: object
+      required: [id, brandId, kind, title, rationale, evidence, subjectType, subjectLabel, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        brandId:
+          type: string
+        kind:
+          type: string
+          description: "repurpose_top_performer | double_down_channel | topic_momentum | format_underperformance"
+        title:
+          type: string
+        rationale:
+          type: string
+          description: "Always frames evidence as correlation, never unsupported causation"
+        evidence:
+          type: object
+          additionalProperties: true
+        subjectType:
+          type: string
+          description: "document | channel | topic | format"
+        subjectId:
+          type: ["string", "null"]
+        subjectLabel:
+          type: string
+        status:
+          type: string
+          description: "pending | accepted | dismissed"
+        actedAt:
+          type: ["string", "null"]
+          format: date-time
+        actedNote:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PerformanceRecommendationUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: "accepted | dismissed | pending"
+        note:
+          type: string

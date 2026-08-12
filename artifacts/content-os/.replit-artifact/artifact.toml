@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Content OS"
+version = "1.0.0"
+id = "artifacts/content-os"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19454
+
+[services.development]
+run = "pnpm --filter @workspace/content-os run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/content-os", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/content-os/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19454"
+BASE_PATH = "/"
