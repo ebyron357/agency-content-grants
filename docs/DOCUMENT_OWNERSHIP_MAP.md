@@ -8,6 +8,7 @@
 | `docs/PROGRAM_CHARTER.md` | Strategic intent and boundaries | Product owner | Product owner approval required |
 | `docs/STAGE_0_EXECUTION_PLAN.md` | Ordered Stage 0 work | Program lead | Approved PR |
 | `docs/PROJECT_STATUS.md` | Current source of truth | Program lead | Updated by every accepted work package |
+| `docs/GO_NO_GO_DECISION.md` | Human approval gate for implementation or limited exceptions | Product owner | Human product-owner approval required |
 | `docs/governance/*` | Customer, data, ownership, and approval policy | Product owner | Product owner approval required for final decisions |
 | `docs/licensing/*` | Dependency and license evidence | Technical lead | Legal review where obligations are material |
 | `docs/architecture/*` | ADRs and architecture evidence | Technical lead | Product owner approves material cost/ownership tradeoffs |

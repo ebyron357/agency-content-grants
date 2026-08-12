@@ -6,7 +6,8 @@ The authoritative Replit Content Machine source has been recovered on
 `recovery/replit-content-machine-source` at commit
 `fba398e2945fc39405b9bdf2543b28df4aac65ee`. The owner has authorized only the
 baseline stabilization needed to make that recovery executable and
-evidence-backed. Product implementation remains deferred.
+evidence-backed. That human authorization is recorded in
+`docs/GO_NO_GO_DECISION.md`. Product implementation remains deferred.
 
 ## Current gate
 
@@ -14,7 +15,8 @@ Recovery baseline validation on `fix/recovery-baseline-validation` is complete.
 The frozen install, repository-wide typecheck, 249 API tests, 10 Content OS
 tests, 30 shell integration checks, repeat migration/reset, service lifecycle,
 and aggregate production build pass in the isolated GitHub Actions environment
-defined by `.github/workflows/recovery-baseline-validation.yml`.
+defined by `.github/workflows/recovery-baseline-validation.yml`. Review-driven
+export verification hardening is now pending complete revalidation.
 
 ## Recovered baseline
 
@@ -41,7 +43,8 @@ Authorized baseline-only repairs:
   applicable.
 
 Current executable evidence is maintained in
-`docs/recovery/RECOVERY_VALIDATION.md`.
+`docs/recovery/RECOVERY_VALIDATION.md`; the scope and limits of the human
+authorization are maintained in `docs/GO_NO_GO_DECISION.md`.
 
 ## Remaining restrictions
 

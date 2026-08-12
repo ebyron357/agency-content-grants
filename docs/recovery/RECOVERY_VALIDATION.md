@@ -6,6 +6,10 @@ Recovery commit: `fba398e2945fc39405b9bdf2543b28df4aac65ee`
 
 Stabilization branch: `fix/recovery-baseline-validation`
 
+Human authorization: `docs/GO_NO_GO_DECISION.md` records the product owner's
+limited GO for recovery-baseline stabilization. Product implementation and
+deployment remain NO-GO.
+
 ## Environment
 
 - Local: Windows x64, Node.js `v24.15.0`, pnpm `11.16.0`
@@ -60,7 +64,7 @@ paths.
 | `pnpm --filter @workspace/content-os test` | PASS       | 1 file passed; 10 tests passed; 0 failed.                                                                   |
 | `pnpm run build`                           | PASS       | Mockup Sandbox, API Server, and Content OS production builds completed after aggregate typecheck.           |
 | `pnpm --filter @workspace/api-server test` | PASS       | 24 test files passed; 249 tests passed; 0 failed. All previously blocked database suites loaded.            |
-| `bash tests/integration-tests.sh`          | PASS       | 30 passed; 0 failed; 0 skipped against the built API and controlled test data.                              |
+| `bash tests/integration-tests.sh`          | PENDING    | Review hardening now requires a fresh project, zero preexisting exports, exact project/format association, unique API listing, completed status, positive recorded/download size, server validation, and DOCX signature. |
 
 ## Build-warning investigation
 
@@ -87,6 +91,7 @@ database/password values and the pre-existing `.env.example` placeholder. No
 
 ## Gate
 
-PASS. GitHub Actions run `31623061894` completed successfully: frozen install,
-typecheck, migrations, all test suites, full unskipped integration, service
-cleanup, and aggregate build passed. No deployment or merge occurred.
+PENDING. The previously passing baseline is being revalidated after review-driven
+export-check hardening and creation of the required traceable human-authorization
+artifact. This gate returns to PASS only after the complete workflow succeeds
+with zero skipped checks. No deployment or merge has occurred.

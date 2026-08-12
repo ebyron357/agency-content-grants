@@ -153,11 +153,21 @@ section "4. Export binary signatures"
 FIRST_PID="$PROJECT_ID"
 
 if [[ -n "$FIRST_PID" ]]; then
+  # PROJECT_ID was created during this run after the disposable database reset.
+  # Requiring an empty export list proves a later artifact cannot be stale.
+  PRE_EXPORTS=$(curl -s "$API/projects/$FIRST_PID/exports")
+  PRE_EXPORT_COUNT=$(echo "$PRE_EXPORTS" | jq -r 'length' 2>/dev/null || echo "invalid")
+  if [[ "$PRE_EXPORT_COUNT" == "0" ]]; then
+    pass "Fresh test project has no preexisting exports"
+  else
+    fail "Fresh test project export isolation" "expected 0 exports before creation; got $PRE_EXPORT_COUNT; response=${PRE_EXPORTS:0:300}"
+  fi
+
   EXPORT_CREATE=$(curl -s -X POST "$API/projects/$FIRST_PID/exports" \
     -H "Content-Type: application/json" -d '{"format":"docx"}')
   EXPORT_ID=$(jq_get "$EXPORT_CREATE" '.id')
   FILE_URL=""
-  FORMAT="docx"
+  FIRST_EXPORT='{}'
   if [[ -n "$EXPORT_ID" && "$EXPORT_ID" != "null" ]]; then
     for _ in 1 2 3 4 5 6; do
       sleep 5
@@ -167,22 +177,45 @@ if [[ -n "$FIRST_PID" ]]; then
     done
   fi
 
+  EXPORT_PROJECT_ID=$(jq_get "$FIRST_EXPORT" '.projectId')
+  EXPORT_FORMAT=$(jq_get "$FIRST_EXPORT" '.format')
+  EXPORT_STATUS=$(jq_get "$FIRST_EXPORT" '.status')
+  EXPORT_SIZE=$(jq_get "$FIRST_EXPORT" '.fileSizeBytes')
+  EXPORT_VALID=$(jq_get "$FIRST_EXPORT" '.validationPassed')
+
+  [[ "$EXPORT_PROJECT_ID" == "$FIRST_PID" ]] \
+    && pass "Created export belongs to this run's project ($FIRST_PID)" \
+    || fail "Created export project association" "expected projectId=$FIRST_PID; got $EXPORT_PROJECT_ID; exportId=$EXPORT_ID"
+  [[ "$EXPORT_FORMAT" == "docx" ]] \
+    && pass "Created export records requested format=docx" \
+    || fail "Created export format" "expected docx; got $EXPORT_FORMAT; exportId=$EXPORT_ID"
+  [[ "$EXPORT_STATUS" == "completed" ]] \
+    && pass "Created export reaches status=completed" \
+    || fail "Created export completion" "status=$EXPORT_STATUS; exportId=$EXPORT_ID; response=${FIRST_EXPORT:0:300}"
+  [[ "$EXPORT_SIZE" =~ ^[0-9]+$ && "$EXPORT_SIZE" -gt 0 ]] \
+    && pass "Created export records a positive file size ($EXPORT_SIZE bytes)" \
+    || fail "Created export recorded size" "expected positive integer; got $EXPORT_SIZE; exportId=$EXPORT_ID"
+  [[ "$EXPORT_VALID" == "true" ]] \
+    && pass "Created export passes server-side validation" \
+    || fail "Created export server validation" "validationPassed=$EXPORT_VALID; exportId=$EXPORT_ID"
+
+  PROJECT_EXPORTS=$(curl -s "$API/projects/$FIRST_PID/exports")
+  LISTED_EXPORT_COUNT=$(echo "$PROJECT_EXPORTS" | jq -r --arg id "$EXPORT_ID" '[.[] | select(.id == $id)] | length' 2>/dev/null || echo "invalid")
+  [[ "$LISTED_EXPORT_COUNT" == "1" ]] \
+    && pass "Created export is uniquely listed for this run's project" \
+    || fail "Created export project listing" "expected one record for exportId=$EXPORT_ID; got $LISTED_EXPORT_COUNT"
+
   if [[ -n "$FILE_URL" && "$FILE_URL" != "null" ]]; then
     TMP_FILE=$(mktemp)
     curl -s "http://localhost:8080$FILE_URL" -o "$TMP_FILE"
-    if [[ "$FORMAT" == "docx" ]]; then
-      MAGIC=$(xxd -l 4 "$TMP_FILE" 2>/dev/null | head -1 | awk '{print $2}' || echo "")
-      if echo "$MAGIC" | grep -qi "504b"; then
-        pass "DOCX export has PK/ZIP binary header — real .docx file"
-      else fail "DOCX binary signature" "magic: $MAGIC"; fi
-    elif [[ "$FORMAT" == "pdf" ]]; then
-      MAGIC=$(head -c 4 "$TMP_FILE")
-      if [[ "$MAGIC" == "%PDF" ]]; then
-        pass "PDF export has %PDF header — real .pdf file"
-      else fail "PDF binary signature" "header: $MAGIC"; fi
-    else
-      pass "Export file exists (format=$FORMAT)"
-    fi
+    DOWNLOADED_SIZE=$(wc -c < "$TMP_FILE" 2>/dev/null || echo "0")
+    MAGIC=$(head -c 2 "$TMP_FILE")
+    [[ "$DOWNLOADED_SIZE" -gt 0 ]] \
+      && pass "Created export downloads as a nonempty file ($DOWNLOADED_SIZE bytes)" \
+      || fail "Created export download size" "download was empty; exportId=$EXPORT_ID; fileUrl=$FILE_URL"
+    [[ "$MAGIC" == "PK" ]] \
+      && pass "Created DOCX has PK/ZIP binary signature" \
+      || fail "Created DOCX binary signature" "expected PK; exportId=$EXPORT_ID; size=$DOWNLOADED_SIZE"
     rm -f "$TMP_FILE"
   else
     fail "Binary signature" "no completed DOCX export URL after polling"
