@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,400..700;1,400..700&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+:root {
+  --background: 40 33% 98%;
+  --foreground: 220 20% 10%;
+  --border: 40 15% 85%;
+  --input: 40 15% 85%;
+  --ring: 350 75% 45%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 220 20% 10%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 20% 10%;
+
+  --primary: 350 75% 45%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 15% 90%;
+  --secondary-foreground: 220 20% 10%;
+
+  --muted: 40 20% 90%;
+  --muted-foreground: 220 10% 40%;
+
+  --accent: 40 30% 92%;
+  --accent-foreground: 220 20% 10%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --radius: 0.3rem;
+}
+
+.dark {
+  --background: 220 20% 8%;
+  --foreground: 40 33% 98%;
+  --border: 220 15% 20%;
+  --input: 220 15% 20%;
+  --ring: 350 75% 45%;
+
+  --card: 220 20% 12%;
+  --card-foreground: 40 33% 98%;
+
+  --popover: 220 20% 12%;
+  --popover-foreground: 40 33% 98%;
+
+  --primary: 350 75% 55%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 15% 20%;
+  --secondary-foreground: 40 33% 98%;
+
+  --muted: 220 15% 20%;
+  --muted-foreground: 220 10% 60%;
+
+  --accent: 220 15% 20%;
+  --accent-foreground: 40 33% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 40 33% 98%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight text-foreground font-semibold;
+  }
+}
