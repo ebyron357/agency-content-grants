@@ -44,9 +44,12 @@ these conditions hold:
    `postgres`.
 5. The database name ends in `_test`.
 
-The API Vitest global setup drops and recreates only the guarded database's
-`public` schema, then runs every migration. The same guarded preparation command
-runs before integration tests. Direct tests prove the accept and refusal paths.
+The API Vitest global setup drops and recreates the guarded database's `public`
+schema, removes the disposable database's Drizzle migration ledger, then runs
+every migration. Clearing both is required so repeated resets cannot leave an
+empty schema paired with stale migration records. The same guarded preparation
+command runs before integration tests. Direct tests prove the accept and refusal
+paths.
 
 ## Command evidence
 
