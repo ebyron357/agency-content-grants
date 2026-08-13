@@ -60,10 +60,22 @@ const CONTENT_TYPES = [
     icon: BookOpen,
   },
   {
+    value: "manual",
+    label: "Manual",
+    description: "Comprehensive reference doc",
+    icon: BookMarked,
+  },
+  {
+    value: "report",
+    label: "Report",
+    description: "Data-driven findings",
+    icon: BarChart3,
+  },
+  {
     value: "whitepaper",
     label: "White Paper",
     description: "Research-backed analysis",
-    icon: BookMarked,
+    icon: StickyNote,
   },
   {
     value: "newsletter",
@@ -76,12 +88,6 @@ const CONTENT_TYPES = [
     label: "Ebook",
     description: "Long-form downloadable",
     icon: StickyNote,
-  },
-  {
-    value: "report",
-    label: "Report",
-    description: "Data-driven findings",
-    icon: BarChart3,
   },
   {
     value: "sop",
