@@ -1,4 +1,9 @@
 import { Router, type IRouter } from "express";
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+import multer from "multer";
 import { db } from "@workspace/db";
 import {
   documentsTable,
@@ -9,7 +14,6 @@ import {
   projectsTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { randomUUID } from "crypto";
 import { draftSection, editSection } from "../lib/workflows/content-workflow";
 import { getProjectOwned, getSectionOwned } from "../middleware/ownershipHelpers";
 import { logActivity } from "../lib/activity";
@@ -197,6 +201,88 @@ router.post("/document-sections/:id/restore", async (req, res): Promise<void> =>
     revisionCount: section.revisionCount + 1,
   }).where(eq(documentSectionsTable.id, id)).returning();
   res.json(updated);
+});
+
+// ── Image upload for document content ──────────────────────────────────────
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]);
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_IMAGE_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Unsupported image type: ${file.mimetype}. Allowed: ${[...ALLOWED_IMAGE_TYPES].join(", ")}`));
+    }
+  },
+}).single("image");
+
+// Resolve upload directory relative to the working directory
+const uploadDir = process.env.UPLOAD_DIR ?? path.resolve(process.cwd(), "uploads", "images");
+
+router.post("/projects/:id/images/upload", (req, res, next) => {
+  imageUpload(req, res, (err) => {
+    if (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : "Upload failed" });
+      return;
+    }
+    next();
+  });
+}, async (req, res): Promise<void> => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const project = await getProjectOwned(id, req.session.userId!, res);
+  if (!project) return;
+
+  const file = (req as any).file;
+  if (!file) {
+    res.status(400).json({ error: "No image file provided" });
+    return;
+  }
+
+  try {
+    const ext = file.originalname.split(".").pop() ?? "bin";
+    const filename = `${randomUUID()}.${ext}`;
+    const projectDir = path.join(uploadDir, id);
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(path.join(projectDir, filename), file.buffer);
+
+    const imageUrl = `/api/projects/${id}/images/${filename}`;
+    const altText = req.body?.altText ?? file.originalname.replace(/\.[^.]+$/, "");
+    const caption = req.body?.caption ?? "";
+
+    res.status(201).json({
+      url: imageUrl,
+      filename,
+      altText,
+      caption,
+      size: file.size,
+      contentType: file.mimetype,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Image upload failed");
+    res.status(500).json({ error: "Image upload failed" });
+  }
+});
+
+// Serve uploaded images
+router.get("/projects/:id/images/:filename", async (req, res): Promise<void> => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const filename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
+
+  // Validate filename to prevent path traversal
+  if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
+
+  const filePath = path.join(uploadDir, id, filename);
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      res.status(404).json({ error: "Image not found" });
+    }
+  });
 });
 
 export default router;

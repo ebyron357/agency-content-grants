@@ -34,7 +34,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useDraftAllSections, type SectionProgress } from '@/hooks/useDraftAllSections';
-import { ChevronLeft, Sparkles, CheckCircle, XCircle, Loader2, Lock, Unlock, Download, Plus, Trash2, AlertTriangle, RefreshCw, FileText, Upload, Send } from 'lucide-react';
+import { ChevronLeft, Sparkles, CheckCircle, XCircle, Loader2, Lock, Unlock, Download, Plus, Trash2, AlertTriangle, RefreshCw, FileText, Upload, Send, ImagePlus, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -531,6 +531,11 @@ function EditorTab({ projectId }: { projectId: string }) {
   const [manualContent, setManualContent] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showVideoDialog, setShowVideoDialog] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   const refresh = () => qc.invalidateQueries({ queryKey: getGetDocumentQueryKey(projectId) });
   const sections = (doc as any)?.sections ?? [];
@@ -560,6 +565,65 @@ function EditorTab({ projectId }: { projectId: string }) {
       }, 1500);
     }
   }, [selected, saveContent]);
+
+  // Insert text at cursor position in textarea
+  const insertAtCursor = useCallback((text: string) => {
+    const textarea = textareaRef.current;
+    const current = manualContent ?? selected?.content ?? '';
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = current.substring(0, start) + text + current.substring(end);
+      handleContentChange(newValue);
+      // Restore cursor position after the inserted text
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + text.length;
+        textarea.focus();
+      });
+    } else {
+      handleContentChange(current + '\n' + text);
+    }
+  }, [manualContent, selected, handleContentChange]);
+
+  // Handle image file upload
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (!selected) return;
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('altText', file.name.replace(/\.[^.]+$/, ''));
+      const res = await fetch(`/api/projects/${projectId}/images/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      insertAtCursor(`\n![${data.altText}](${data.url})\n`);
+    } catch {
+      setSaveStatus('error');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [selected, projectId, insertAtCursor]);
+
+  // Validate and insert video embed
+  const SAFE_VIDEO_HOSTS = ['youtube.com', 'www.youtube.com', 'youtu.be', 'vimeo.com', 'www.vimeo.com', 'player.vimeo.com'];
+  const handleVideoEmbed = useCallback(() => {
+    try {
+      const url = new URL(videoUrl);
+      if (!SAFE_VIDEO_HOSTS.includes(url.hostname)) {
+        alert('Only YouTube and Vimeo URLs are supported for video embedding.');
+        return;
+      }
+      insertAtCursor(`\n[video](${videoUrl})\n`);
+      setVideoUrl('');
+      setShowVideoDialog(false);
+    } catch {
+      alert('Please enter a valid URL.');
+    }
+  }, [videoUrl, insertAtCursor]);
 
   // Flush pending save on section switch
   useEffect(() => {
@@ -655,6 +719,24 @@ function EditorTab({ projectId }: { projectId: string }) {
                     </Button>
                   </>
                 )}
+                <div className="border-l border-stone-200 h-6 mx-1" />
+                <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ''; }} />
+                <Button variant="outline" className="gap-1.5 text-xs h-8" onClick={() => imageInputRef.current?.click()} disabled={isUploading}>
+                  {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+                  Image
+                </Button>
+                <Button variant="outline" className="gap-1.5 text-xs h-8" onClick={() => setShowVideoDialog(true)}>
+                  <Video className="w-3.5 h-3.5" />
+                  Video
+                </Button>
+              </div>
+            )}
+
+            {showVideoDialog && (
+              <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3">
+                <Input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="YouTube or Vimeo URL…" className="text-xs h-8 flex-1" onKeyDown={e => e.key === 'Enter' && handleVideoEmbed()} />
+                <Button onClick={handleVideoEmbed} className="bg-[#C8102E] hover:bg-[#a80d25] text-white text-xs h-8">Embed</Button>
+                <Button variant="outline" onClick={() => { setShowVideoDialog(false); setVideoUrl(''); }} className="text-xs h-8">Cancel</Button>
               </div>
             )}
 
@@ -668,6 +750,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                 </div>
               ) : (
                 <textarea
+                  ref={textareaRef}
                   className="flex-1 w-full p-6 text-sm text-stone-700 leading-relaxed resize-none focus:outline-none font-sans"
                   value={displayContent}
                   onChange={e => !selected.isLocked && handleContentChange(e.target.value)}
