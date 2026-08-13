@@ -1,28 +1,42 @@
 # Project Status
 
-**Canonical status date:** 2026-08-12
+**Canonical status date:** 2026-08-13
 
 **Repository:** `ebyron357/agency-content-grants`
 
-**Current verified `main`:** `6eeead8ec49a04eb788597b75c1e6f326339608e`
+**Current verified `main`:** `fab0c888f007b84e43170e7a013839847f4b83ac`
 
-**Lifecycle state:** Recovery complete; production closeout not complete
+**Lifecycle state:** Recovery complete; active product closeout authorized; production closeout not yet complete
 
-**Production decision:** **NO-GO**
+**Production decision:** **NO-GO until implementation gates pass**
 
-This file is the canonical current status record. Recovery and governance documents remain valid historical evidence, but where a historical status statement conflicts with this file, this file governs current project status until it is deliberately replaced through an approved pull request.
+This file is the canonical current status record, consolidated from the recovery audit (PR #6) and the owner-approved closeout authorization.
 
-## Current status at a glance
+## Overall status
 
-| Area | Status |
-|---|---|
-| GitHub recovery | **COMPLETE** |
-| Canonical recovered application | **IDENTIFIED** |
-| Stage 0 governance baseline | **ACTIVE** |
-| Production-readiness audit | **COMPLETE; PR #6 is open and remains draft** |
-| Product implementation closeout | **NOT STARTED / NOT AUTHORIZED by the audit** |
-| Production infrastructure | **NOT READY / NOT DEPLOYED by this work** |
-| Production launch | **NO-GO** |
+The authoritative Replit Content Machine source has been recovered, stabilized, and merged into the canonical GitHub `main` branch. Recovery PR #5 and recovery PR #4 are merged. The recovered workspace is executable and evidence-backed.
+
+The project has moved from recovery/stabilization into **ACTIVE PRODUCT CLOSEOUT** under the owner-approved replacement decision in `docs/GO_NO_GO_DECISION.md`.
+
+Current executive state:
+
+- Recovery/source preservation: **COMPLETE**
+- Recovery baseline stabilization: **COMPLETE**
+- Baseline automated validation: **PASS**
+- Production-readiness audit: **COMPLETE (PR #6)**
+- Product implementation closeout: **AUTHORIZED / ACTIVE**
+- Production deployment: **NOT YET VERIFIED / CONDITIONAL GO AFTER RELEASE GATES**
+- Replit as development/deployment target: **NO-GO; reference/recovery evidence only**
+
+## Canonical repository state
+
+- Repository: `ebyron357/agency-content-grants`
+- Default branch: `main`
+- Recovery merge commit: `6eeead8ec49a04eb788597b75c1e6f326339608e`
+- Recovered source commit: `fba398e2945fc39405b9bdf2543b28df4aac65ee`
+- Closeout authorization commits: `ceb69dea` through `fab0c888`
+- Merged recovery/stabilization PRs: #5 and #4
+- Remaining legacy governance PR #3 predates the recovered application and must be reconciled against current `main` before any merge decision.
 
 ## Completed recovery
 
@@ -33,56 +47,13 @@ GitHub was queried directly on 2026-08-12. The recovery sequence is complete:
 - PR #5 merge commit is `6b118363b77724919408799f7f90bc9ce5774a7d`.
 - PR #4 is closed and merged.
 - PR #4 merge commit is `6eeead8ec49a04eb788597b75c1e6f326339608e`.
-- Remote `main` is exactly `6eeead8ec49a04eb788597b75c1e6f326339608e` and contains stabilization commit `53fab703391edab15ad5da9c1403b7a47bf338cb` and final review-fix commit `f2a28e4c98c0f65eabd0d645509e8de8d88a21a5`.
-- GitHub Actions run `31628469891` (“Recovery baseline validation”) completed successfully at the final review-fix commit.
-
-PR #5 must not be reopened and the completed recovery review must not be repeated. The obsolete prior two-thread recovery blocker no longer applies.
-
-## Current audit pull request
-
-PR #6, [Correct post-recovery production-readiness audit](https://github.com/ebyron357/agency-content-grants/pull/6), is open as a draft against `main`. It changes exactly the audit, closeout plan, and this status record. It must not be merged until human review confirms that the evidence matrix, finding totals, architecture recommendation, validation distinctions, and closeout traceability are acceptable.
-
-No PR #6 workflow checks are currently attached. The successful recovery workflow run `31628469891` belongs to PR #5's final review-fix commit and is historical application-validation evidence, not a PR #6 run.
-
-## Governance and authorization
-
-The repository remains in the Stage 0 governance posture described by `AGENTS.md`, `docs/GO_NO_GO_DECISION.md`, the program charter, execution plan, governance baseline, branch/PR policy, and engineering standards.
-
-Currently authorized work includes research, architecture, security, validation, planning, recovery evidence, and documentation on dedicated branches and pull requests. The production-readiness audit fits that authority.
-
-Still prohibited without separate approval:
-
-- feature implementation or a broader product-development program;
-- deployment or modification of production services/data;
-- direct commits to `main`, unreviewed merge, force push, history rewrite, or branch deletion;
-- production credentials/customer data in tests;
-- interpreting recovery completion as production approval.
-
-## Canonical application and tree ownership
-
-The canonical recovered application is:
-
-- `artifacts/content-os` — React/Vite editorial frontend;
-- `artifacts/api-server` — Express API and process entrypoint;
-- `lib/db` — PostgreSQL/Drizzle schema and migrations;
-- `lib/api-spec` — shared contract;
-- `lib/api-client-react` and `lib/api-zod` — generated client and validation packages.
-
-Other trees:
-
-- `artifacts/mockup-sandbox` is mockup-only and is not proof of working product behavior.
-- root `src` is an alternate, unresolved historical frontend outside the current pnpm workspace.
-- Replit configuration/documentation is historical recovery/deployment evidence, not an approved production target.
-
-No application tree was deleted or declared obsolete. Any archival/deletion requires a separate evidence-backed ownership decision and authorization.
+- GitHub Actions run `31628469891` ("Recovery baseline validation") completed successfully at the final review-fix commit.
 
 ## Production-readiness audit result
 
 The complete audit is [Post-Recovery Production Readiness Audit](audits/POST_RECOVERY_PRODUCTION_READINESS.md). The ordered remediation program is [Content Machine Production Closeout Plan](plans/CONTENT_MACHINE_PRODUCTION_CLOSEOUT_PLAN.md).
 
-Verdict: **NO-GO for production**.
-
-The recovered codebase builds and its current automated baseline is green, but it does not meet the security, user-workflow, persistence, operations, deployment, media, citation, responsive, and accessibility evidence required for production.
+Verdict: **NO-GO for production** until implementation closes all P1 findings.
 
 Requirement results:
 
@@ -101,6 +72,22 @@ Issue register:
 
 P1 closeout themes are identity/tenancy/RBAC, non-Replit routing, SSRF/file security, durable object/export storage, durable workers, full-document persistence, cross-resource authorization, server-enforced readiness, citations/media, observability, CI/CD/recovery, approved dependency scanning, and complete browser E2E.
 
+## Verified baseline evidence
+
+The recovered baseline has passed the executable validation needed to start product closeout:
+
+- `pnpm install --frozen-lockfile`: PASS across the recovered workspace.
+- Repository-wide typecheck: PASS.
+- API tests: 249/249 PASS in the stabilized evidence set.
+- Content OS tests: 10/10 PASS.
+- Disposable PostgreSQL 16 setup and migration/reset validation: PASS.
+- Integration validation: PASS without hidden skips, including fresh export creation/verification.
+- Aggregate build: PASS for recovered workspaces.
+- Secret scan: PASS.
+- Review-driven stabilization fixes: merged.
+
+The recovery evidence remains in `docs/recovery/RECOVERY_VALIDATION.md` and `RECOVERY_PROVENANCE.md`.
+
 ## Validation record
 
 Validation used synthetic credentials, demo-safe AI behavior, and disposable PostgreSQL 16 on `127.0.0.1:5433`; no production credentials or data were used.
@@ -115,39 +102,90 @@ Validation used synthetic credentials, demo-safe AI behavior, and disposable Pos
 | Build | PASS; Content OS emitted a ~603 kB chunk warning |
 | API health | PASS — HTTP 200, `{"status":"ok"}` |
 | Secret-pattern scan | PASS in defined repository scope; only `.env.example` is tracked |
-| Local integration shell suite | BLOCKED by missing Bash+`jq` runner and safety denial of the proposed disposable runner; not bypassed |
 | Live recovery integration evidence | PASS — GitHub Actions run `31628469891`, 38 checks, 0 failed/skipped |
-| Dependency advisory review | BLOCKED pending explicit approval to transmit dependency metadata to the npm advisory service |
-| Browser smoke | PARTIAL/BLOCKED — login renders; repository lacks non-Replit same-origin API routing, so authentication journey cannot complete |
 
-The passing totals are 259 locally executed automated tests plus 38 corroborating live integration checks. Blocked checks remain visible and are not counted as local passes.
+## Canonical application and tree ownership
+
+The canonical recovered application is:
+
+- `artifacts/content-os` — React/Vite editorial frontend;
+- `artifacts/api-server` — Express API and process entrypoint;
+- `lib/db` — PostgreSQL/Drizzle schema and migrations;
+- `lib/api-spec` — shared contract;
+- `lib/api-client-react` and `lib/api-zod` — generated client and validation packages.
+
+Other trees:
+
+- `artifacts/mockup-sandbox` is mockup-only and is not proof of working product behavior.
+- Root `src` is an alternate, unresolved historical frontend outside the current pnpm workspace.
+- Replit configuration/documentation is historical recovery/deployment evidence, not an approved production target.
+
+## Approved final product outcome
+
+Closeout is now authorized for a production-quality Content Machine that provides:
+
+1. Long-form blog/article creation and editing.
+2. Manuals, guides, reports, and comparable structured long-form artifacts.
+3. A practical rich editor workflow rather than a static/mockup-only experience.
+4. Image insertion/upload/reference behavior with persistence and rendered output.
+5. Supported video embedding/URL behavior with validation, persistence, and rendered output.
+6. Project/document save, reopen, edit, lifecycle, and core navigation flows.
+7. Backend/API/database persistence with correct tenant isolation and security.
+8. Required export behavior tied to the correct project/document.
+9. Authentication, authorization, rate limiting, error handling, secret controls, and production safeguards.
+10. Responsive/accessibility quality for critical workflows.
+11. A verified production deployment whose commit matches the accepted GitHub state.
 
 ## Recommended production architecture
 
-The audit recommends Render for the always-on Express API, background worker, and paid managed PostgreSQL/PITR, with a same-origin frontend/API gateway and private S3-compatible object storage for source files, media, and exports. Durable queue workers replace detached/in-process work. Preview, staging, and production environments must have isolated domains, secrets, data, budgets, telemetry, backups, and promotion gates.
+Render for the always-on Express API, background worker, and paid managed PostgreSQL/PITR, with a same-origin frontend/API gateway and private S3-compatible object storage for source files, media, and exports. Durable queue workers replace detached/in-process work. Preview, staging, and production environments must have isolated domains, secrets, data, budgets, telemetry, backups, and promotion gates.
 
-This is a recommendation, not an infrastructure purchase or deployment authorization. Vercel is suitable only as a possible frontend host in this design; Supabase or Neon can be components but do not by themselves host the current Express/worker runtime.
+## Governing authorization
 
-## Required human decisions
+`docs/GO_NO_GO_DECISION.md` records **GO — evidence-gated Content Machine product closeout and production-readiness execution**.
 
-**Exact next human decision:** review the corrected PR #6 documentation and either accept it as the production-closeout planning baseline or request specific further corrections. Accepting or merging documentation does not authorize WP0 implementation, infrastructure purchase, deployment, or production launch.
+`AGENTS.md` has been updated to match that authorization and defines the product verification matrix, non-negotiable safeguards, merge gate, deployment gate, and Definition of Done.
 
-Before implementation:
+There is no longer a valid recovery-only prohibition on editor, media, video, publishing-readiness, or approved product implementation work.
 
-1. target user/tenant model, identity provider, roles, admin step-up, and account lifecycle;
-2. data classification, residency, retention/deletion, RTO/RPO, and backup ownership;
-3. citation style/quality/export gates and image/video product scope;
-4. Render/object-store/queue/observability vendors, regions, and budget;
-5. accessibility target and supported mobile/desktop matrix;
-6. ownership/disposition of the alternate root frontend;
-7. authorization for dependency metadata transmission to an approved SCA/advisory service.
+## Remaining work
 
-Before production:
+### P0 — Establish one canonical closeout implementation path
 
-- every P1 must be closed;
-- the complete browser journey must pass without manual API calls on mobile and desktop;
-- approved security/SCA, restore, rollback, worker-recovery, migration, load, accessibility, and real-provider sandbox evidence must pass;
-- product, editorial, accessibility, privacy/security, engineering, and operations owners must issue an explicit launch GO for the exact immutable release.
+- Audit current `main` against the approved outcome.
+- Identify which recovered frontend/application tree is canonical for the product.
+- Preserve unique assets/behavior before consolidating duplicates.
+- Create or designate one focused closeout branch and one canonical closeout PR.
+
+### P0/P1 — Close verified product gaps
+
+Implement only the gaps demonstrated by the audit, with special attention to:
+
+- Long-form article creation/persistence.
+- Manual/guide creation/persistence.
+- Rich-editor save/reload behavior.
+- Image insertion/persistence/rendering.
+- Video insertion/persistence/rendering.
+- Core navigation and project/document lifecycle.
+- Auth/tenant boundary and backend reliability.
+- Production configuration and deployment parity.
+
+### Release verification
+
+Before final GO:
+
+- Frozen install PASS.
+- Typecheck PASS.
+- Lint PASS where configured.
+- Unit/integration/end-to-end tests PASS with no hidden skips.
+- Migration/setup PASS with destructive safeguards intact.
+- Production build PASS.
+- Browser verification PASS for every critical workflow.
+- Required persistence/media/export integration checks PASS.
+- Secret/security checks PASS.
+- No P0 or required P1 remains.
+- Canonical PR is mergeable and review-clean.
+- Candidate deployment maps exactly to reviewed GitHub commit.
 
 ## Next execution sequence
 
@@ -158,6 +196,12 @@ Before production:
 5. Complete editor/citations/media/responsive workflows and production operations (WP7–WP11).
 6. Run the final controlled production verification and launch gate (WP12).
 
-Until those gates are satisfied, the only accurate status is:
+## Legacy governance work
 
-> **Recovery complete. Audit complete. Production closeout required. Production NO-GO.**
+The pre-recovery Stage 0 documents remain useful historical and architectural evidence, but they may not override the current approved closeout decision. Any stale work package or pull request must be reconciled against the recovered `main` before it is merged or used to govern implementation.
+
+## Current verdict
+
+**GO FOR ACTIVE PRODUCT CLOSEOUT. NOT YET PRODUCTION COMPLETE.**
+
+The recovery problem is resolved. The remaining job is to finish and verify the actual product, not to repeat recovery or governance-only planning.
