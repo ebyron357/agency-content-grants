@@ -45,12 +45,44 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * Strip HTML tags and decode common entities to produce plain text.
+ * Used by DOCX, PDF, plain-text, and Markdown exporters so rich-content
+ * sections degrade gracefully to readable text.
+ */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Normalise section content for text-based exporters.
+ * Returns plain text whether the stored content is plain or HTML.
+ */
+function sectionText(section: { content: string | null; contentFormat?: string | null }): string {
+  const raw = section.content ?? "";
+  if (!raw) return "";
+  return section.contentFormat === "html" ? stripHtml(raw) : raw;
+}
+
 // ── DOCX generation ──────────────────────────────────────────────────────────
 
 function buildDocxChildren(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [];
 
@@ -82,8 +114,7 @@ function buildDocxChildren(
       })
     );
 
-    const body = section.content ?? "[No content drafted yet]";
-    // Split on double newlines into paragraphs
+    const body = sectionText(section) || "[No content drafted yet]";
     for (const chunk of body.split(/\n\n+/)) {
       const trimmed = chunk.trim();
       if (!trimmed) continue;
@@ -103,7 +134,7 @@ function buildDocxChildren(
 async function generateDocx(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
 ): Promise<Buffer> {
   const doc = new Document({
     creator: "Content OS",
@@ -136,7 +167,7 @@ async function generateDocx(
 async function generatePdf(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -180,7 +211,7 @@ async function generatePdf(
         .text(section.title, { continued: false })
         .moveDown(0.4);
 
-      const body = section.content ?? "[No content drafted yet]";
+      const body = sectionText(section) || "[No content drafted yet]";
       doc
         .font("Helvetica")
         .fontSize(11)
@@ -197,11 +228,12 @@ async function generatePdf(
 function generateMarkdown(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
 ): string {
   const lines = [`# ${title}`, "", brand ? `*${brand}*` : "", ""];
   for (const section of sections) {
-    lines.push(`## ${section.title}`, "", section.content ?? "*[No content drafted yet]*", "");
+    const text = sectionText(section);
+    lines.push(`## ${section.title}`, "", text || "*[No content drafted yet]*", "");
   }
   return lines.join("\n");
 }
@@ -210,17 +242,22 @@ function generateHTML(
   title: string,
   brand: string,
   contentType: string,
-  sections: Array<{ title: string; content: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
 ): string {
   const body = sections
-    .map(
-      (s) =>
-        `<section><h2>${escapeHtml(s.title)}</h2>${
-          s.content
-            ? `<p>${escapeHtml(s.content).replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")}</p>`
-            : "<p><em>No content yet</em></p>"
-        }</section>`
-    )
+    .map((s) => {
+      let sectionBody: string;
+      if (!s.content) {
+        sectionBody = "<p><em>No content yet</em></p>";
+      } else if (s.contentFormat === "html") {
+        // Content is already HTML from the rich editor — embed directly
+        sectionBody = s.content;
+      } else {
+        // Plain text: escape and wrap in paragraphs
+        sectionBody = `<p>${escapeHtml(s.content).replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")}</p>`;
+      }
+      return `<section><h2>${escapeHtml(s.title)}</h2>${sectionBody}</section>`;
+    })
     .join("\n");
 
   return `<!DOCTYPE html>
@@ -241,14 +278,15 @@ function generateHTML(
 
 function generatePlainText(
   title: string,
-  sections: Array<{ title: string; content: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
 ): string {
   const lines = [title, "=".repeat(title.length), ""];
   for (const section of sections) {
+    const text = sectionText(section) || "[No content]";
     lines.push(
       section.title,
       "-".repeat(section.title.length),
-      section.content ?? "[No content]",
+      text,
       ""
     );
   }

@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RepurposeTab } from './RepurposeTab';
 import { PublishDialog } from '@/components/publishing/PublishDialog';
+import { RichEditor } from '@/components/RichEditor';
 
 const WORKFLOW_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -528,13 +529,31 @@ function EditorTab({ projectId }: { projectId: string }) {
   const approveSection = useMutation({ mutationFn: (id: string) => apiPost(`/document-sections/${id}/approve`) });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editType, setEditType] = useState('natural_tone');
-  const [manualContent, setManualContent] = useState<string | null>(null);
+  const [richContent, setRichContent] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const refresh = () => qc.invalidateQueries({ queryKey: getGetDocumentQueryKey(projectId) });
   const sections = (doc as any)?.sections ?? [];
   const selected = sections.find((s: any) => s.id === selectedId) ?? sections[0] ?? null;
-  const displayContent = manualContent ?? selected?.content ?? '';
   const isPending = draftSection.isPending || editSection.isPending;
+
+  const handleSave = useCallback(async () => {
+    if (!selected || !richContent) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await apiPatch(`/document-sections/${selected.id}`, {
+        content: richContent,
+        contentFormat: 'html',
+      });
+      await refresh();
+    } catch (err) {
+      setSaveError((err as Error).message ?? 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }, [selected, richContent]);
 
   if (isLoading) return <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />;
 
@@ -553,7 +572,7 @@ function EditorTab({ projectId }: { projectId: string }) {
       {/* Section list */}
       <div className="w-52 flex-shrink-0 space-y-1 overflow-y-auto">
         {sections.map((section: any) => (
-          <button key={section.id} onClick={() => { setSelectedId(section.id); setManualContent(null); }}
+          <button key={section.id} onClick={() => { setSelectedId(section.id); setRichContent(null); }}
             className={`w-full text-left px-3 py-2.5 rounded text-xs leading-snug transition-colors ${selected?.id === section.id ? 'bg-[#C8102E] text-white' : 'hover:bg-stone-100 text-stone-600'}`}>
             <div className="flex items-center gap-1 mb-0.5">
               {section.isLocked && <Lock className="w-2.5 h-2.5 opacity-60" />}
@@ -590,7 +609,7 @@ function EditorTab({ projectId }: { projectId: string }) {
 
             {!selected.isLocked && (
               <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
-                <Button onClick={async () => { setManualContent(null); await draftSection.mutateAsync({ id: selected.id }); refresh(); }} disabled={isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2 text-xs h-8">
+                <Button onClick={async () => { setRichContent(null); await draftSection.mutateAsync({ id: selected.id }); refresh(); }} disabled={isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2 text-xs h-8">
                   {draftSection.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                   {selected.content ? 'Re-draft' : 'Draft Section'}
                 </Button>
@@ -605,10 +624,19 @@ function EditorTab({ projectId }: { projectId: string }) {
                       <option value="expand">Expand</option>
                       <option value="simplify">Simplify</option>
                     </select>
-                    <Button onClick={async () => { setManualContent(null); await editSection.mutateAsync({ id: selected.id, data: { editType } }); refresh(); }} disabled={isPending} variant="outline" className="gap-2 text-xs h-8">
+                    <Button onClick={async () => { setRichContent(null); await editSection.mutateAsync({ id: selected.id, data: { editType } }); refresh(); }} disabled={isPending} variant="outline" className="gap-2 text-xs h-8">
                       {editSection.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                       Apply Edit
                     </Button>
+                  </>
+                )}
+                {richContent !== null && (
+                  <>
+                    <Button onClick={handleSave} disabled={saving} size="sm" className="ml-auto bg-stone-800 hover:bg-stone-900 text-white gap-2 text-xs h-8">
+                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                      Save
+                    </Button>
+                    {saveError && <span className="text-xs text-red-600">{saveError}</span>}
                   </>
                 )}
               </div>
@@ -623,12 +651,14 @@ function EditorTab({ projectId }: { projectId: string }) {
                   </div>
                 </div>
               ) : (
-                <textarea
-                  className="flex-1 w-full p-6 text-sm text-stone-700 leading-relaxed resize-none focus:outline-none font-sans"
-                  value={displayContent}
-                  onChange={e => !selected.isLocked && setManualContent(e.target.value)}
+                <RichEditor
+                  key={selected.id}
+                  sectionId={selected.id}
+                  initialContent={selected?.content ?? ''}
+                  contentFormat={selected?.contentFormat === 'html' ? 'html' : 'plain'}
                   readOnly={selected.isLocked}
-                  placeholder={selected.isLocked ? 'Section is locked.' : "Click 'Draft Section' to generate content, or type here to write manually…"}
+                  onChange={(html) => setRichContent(html)}
+                  onImageInserted={() => refresh()}
                 />
               )}
             </div>
