@@ -145,7 +145,7 @@ app.use(
 
 // SPA fallback: any non-API GET request that doesn't match a static file
 // gets the index.html so client-side routing (wouter) can handle it.
-app.get("*", (req, res, next) => {
+app.get("/{*splat}", (req, res, next) => {
   // Don't serve index.html for API routes or non-GET methods
   if (req.path.startsWith("/api")) {
     return next();

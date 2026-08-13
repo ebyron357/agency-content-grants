@@ -204,8 +204,23 @@ router.post("/document-sections/:id/restore", async (req, res): Promise<void> =>
 });
 
 // ── Image upload for document content ──────────────────────────────────────
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]);
+// Security: SVG is rejected (XSS vector); MIME is validated against magic bytes;
+// extension is derived from validated content type, not user-supplied filename.
+const ALLOWED_IMAGE_TYPES = new Map<string, { magicBytes: number[][]; ext: string }>([
+  ["image/jpeg", { magicBytes: [[0xFF, 0xD8, 0xFF]], ext: "jpg" }],
+  ["image/png", { magicBytes: [[0x89, 0x50, 0x4E, 0x47]], ext: "png" }],
+  ["image/gif", { magicBytes: [[0x47, 0x49, 0x46, 0x38]], ext: "gif" }],
+  ["image/webp", { magicBytes: [[0x52, 0x49, 0x46, 0x46]], ext: "webp" }], // RIFF header
+]);
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+function validateImageMagicBytes(buffer: Buffer, declaredType: string): boolean {
+  const spec = ALLOWED_IMAGE_TYPES.get(declaredType);
+  if (!spec) return false;
+  return spec.magicBytes.some(magic =>
+    magic.every((byte, i) => buffer[i] === byte)
+  );
+}
 
 const imageUpload = multer({
   storage: multer.memoryStorage(),
@@ -214,7 +229,7 @@ const imageUpload = multer({
     if (ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Unsupported image type: ${file.mimetype}. Allowed: ${[...ALLOWED_IMAGE_TYPES].join(", ")}`));
+      cb(new Error(`Unsupported image type: ${file.mimetype}. Allowed: ${[...ALLOWED_IMAGE_TYPES.keys()].join(", ")}`));
     }
   },
 }).single("image");
@@ -241,8 +256,16 @@ router.post("/projects/:id/images/upload", (req, res, next) => {
     return;
   }
 
+  // Validate magic bytes to prevent MIME spoofing
+  if (!validateImageMagicBytes(file.buffer, file.mimetype)) {
+    res.status(400).json({ error: "File content does not match declared image type" });
+    return;
+  }
+
   try {
-    const ext = file.originalname.split(".").pop() ?? "bin";
+    // Derive extension from validated content type, not user-supplied filename
+    const spec = ALLOWED_IMAGE_TYPES.get(file.mimetype);
+    const ext = spec?.ext ?? "bin";
     const filename = `${randomUUID()}.${ext}`;
     const projectDir = path.join(uploadDir, id);
     await mkdir(projectDir, { recursive: true });
@@ -266,10 +289,14 @@ router.post("/projects/:id/images/upload", (req, res, next) => {
   }
 });
 
-// Serve uploaded images
+// Serve uploaded images (ownership-verified)
 router.get("/projects/:id/images/:filename", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const filename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
+
+  // Verify project ownership
+  const project = await getProjectOwned(id, req.session.userId!, res);
+  if (!project) return;
 
   // Validate filename to prevent path traversal
   if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
@@ -278,6 +305,8 @@ router.get("/projects/:id/images/:filename", async (req, res): Promise<void> => 
   }
 
   const filePath = path.join(uploadDir, id, filename);
+  // Set Content-Type based on extension and prevent HTML interpretation
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.sendFile(filePath, (err) => {
     if (err) {
       res.status(404).json({ error: "Image not found" });

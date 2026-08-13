@@ -613,11 +613,15 @@ function EditorTab({ projectId }: { projectId: string }) {
   const handleVideoEmbed = useCallback(() => {
     try {
       const url = new URL(videoUrl);
+      if (url.protocol !== 'https:') {
+        alert('Video URLs must use HTTPS.');
+        return;
+      }
       if (!SAFE_VIDEO_HOSTS.includes(url.hostname)) {
         alert('Only YouTube and Vimeo URLs are supported for video embedding.');
         return;
       }
-      insertAtCursor(`\n[video](${videoUrl})\n`);
+      insertAtCursor(`\n[video](${url.href})\n`);
       setVideoUrl('');
       setShowVideoDialog(false);
     } catch {
@@ -625,12 +629,25 @@ function EditorTab({ projectId }: { projectId: string }) {
     }
   }, [videoUrl, insertAtCursor]);
 
-  // Flush pending save on section switch
+  // Track latest values in refs so cleanup can flush without stale closures
+  const manualContentRef = useRef<string | null>(null);
+  const selectedRef = useRef<typeof selected>(null);
+  manualContentRef.current = manualContent;
+  selectedRef.current = selected;
+
+  // Flush pending save on section switch or unmount
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        // Flush: fire the pending save synchronously (best-effort)
+        if (selectedRef.current && manualContentRef.current !== null) {
+          saveContent(selectedRef.current.id, manualContentRef.current);
+        }
+      }
     };
-  }, [selectedId]);
+  }, [selectedId, saveContent]);
 
   if (isLoading) return <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />;
 
@@ -720,7 +737,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                   </>
                 )}
                 <div className="border-l border-stone-200 h-6 mx-1" />
-                <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ''; }} />
+                <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ''; }} />
                 <Button variant="outline" className="gap-1.5 text-xs h-8" onClick={() => imageInputRef.current?.click()} disabled={isUploading}>
                   {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
                   Image
