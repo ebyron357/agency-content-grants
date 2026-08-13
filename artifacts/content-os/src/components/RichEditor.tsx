@@ -55,7 +55,7 @@ export const VideoEmbed = Node.create({
     return [{ tag: "div[data-video-embed]" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, any> }) {
     const { src, caption } = HTMLAttributes;
     // Only render iframe for approved origins
     const isApproved = APPROVED_EMBED_ORIGINS.some((o) => src?.startsWith(o));
@@ -390,7 +390,7 @@ export function RichEditor({
           ? `<p>${initialContent.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")}</p>`
           : "";
     if (editor.getHTML() !== newHtml) {
-      editor.commands.setContent(newHtml, false);
+      editor.commands.setContent(newHtml, { emitUpdate: false });
     }
   }, [initialContent, contentFormat, editor]);
 

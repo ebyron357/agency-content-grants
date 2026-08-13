@@ -47,8 +47,10 @@ function escapeHtml(str: string): string {
 
 /**
  * Strip HTML tags and decode common entities to produce plain text.
- * Used by DOCX, PDF, plain-text, and Markdown exporters so rich-content
- * sections degrade gracefully to readable text.
+ * Used ONLY by text-based exporters (DOCX, PDF, plain-text, Markdown).
+ * The output is NEVER re-rendered as HTML — it goes directly to
+ * non-executing formats — so entity decoding (&amp; → &) is safe and
+ * intentional for readability.
  */
 function stripHtml(html: string): string {
   return html

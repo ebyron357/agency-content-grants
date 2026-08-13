@@ -12,6 +12,7 @@
 
 import { Router, type IRouter } from "express";
 import multer from "multer";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { db } from "@workspace/db";
 import { contentImagesTable, contentVideosTable, documentSectionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -23,6 +24,29 @@ import { getSectionOwned } from "../middleware/ownershipHelpers";
 import { parseVideoUrl } from "../lib/videoValidator";
 
 const router: IRouter = Router();
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+
+// Image uploads: max 20 per user per 10 minutes (in-memory, per-session).
+const imageUploadLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  message: { error: "Too many image uploads. Please wait a few minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.session?.userId ?? ipKeyGenerator(req.ip ?? "unknown"),
+  skip: () => false,
+});
+
+// Image serve: generous limit to allow normal page renders.
+const imageServeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: { error: "Too many requests." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.session?.userId ?? ipKeyGenerator(req.ip ?? "unknown"),
+});
 
 // ── Image storage configuration ──────────────────────────────────────────────
 
@@ -63,6 +87,7 @@ const imageUpload = multer({
  */
 router.post(
   "/document-sections/:id/media/images",
+  imageUploadLimiter,
   (req, res, next) => {
     imageUpload.single("image")(req, res, (err) => {
       if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -129,7 +154,7 @@ router.post(
  * GET /media/images/:id
  * Streams a content image. Verifies ownership through section → document → project → user.
  */
-router.get("/media/images/:id", async (req, res): Promise<void> => {
+router.get("/media/images/:id", imageServeLimiter, async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   const [image] = await db
