@@ -19,9 +19,10 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { writeFile, mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { join, resolve, extname } from "path";
+import { join, resolve } from "path";
 import { getSectionOwned } from "../middleware/ownershipHelpers";
 import { parseVideoUrl } from "../lib/videoValidator";
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES, extensionForImageType, hasImageSignature } from "../lib/imageValidator";
 
 const router: IRouter = Router();
 
@@ -56,16 +57,6 @@ async function ensureMediaDir() {
   await mkdir(MEDIA_DIR, { recursive: true });
 }
 
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-]);
-
-const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-
 const imageUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_IMAGE_SIZE_BYTES },
@@ -73,7 +64,7 @@ const imageUpload = multer({
     if (ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Unsupported image type: ${file.mimetype}. Allowed: jpeg, png, gif, webp, svg`));
+      cb(new Error(`Unsupported image type: ${file.mimetype}. Allowed: jpeg, png, gif, webp`));
     }
   },
 });
@@ -112,13 +103,13 @@ router.post(
       return;
     }
 
-    // Double-check MIME type (belt-and-suspenders beyond multer fileFilter)
-    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
-      res.status(400).json({ error: `Unsupported image type: ${file.mimetype}` });
+    // Verify both the declared MIME and the binary signature; client MIME is untrusted.
+    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype) || !hasImageSignature(file.buffer, file.mimetype)) {
+      res.status(400).json({ error: "Image content does not match a supported raster image type" });
       return;
     }
 
-    const ext = extname(file.originalname).toLowerCase() || ".bin";
+    const ext = extensionForImageType(file.mimetype);
     const storageKey = `${req.session.userId!}/${randomUUID()}${ext}`;
     const filePath = join(MEDIA_DIR, storageKey);
 
@@ -131,17 +122,23 @@ router.post(
     const altText = typeof req.body.altText === "string" ? req.body.altText.slice(0, 500) : "";
     const caption = typeof req.body.caption === "string" ? req.body.caption.slice(0, 500) : "";
 
-    const [image] = await db.insert(contentImagesTable).values({
-      id: imageId,
-      documentSectionId: id,
-      userId: req.session.userId!,
-      filename: file.originalname.slice(0, 255),
-      mimeType: file.mimetype,
-      fileSizeBytes: file.size,
-      storageKey,
-      altText,
-      caption,
-    }).returning();
+    let image;
+    try {
+      [image] = await db.insert(contentImagesTable).values({
+        id: imageId,
+        documentSectionId: id,
+        userId: req.session.userId!,
+        filename: file.originalname.slice(0, 255),
+        mimeType: file.mimetype,
+        fileSizeBytes: file.size,
+        storageKey,
+        altText,
+        caption,
+      }).returning();
+    } catch (error) {
+      await import('fs/promises').then(({ unlink }) => unlink(filePath).catch(() => undefined));
+      throw error;
+    }
 
     res.status(201).json({
       ...image,
@@ -189,6 +186,8 @@ router.get("/media/images/:id", imageServeLimiter, async (req, res): Promise<voi
 
   const buffer = await readFile(filePath);
   res.setHeader("Content-Type", image.mimeType);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
   res.setHeader("Content-Disposition", `inline; filename="${image.filename.replace(/[^a-zA-Z0-9._\-]/g, "_")}"`);
   res.setHeader("Cache-Control", "private, max-age=3600");
   res.send(buffer);
@@ -249,6 +248,7 @@ router.delete("/media/images/:id", async (req, res): Promise<void> => {
   }
 
   await db.delete(contentImagesTable).where(eq(contentImagesTable.id, id));
+  await import('fs/promises').then(({ unlink }) => unlink(resolve(join(MEDIA_DIR, image.storageKey))).catch(() => undefined));
   res.status(204).end();
 });
 

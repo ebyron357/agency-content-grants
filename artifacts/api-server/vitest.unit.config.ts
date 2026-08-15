@@ -10,6 +10,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["src/__tests__/video-validator.test.ts", "src/__tests__/exporter-html-content.test.ts"],
+    include: ["src/__tests__/video-validator.test.ts", "src/__tests__/exporter-html-content.test.ts", "src/__tests__/image-validator.test.ts"],
   },
 });
