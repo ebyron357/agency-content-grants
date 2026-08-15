@@ -21,7 +21,11 @@ import { logActivity } from "../lib/activity";
 const router: IRouter = Router();
 
 // Only these fields may be PATCHed on a document section
-const SECTION_PATCH_ALLOWED = new Set(["title", "content", "notes"]);
+const SECTION_PATCH_ALLOWED = new Set(["title", "content", "notes", "contentFormat"]);
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
 
 function pickAllowed(body: Record<string, unknown>, allowed: Set<string>): any {
   const unknown = Object.keys(body).filter((k) => !allowed.has(k));
@@ -116,7 +120,10 @@ router.patch("/document-sections/:id", async (req, res): Promise<void> => {
 
   const update: Record<string, any> = { ...allowed };
   if (typeof (allowed as any).content === "string") {
-    update.wordCount = (allowed as any).content.split(/\s+/).length;
+    const rawContent = (allowed as any).content;
+    const fmt = (allowed as any).contentFormat ?? section.contentFormat ?? "plain";
+    const textForCount = fmt === "html" ? stripHtml(rawContent) : rawContent;
+    update.wordCount = textForCount.trim() ? textForCount.trim().split(/\s+/).length : 0;
   }
   const [updated] = await db.update(documentSectionsTable).set(update).where(eq(documentSectionsTable.id, id)).returning();
   res.json(updated);

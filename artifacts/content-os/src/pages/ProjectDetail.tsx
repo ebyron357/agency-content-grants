@@ -34,7 +34,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useDraftAllSections, type SectionProgress } from '@/hooks/useDraftAllSections';
-import { ChevronLeft, Sparkles, CheckCircle, XCircle, Loader2, Lock, Unlock, Download, Plus, Trash2, AlertTriangle, RefreshCw, FileText, Upload, Send, ImagePlus, Video } from 'lucide-react';
+import { ChevronLeft, Sparkles, CheckCircle, XCircle, Loader2, Lock, Unlock, Download, Plus, Trash2, AlertTriangle, RefreshCw, FileText, Upload, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RepurposeTab } from './RepurposeTab';
 import { PublishDialog } from '@/components/publishing/PublishDialog';
+import { RichEditor } from '@/components/RichEditor';
 
 const WORKFLOW_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -528,126 +529,31 @@ function EditorTab({ projectId }: { projectId: string }) {
   const approveSection = useMutation({ mutationFn: (id: string) => apiPost(`/document-sections/${id}/approve`) });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editType, setEditType] = useState('natural_tone');
-  const [manualContent, setManualContent] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [showVideoDialog, setShowVideoDialog] = useState(false);
-  const [videoUrl, setVideoUrl] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
+  const [richContent, setRichContent] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const refresh = () => qc.invalidateQueries({ queryKey: getGetDocumentQueryKey(projectId) });
   const sections = (doc as any)?.sections ?? [];
   const selected = sections.find((s: any) => s.id === selectedId) ?? sections[0] ?? null;
-  const displayContent = manualContent ?? selected?.content ?? '';
   const isPending = draftSection.isPending || editSection.isPending;
 
-  // Debounced autosave: persist manual edits after 1.5s of inactivity
-  const saveContent = useCallback(async (sectionId: string, content: string) => {
-    setSaveStatus('saving');
+  const handleSave = useCallback(async () => {
+    if (!selected || !richContent) return;
+    setSaving(true);
+    setSaveError('');
     try {
-      await apiPatch(`/document-sections/${sectionId}`, { content });
-      setSaveStatus('saved');
-      qc.invalidateQueries({ queryKey: getGetDocumentQueryKey(projectId) });
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch {
-      setSaveStatus('error');
-    }
-  }, [projectId, qc]);
-
-  const handleContentChange = useCallback((value: string) => {
-    setManualContent(value);
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    if (selected) {
-      saveTimerRef.current = setTimeout(() => {
-        saveContent(selected.id, value);
-      }, 1500);
-    }
-  }, [selected, saveContent]);
-
-  // Insert text at cursor position in textarea
-  const insertAtCursor = useCallback((text: string) => {
-    const textarea = textareaRef.current;
-    const current = manualContent ?? selected?.content ?? '';
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newValue = current.substring(0, start) + text + current.substring(end);
-      handleContentChange(newValue);
-      // Restore cursor position after the inserted text
-      requestAnimationFrame(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + text.length;
-        textarea.focus();
+      await apiPatch(`/document-sections/${selected.id}`, {
+        content: richContent,
+        contentFormat: 'html',
       });
-    } else {
-      handleContentChange(current + '\n' + text);
-    }
-  }, [manualContent, selected, handleContentChange]);
-
-  // Handle image file upload
-  const handleImageUpload = useCallback(async (file: File) => {
-    if (!selected) return;
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('altText', file.name.replace(/\.[^.]+$/, ''));
-      const res = await fetch(`/api/projects/${projectId}/images/upload`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
-      insertAtCursor(`\n![${data.altText}](${data.url})\n`);
-    } catch {
-      setSaveStatus('error');
+      await refresh();
+    } catch (err) {
+      setSaveError((err as Error).message ?? 'Save failed');
     } finally {
-      setIsUploading(false);
+      setSaving(false);
     }
-  }, [selected, projectId, insertAtCursor]);
-
-  // Validate and insert video embed
-  const SAFE_VIDEO_HOSTS = ['youtube.com', 'www.youtube.com', 'youtu.be', 'vimeo.com', 'www.vimeo.com', 'player.vimeo.com'];
-  const handleVideoEmbed = useCallback(() => {
-    try {
-      const url = new URL(videoUrl);
-      if (url.protocol !== 'https:') {
-        alert('Video URLs must use HTTPS.');
-        return;
-      }
-      if (!SAFE_VIDEO_HOSTS.includes(url.hostname)) {
-        alert('Only YouTube and Vimeo URLs are supported for video embedding.');
-        return;
-      }
-      insertAtCursor(`\n[video](${url.href})\n`);
-      setVideoUrl('');
-      setShowVideoDialog(false);
-    } catch {
-      alert('Please enter a valid URL.');
-    }
-  }, [videoUrl, insertAtCursor]);
-
-  // Track latest values in refs so cleanup can flush without stale closures
-  const manualContentRef = useRef<string | null>(null);
-  const selectedRef = useRef<typeof selected>(null);
-  manualContentRef.current = manualContent;
-  selectedRef.current = selected;
-
-  // Flush pending save on section switch or unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-        // Flush: fire the pending save synchronously (best-effort)
-        if (selectedRef.current && manualContentRef.current !== null) {
-          saveContent(selectedRef.current.id, manualContentRef.current);
-        }
-      }
-    };
-  }, [selectedId, saveContent]);
+  }, [selected, richContent]);
 
   if (isLoading) return <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />;
 
@@ -666,16 +572,7 @@ function EditorTab({ projectId }: { projectId: string }) {
       {/* Section list */}
       <div className="w-52 flex-shrink-0 space-y-1 overflow-y-auto">
         {sections.map((section: any) => (
-          <button key={section.id} onClick={() => {
-            // Flush pending save before switching
-            if (saveTimerRef.current && selected && manualContent !== null) {
-              clearTimeout(saveTimerRef.current);
-              saveContent(selected.id, manualContent);
-            }
-            setSelectedId(section.id);
-            setManualContent(null);
-            setSaveStatus('idle');
-          }}
+          <button key={section.id} onClick={() => { setSelectedId(section.id); setRichContent(null); }}
             className={`w-full text-left px-3 py-2.5 rounded text-xs leading-snug transition-colors ${selected?.id === section.id ? 'bg-[#C8102E] text-white' : 'hover:bg-stone-100 text-stone-600'}`}>
             <div className="flex items-center gap-1 mb-0.5">
               {section.isLocked && <Lock className="w-2.5 h-2.5 opacity-60" />}
@@ -698,9 +595,6 @@ function EditorTab({ projectId }: { projectId: string }) {
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className={`text-xs px-1.5 py-0.5 rounded ${selected.status === 'approved' ? 'bg-green-50 text-green-600' : selected.status === 'drafted' ? 'bg-blue-50 text-blue-600' : 'bg-stone-100 text-stone-500'}`}>{selected.status}</span>
                   {selected.wordCount > 0 && <span className="text-xs text-stone-400">{selected.wordCount} words</span>}
-                  {saveStatus === 'saving' && <span className="text-xs text-stone-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>}
-                  {saveStatus === 'saved' && <span className="text-xs text-green-500 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Saved</span>}
-                  {saveStatus === 'error' && <span className="text-xs text-red-500">Save failed</span>}
                 </div>
               </div>
               <div className="flex gap-1.5">
@@ -715,7 +609,7 @@ function EditorTab({ projectId }: { projectId: string }) {
 
             {!selected.isLocked && (
               <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
-                <Button onClick={async () => { setManualContent(null); await draftSection.mutateAsync({ id: selected.id }); refresh(); }} disabled={isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2 text-xs h-8">
+                <Button onClick={async () => { setRichContent(null); await draftSection.mutateAsync({ id: selected.id }); refresh(); }} disabled={isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2 text-xs h-8">
                   {draftSection.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                   {selected.content ? 'Re-draft' : 'Draft Section'}
                 </Button>
@@ -730,30 +624,21 @@ function EditorTab({ projectId }: { projectId: string }) {
                       <option value="expand">Expand</option>
                       <option value="simplify">Simplify</option>
                     </select>
-                    <Button onClick={async () => { setManualContent(null); await editSection.mutateAsync({ id: selected.id, data: { editType } }); refresh(); }} disabled={isPending} variant="outline" className="gap-2 text-xs h-8">
+                    <Button onClick={async () => { setRichContent(null); await editSection.mutateAsync({ id: selected.id, data: { editType } }); refresh(); }} disabled={isPending} variant="outline" className="gap-2 text-xs h-8">
                       {editSection.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                       Apply Edit
                     </Button>
                   </>
                 )}
-                <div className="border-l border-stone-200 h-6 mx-1" />
-                <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ''; }} />
-                <Button variant="outline" className="gap-1.5 text-xs h-8" onClick={() => imageInputRef.current?.click()} disabled={isUploading}>
-                  {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
-                  Image
-                </Button>
-                <Button variant="outline" className="gap-1.5 text-xs h-8" onClick={() => setShowVideoDialog(true)}>
-                  <Video className="w-3.5 h-3.5" />
-                  Video
-                </Button>
-              </div>
-            )}
-
-            {showVideoDialog && (
-              <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3">
-                <Input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="YouTube or Vimeo URL…" className="text-xs h-8 flex-1" onKeyDown={e => e.key === 'Enter' && handleVideoEmbed()} />
-                <Button onClick={handleVideoEmbed} className="bg-[#C8102E] hover:bg-[#a80d25] text-white text-xs h-8">Embed</Button>
-                <Button variant="outline" onClick={() => { setShowVideoDialog(false); setVideoUrl(''); }} className="text-xs h-8">Cancel</Button>
+                {richContent !== null && (
+                  <>
+                    <Button onClick={handleSave} disabled={saving} size="sm" className="ml-auto bg-stone-800 hover:bg-stone-900 text-white gap-2 text-xs h-8">
+                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                      Save
+                    </Button>
+                    {saveError && <span className="text-xs text-red-600">{saveError}</span>}
+                  </>
+                )}
               </div>
             )}
 
@@ -766,13 +651,14 @@ function EditorTab({ projectId }: { projectId: string }) {
                   </div>
                 </div>
               ) : (
-                <textarea
-                  ref={textareaRef}
-                  className="flex-1 w-full p-6 text-sm text-stone-700 leading-relaxed resize-none focus:outline-none font-sans"
-                  value={displayContent}
-                  onChange={e => !selected.isLocked && handleContentChange(e.target.value)}
+                <RichEditor
+                  key={selected.id}
+                  sectionId={selected.id}
+                  initialContent={selected?.content ?? ''}
+                  contentFormat={selected?.contentFormat === 'html' ? 'html' : 'plain'}
                   readOnly={selected.isLocked}
-                  placeholder={selected.isLocked ? 'Section is locked.' : "Click 'Draft Section' to generate content, or type here to write manually…"}
+                  onChange={(html) => setRichContent(html)}
+                  onImageInserted={() => refresh()}
                 />
               )}
             </div>
