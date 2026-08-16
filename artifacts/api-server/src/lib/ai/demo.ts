@@ -44,8 +44,10 @@ export class DemoProvider implements AIProvider {
       content = this.demoOutline();
     } else if (lc.includes("quality") || lc.includes("evaluat")) {
       content = this.demoQualityReport();
-    } else if (lc.includes("verify") || lc.includes("claim")) {
-      content = this.demoClaimVerification();
+    } else if (lc.includes('write the "') && lc.includes("section")) {
+    content = this.demoDraftSection();
+  } else if (lc.includes("verify") || lc.includes("claim")) {
+    content = this.demoClaimVerification();
     } else if (lc.includes("research plan") || lc.includes("questions")) {
       content = this.demoResearchPlan();
     } else if (

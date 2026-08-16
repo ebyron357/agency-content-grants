@@ -569,12 +569,12 @@ function EditorTab({ projectId }: { projectId: string }) {
   );
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-280px)] min-h-[500px]">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 h-auto lg:h-[calc(100vh-280px)] min-h-[500px]">
       {/* Section list */}
-      <div className="w-52 flex-shrink-0 space-y-1 overflow-y-auto">
+      <div className="w-full lg:w-52 flex-shrink-0 flex lg:block gap-2 lg:space-y-1 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto pb-2 lg:pb-0 snap-x">
         {sections.map((section: any) => (
           <button key={section.id} onClick={() => { setSelectedId(section.id); setRichContent(null); }}
-            className={`w-full text-left px-3 py-2.5 rounded text-xs leading-snug transition-colors ${selected?.id === section.id ? 'bg-[#C8102E] text-white' : 'hover:bg-stone-100 text-stone-600'}`}>
+            className={`w-44 lg:w-full flex-shrink-0 snap-start text-left px-3 py-2.5 rounded text-xs leading-snug transition-colors ${selected?.id === section.id ? 'bg-[#C8102E] text-white' : 'hover:bg-stone-100 text-stone-600'}`}>
             <div className="flex items-center gap-1 mb-0.5">
               {section.isLocked && <Lock className="w-2.5 h-2.5 opacity-60" />}
               {section.isApproved && <CheckCircle className="w-2.5 h-2.5 text-green-400" />}
@@ -583,14 +583,14 @@ function EditorTab({ projectId }: { projectId: string }) {
             {section.wordCount > 0 && <span className="opacity-60 text-[10px] mt-0.5 block">{section.wordCount}w</span>}
           </button>
         ))}
-        <div className="pt-2 px-1"><p className="text-xs text-stone-400">{(doc as any).wordCount ?? 0} total words</p></div>
+        <div className="hidden lg:block pt-2 px-1"><p className="text-xs text-stone-400">{(doc as any).wordCount ?? 0} total words</p></div>
       </div>
 
       {/* Editor */}
-      <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">
+      <div className="w-full flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">
         {selected ? (
           <>
-            <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+            <div className="bg-white border border-stone-200 rounded-lg px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold text-stone-800 font-serif">{selected.title}</p>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -598,7 +598,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                   {selected.wordCount > 0 && <span className="text-xs text-stone-400">{selected.wordCount} words</span>}
                 </div>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 flex-shrink-0">
                 <Button size="sm" variant="outline" onClick={async () => { selected.isLocked ? await unlockSection.mutateAsync(selected.id) : await lockSection.mutateAsync(selected.id); refresh(); }} title={selected.isLocked ? 'Unlock' : 'Lock'}>
                   {selected.isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                 </Button>
@@ -609,7 +609,7 @@ function EditorTab({ projectId }: { projectId: string }) {
             </div>
 
             {!selected.isLocked && (
-              <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
+              <div className="bg-white border border-stone-200 rounded-lg px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
                 <Button onClick={async () => { setRichContent(null); await draftSection.mutateAsync({ id: selected.id }); refresh(); }} disabled={isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2 text-xs h-8">
                   {draftSection.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                   {selected.content ? 'Re-draft' : 'Draft Section'}
@@ -633,7 +633,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                 )}
                 {richContent !== null && (
                   <>
-                    <Button onClick={handleSave} disabled={saving} size="sm" className="ml-auto bg-stone-800 hover:bg-stone-900 text-white gap-2 text-xs h-8">
+                    <Button onClick={handleSave} disabled={saving} size="sm" className="sm:ml-auto bg-stone-800 hover:bg-stone-900 text-white gap-2 text-xs h-8">
                       {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                       Save
                     </Button>
@@ -643,7 +643,7 @@ function EditorTab({ projectId }: { projectId: string }) {
               </div>
             )}
 
-            <div className="flex-1 bg-white border border-stone-200 rounded-lg overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-[560px] lg:min-h-0 bg-white border border-stone-200 rounded-lg overflow-hidden flex flex-col">
               {isPending ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center text-stone-400">
