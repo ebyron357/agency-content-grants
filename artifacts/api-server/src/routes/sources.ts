@@ -9,6 +9,7 @@ import { createRequire } from "module";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import { getProjectOwned, getSourceOwned } from "../middleware/ownershipHelpers";
 import { logActivity } from "../lib/activity";
+import { assertValidWebhookUrl, safeHttpRequest, UnsafeWebhookUrlError } from "../lib/webhooks/urlSafety";
 
 const _require = createRequire(import.meta.url);
 const pdfParseModule = _require("pdf-parse");
@@ -49,11 +50,25 @@ router.post("/projects/:id/sources", async (req, res): Promise<void> => {
     res.status(400).json({ error: "title and sourceType are required" });
     return;
   }
+  const sourceInput = pickAllowed(req.body, new Set([
+    "title", "url", "publisher", "author", "publicationDate", "relevantExcerpts",
+    "authorityScore", "freshnessScore", "isPrimarySource", "sourceType",
+  ]));
+  if (sourceInput.__error) { res.status(400).json({ error: sourceInput.__error }); return; }
+  if (sourceInput.url) {
+    try {
+      await assertValidWebhookUrl(String(sourceInput.url));
+    } catch (error) {
+      const message = error instanceof UnsafeWebhookUrlError ? error.message : "Source URL could not be validated";
+      res.status(400).json({ error: message });
+      return;
+    }
+  }
   const [source] = await db.insert(sourcesTable).values({
     id: randomUUID(),
     projectId: id,
     retrievalDate: new Date().toISOString().split("T")[0],
-    ...req.body,
+    ...sourceInput,
   }).returning();
   await logActivity("source_added", `Source "${source.title}" added to "${project.title}"`, {
     userId: req.session.userId!, projectId: id, projectTitle: project.title,
@@ -116,9 +131,14 @@ router.post("/sources/:id/fetch", async (req, res): Promise<void> => {
   const source = await getSourceOwned(id, req.session.userId!, res);
   if (!source) return;
   if (!source.url) { res.status(400).json({ error: "Source has no URL to fetch" }); return; }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await fetch(source.url, {
+    const response = await safeHttpRequest(source.url, {
+      method: "GET",
       headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentOS/1.0)" },
+      body: "",
+      signal: controller.signal,
     });
     if (!response.ok) { res.status(400).json({ error: `Fetch failed: ${response.status}` }); return; }
     const text = await response.text();
@@ -126,7 +146,10 @@ router.post("/sources/:id/fetch", async (req, res): Promise<void> => {
     const [updated] = await db.update(sourcesTable).set({ extractedText: cleaned, status: "fetched" }).where(eq(sourcesTable.id, id)).returning();
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    const status = err instanceof UnsafeWebhookUrlError ? 400 : 500;
+    res.status(status).json({ error: (err as Error).message });
+  } finally {
+    clearTimeout(timeout);
   }
 });
 

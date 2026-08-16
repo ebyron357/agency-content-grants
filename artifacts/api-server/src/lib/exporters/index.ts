@@ -5,6 +5,8 @@ import {
   projectsTable,
   brandsTable,
   exportsTable,
+  sourcesTable,
+  claimsTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -79,12 +81,86 @@ function sectionText(section: { content: string | null; contentFormat?: string |
   return section.contentFormat === "html" ? stripHtml(raw) : raw;
 }
 
+type EvidenceRecord = {
+  key: string;
+  title: string;
+  url: string | null;
+  publisher: string | null;
+  author: string | null;
+  retrievalDate: string | null;
+  status: string;
+  claims: Array<{ claimText: string; supportingExcerpt: string | null; verificationStatus: string }>;
+};
+
+function safeCitationUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildEvidence(projectId: string): Promise<EvidenceRecord[]> {
+  const [sources, claims] = await Promise.all([
+    db.select().from(sourcesTable).where(eq(sourcesTable.projectId, projectId)),
+    db.select().from(claimsTable).where(eq(claimsTable.projectId, projectId)),
+  ]);
+  return sources
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .map((source, index) => ({
+      key: `S${index + 1}`,
+      title: source.title,
+      url: safeCitationUrl(source.url),
+      publisher: source.publisher,
+      author: source.author,
+      retrievalDate: source.retrievalDate,
+      status: source.status,
+      claims: claims
+        .filter((claim) => claim.sourceId === source.id)
+        .map((claim) => ({ claimText: claim.claimText, supportingExcerpt: claim.supportingExcerpt, verificationStatus: claim.verificationStatus })),
+    }));
+}
+
+function evidenceMarkdown(evidence: EvidenceRecord[]): string {
+  if (!evidence.length) return "";
+  const lines = ["## Evidence register", "", "The following sources and claim links were stored with this project at export time.", ""];
+  for (const source of evidence) {
+    const citation = source.url ? `[${source.key}](${source.url})` : `[${source.key}]`;
+    const attribution = [source.author, source.publisher].filter(Boolean).join(", ");
+    lines.push(`${citation} ${source.title}${attribution ? ` — ${attribution}` : ""}. Status: ${source.status}${source.retrievalDate ? `; retrieved ${source.retrievalDate}` : ""}.`);
+    for (const claim of source.claims) {
+      lines.push(`- Claim: ${claim.claimText} (${claim.verificationStatus})`);
+      if (claim.supportingExcerpt) lines.push(`  - Supporting excerpt: ${claim.supportingExcerpt}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+function evidencePlainText(evidence: EvidenceRecord[]): string {
+  return stripHtml(evidenceMarkdown(evidence).replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 — $2"));
+}
+
+function evidenceHtml(evidence: EvidenceRecord[]): string {
+  if (!evidence.length) return "";
+  const items = evidence.map((source) => {
+    const url = source.url ? ` <a href="${escapeHtml(source.url)}">${escapeHtml(source.url)}</a>` : "";
+    const attribution = [source.author, source.publisher].filter(Boolean).join(", ");
+    const claims = source.claims.length ? `<ul>${source.claims.map((claim) => `<li>${escapeHtml(claim.claimText)} <em>(${escapeHtml(claim.verificationStatus)})</em>${claim.supportingExcerpt ? `<br><small>${escapeHtml(claim.supportingExcerpt)}</small>` : ""}</li>`).join("")}</ul>` : "";
+    return `<li><strong>${escapeHtml(source.key)} — ${escapeHtml(source.title)}</strong>${attribution ? ` — ${escapeHtml(attribution)}` : ""}.${url} <span>Status: ${escapeHtml(source.status)}</span>${claims}</li>`;
+  }).join("");
+  return `<section><h2>Evidence register</h2><p>Sources and claim links stored with this project at export time.</p><ol>${items}</ol></section>`;
+}
+
 // ── DOCX generation ──────────────────────────────────────────────────────────
 
 function buildDocxChildren(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  evidence: EvidenceRecord[] = [],
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [];
 
@@ -130,13 +206,23 @@ function buildDocxChildren(
     }
   }
 
+  if (evidence.length) {
+    paragraphs.push(new Paragraph({ text: "Evidence register", heading: HeadingLevel.HEADING_1 }));
+    paragraphs.push(new Paragraph({ text: "Sources and claim links stored with this project at export time." }));
+    for (const source of evidence) {
+      paragraphs.push(new Paragraph({ text: `${source.key} — ${source.title}${source.url ? ` — ${source.url}` : ""} (${source.status})` }));
+      for (const claim of source.claims) paragraphs.push(new Paragraph({ text: `Claim: ${claim.claimText} (${claim.verificationStatus})` }));
+    }
+  }
+
   return paragraphs;
 }
 
 async function generateDocx(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  evidence: EvidenceRecord[] = [],
 ): Promise<Buffer> {
   const doc = new Document({
     creator: "Content OS",
@@ -156,7 +242,7 @@ async function generateDocx(
             margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 },
           },
         },
-        children: buildDocxChildren(title, brand, sections),
+        children: buildDocxChildren(title, brand, sections, evidence),
       },
     ],
   });
@@ -169,7 +255,8 @@ async function generateDocx(
 async function generatePdf(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  evidence: EvidenceRecord[] = [],
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -221,6 +308,17 @@ async function generatePdf(
         .moveDown(1.2);
     }
 
+    if (evidence.length) {
+      doc.addPage().font("Helvetica-Bold").fontSize(14).text("Evidence register").moveDown(0.4);
+      doc.font("Helvetica").fontSize(10).text("Sources and claim links stored with this project at export time.").moveDown(0.6);
+      for (const source of evidence) {
+        doc.font("Helvetica-Bold").text(`${source.key} — ${source.title}`);
+        doc.font("Helvetica").text(`${source.url ?? "No URL recorded"} · Status: ${source.status}`);
+        for (const claim of source.claims) doc.text(`Claim: ${claim.claimText} (${claim.verificationStatus})`);
+        doc.moveDown(0.4);
+      }
+    }
+
     doc.end();
   });
 }
@@ -230,21 +328,24 @@ async function generatePdf(
 function generateMarkdown(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  evidence: EvidenceRecord[] = [],
 ): string {
   const lines = [`# ${title}`, "", brand ? `*${brand}*` : "", ""];
   for (const section of sections) {
     const text = sectionText(section);
     lines.push(`## ${section.title}`, "", text || "*[No content drafted yet]*", "");
   }
-  return lines.join("\n");
+  const appendix = evidenceMarkdown(evidence);
+  return `${lines.join("\n")}\n${appendix}`;
 }
 
 function generateHTML(
   title: string,
   brand: string,
   contentType: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  evidence: EvidenceRecord[] = [],
 ): string {
   const body = sections
     .map((s) => {
@@ -274,13 +375,15 @@ function generateHTML(
   <h1>${escapeHtml(title)}</h1>
   ${brand ? `<p><em>${escapeHtml(brand)}</em></p>` : ""}
   ${body}
+  ${evidenceHtml(evidence)}
 </body>
 </html>`;
 }
 
 function generatePlainText(
   title: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>
+  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  evidence: EvidenceRecord[] = [],
 ): string {
   const lines = [title, "=".repeat(title.length), ""];
   for (const section of sections) {
@@ -292,7 +395,7 @@ function generatePlainText(
       ""
     );
   }
-  return lines.join("\n");
+  return `${lines.join("\n")}\n${evidencePlainText(evidence)}`;
 }
 
 // ── Main export function ──────────────────────────────────────────────────────
@@ -318,6 +421,7 @@ export async function exportDocument(
     .from(documentSectionsTable)
     .where(eq(documentSectionsTable.documentId, document.id));
   const sorted = sections.sort((a, b) => a.sortOrder - b.sortOrder);
+  const evidence = await buildEvidence(projectId);
 
   const [project] = await db
     .select()
@@ -346,7 +450,7 @@ export async function exportDocument(
   switch (format) {
     case "docx": {
       filePath = join(EXPORT_DIR, `${filename}.docx`);
-      const buffer = await generateDocx(document.title, brand?.name ?? "", sorted);
+      const buffer = await generateDocx(document.title, brand?.name ?? "", sorted, evidence);
       await writeFile(filePath, buffer);
       fileSizeBytes = buffer.length;
       fileUrl = `/api/exports/download/${filename}.docx`;
@@ -359,7 +463,7 @@ export async function exportDocument(
 
     case "pdf": {
       filePath = join(EXPORT_DIR, `${filename}.pdf`);
-      const buffer = await generatePdf(document.title, brand?.name ?? "", sorted);
+      const buffer = await generatePdf(document.title, brand?.name ?? "", sorted, evidence);
       await writeFile(filePath, buffer);
       fileSizeBytes = buffer.length;
       fileUrl = `/api/exports/download/${filename}.pdf`;
@@ -372,7 +476,7 @@ export async function exportDocument(
     }
 
     case "markdown": {
-      const content = generateMarkdown(document.title, brand?.name ?? "", sorted);
+      const content = generateMarkdown(document.title, brand?.name ?? "", sorted, evidence);
       filePath = join(EXPORT_DIR, `${filename}.md`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
@@ -382,7 +486,7 @@ export async function exportDocument(
     }
 
     case "html": {
-      const content = generateHTML(document.title, brand?.name ?? "", project.contentType, sorted);
+      const content = generateHTML(document.title, brand?.name ?? "", project.contentType, sorted, evidence);
       filePath = join(EXPORT_DIR, `${filename}.html`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
@@ -393,7 +497,7 @@ export async function exportDocument(
 
     case "txt":
     default: {
-      const content = generatePlainText(document.title, sorted);
+      const content = generatePlainText(document.title, sorted, evidence);
       filePath = join(EXPORT_DIR, `${filename}.txt`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");

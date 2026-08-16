@@ -422,6 +422,7 @@ function ClaimsTab({ projectId }: { projectId: string }) {
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[claim.verificationStatus ?? 'pending'] ?? 'bg-stone-100 text-stone-500'}`}>{claim.verificationStatus ?? 'pending'}</span>
                 <span className="text-xs text-stone-400 capitalize">{claim.claimType}</span>
                 {claim.confidence != null && <span className="text-xs text-stone-400">Confidence: {Math.round(claim.confidence * 100)}%</span>}
+                {claim.sourceTitle && <span className="text-xs text-blue-600">Source: {claim.sourceTitle}</span>}
                 {claim.timeSensitive && <span className="text-xs text-amber-500">⏰ Time-sensitive</span>}
               </div>
               {claim.reviewerNotes && <p className="text-xs text-stone-400 mt-1 italic">{claim.reviewerNotes}</p>}
@@ -773,7 +774,8 @@ function ExportTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       <div className="bg-white border border-stone-200 rounded-lg p-5">
-        <h3 className="font-semibold text-stone-800 mb-4">Export Document</h3>
+        <h3 className="font-semibold text-stone-800 mb-2">Export Document</h3>
+        <p className="text-xs text-stone-500 mb-4">Every export includes an evidence register when this project has sources or claims, including source links, retrieval status, and supporting excerpts.</p>
         <div className="flex items-center gap-3">
           <select value={format} onChange={e => setFormat(e.target.value)} className="border border-stone-200 rounded-md px-3 py-2 text-sm flex-1">
             {FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
