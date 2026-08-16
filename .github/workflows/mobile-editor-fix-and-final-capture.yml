@@ -1,0 +1,172 @@
+name: Mobile editor fix and final UI proof
+
+on:
+  push:
+    branches:
+      - evidence/ui-proof-e66260b
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PRODUCT_BRANCH: manus/content-machine-closeout
+  NODE_ENV: test
+  ALLOW_TEST_DATABASE_RESET: "true"
+  DATABASE_URL: postgresql://content_machine_test:content_machine_test@localhost:5432/content_machine_test
+  SESSION_SECRET: ui-proof-test-session-secret-not-production
+  ADMIN_PASSWORD: ui-proof-test-password-not-production
+  TEST_ADMIN_PASSWORD: ui-proof-test-password-not-production
+  PORT: "8080"
+  API_PORT: "8080"
+
+jobs:
+  fix-and-capture:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: content_machine_test
+          POSTGRES_PASSWORD: content_machine_test
+          POSTGRES_DB: content_machine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U content_machine_test -d content_machine_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout product branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_BRANCH }}
+          fetch-depth: 0
+
+      - name: Apply responsive editor layout fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/content-os/src/pages/ProjectDetail.tsx')
+          s = p.read_text()
+          replacements = {
+            '    <div className="flex gap-5 h-[calc(100vh-280px)] min-h-[500px]">':
+              '    <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 h-auto lg:h-[calc(100vh-280px)] min-h-[500px]">',
+            '      <div className="w-52 flex-shrink-0 space-y-1 overflow-y-auto">':
+              '      <div className="w-full lg:w-52 flex-shrink-0 flex lg:block gap-2 lg:space-y-1 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto pb-2 lg:pb-0 snap-x">',
+            '            className={`w-full text-left px-3 py-2.5 rounded text-xs leading-snug transition-colors ${selected?.id === section.id ?':
+              '            className={`w-44 lg:w-full flex-shrink-0 snap-start text-left px-3 py-2.5 rounded text-xs leading-snug transition-colors ${selected?.id === section.id ?',
+            '        <div className="pt-2 px-1"><p className="text-xs text-stone-400">{(doc as any).wordCount ?? 0} total words</p></div>':
+              '        <div className="hidden lg:block pt-2 px-1"><p className="text-xs text-stone-400">{(doc as any).wordCount ?? 0} total words</p></div>',
+            '      <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">':
+              '      <div className="w-full flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">',
+            '            <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">':
+              '            <div className="bg-white border border-stone-200 rounded-lg px-3 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3">',
+            '              <div className="flex gap-1.5">':
+              '              <div className="flex gap-1.5 flex-shrink-0">',
+            '              <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">':
+              '              <div className="bg-white border border-stone-200 rounded-lg px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3 flex-wrap">',
+            '                    <Button onClick={handleSave} disabled={saving} size="sm" className="ml-auto bg-stone-800 hover:bg-stone-900 text-white gap-2 text-xs h-8">':
+              '                    <Button onClick={handleSave} disabled={saving} size="sm" className="sm:ml-auto bg-stone-800 hover:bg-stone-900 text-white gap-2 text-xs h-8">',
+            '            <div className="flex-1 bg-white border border-stone-200 rounded-lg overflow-hidden flex flex-col">':
+              '            <div className="flex-1 min-h-[560px] lg:min-h-0 bg-white border border-stone-200 rounded-lg overflow-hidden flex flex-col">',
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'missing expected layout snippet: {old[:100]}')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+      - name: Verify frontend typecheck/build
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.16.0 --activate
+          pnpm install --frozen-lockfile
+          pnpm --filter @workspace/content-os build
+
+      - name: Commit responsive product fix
+        id: appfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/content-os/src/pages/ProjectDetail.tsx
+          git commit -m "fix: make rich editor adaptive on mobile"
+          git push origin HEAD:${PRODUCT_BRANCH}
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Checkout evidence driver separately
+        uses: actions/checkout@v4
+        with:
+          ref: evidence/ui-proof-e66260b
+          path: evidence-tools
+          sparse-checkout: |
+            .github/scripts/final-content-os-ui-proof.mjs
+
+      - name: Preserve deterministic PNG and reset evidence directory
+        run: |
+          cp docs/evidence/ui/ui-test-image.png "$RUNNER_TEMP/ui-test-image.png"
+          echo "DEMO_IMAGE_PATH=$RUNNER_TEMP/ui-test-image.png" >> "$GITHUB_ENV"
+          rm -rf docs/evidence/ui
+          mkdir -p docs/evidence/ui
+          echo "MIGRATIONS_DIR=$GITHUB_WORKSPACE/lib/db/drizzle" >> "$GITHUB_ENV"
+
+      - name: Prepare isolated database
+        run: pnpm --filter @workspace/api-server test:db:prepare
+
+      - name: Build and start API
+        run: |
+          pnpm --filter @workspace/api-server build
+          PORT=8080 pnpm --filter @workspace/api-server start > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:8080/api/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+
+      - name: Start real Content OS frontend
+        run: |
+          PORT=5173 API_PORT=8080 pnpm --filter @workspace/content-os exec vite --config vite.config.ts --host 0.0.0.0 --port 5173 > "$RUNNER_TEMP/ui.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/ui.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:5173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/ui.log"
+          exit 1
+
+      - name: Install Playwright Chromium
+        run: |
+          pnpm add -Dw playwright@1.55.0 --ignore-workspace-root-check
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Capture all final screenshots from fixed SHA
+        run: node evidence-tools/.github/scripts/final-content-os-ui-proof.mjs
+
+      - name: Upload final proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-os-mobile-fixed-final-ui-proof
+          path: docs/evidence/ui/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit final evidence to product branch
+        id: evidence
+        run: |
+          git restore package.json pnpm-lock.yaml 2>/dev/null || true
+          git add docs/evidence/ui
+          git commit -m "docs: capture final UI proof at ${TARGET_SHA}"
+          git push origin HEAD:${PRODUCT_BRANCH}
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Stop services
+        if: always()
+        run: |
+          [[ -f "$RUNNER_TEMP/ui.pid" ]] && kill "$(cat "$RUNNER_TEMP/ui.pid")" || true
+          [[ -f "$RUNNER_TEMP/api.pid" ]] && kill "$(cat "$RUNNER_TEMP/api.pid")" || true
