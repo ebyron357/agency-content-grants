@@ -1,0 +1,192 @@
+name: Final Content OS closeout proof
+
+on:
+  push:
+    branches:
+      - evidence/ui-proof-e66260b
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PRODUCT_BRANCH: manus/content-machine-closeout
+  NODE_ENV: test
+  ALLOW_TEST_DATABASE_RESET: "true"
+  DATABASE_URL: postgresql://content_machine_test:content_machine_test@localhost:5432/content_machine_test
+  SESSION_SECRET: ui-proof-test-session-secret-not-production
+  ADMIN_PASSWORD: ui-proof-test-password-not-production
+  TEST_ADMIN_PASSWORD: ui-proof-test-password-not-production
+  PORT: "8080"
+  API_PORT: "8080"
+
+jobs:
+  fix-and-capture:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: content_machine_test
+          POSTGRES_PASSWORD: content_machine_test
+          POSTGRES_DB: content_machine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U content_machine_test -d content_machine_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout exact product branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_BRANCH }}
+          fetch-depth: 0
+
+      - name: Checkout evidence driver separately
+        uses: actions/checkout@v4
+        with:
+          ref: evidence/ui-proof-e66260b
+          path: evidence-tools
+          sparse-checkout: |
+            .github/scripts/final-content-os-ui-proof.mjs
+
+      - name: Fix demo section-drafting classification and add regression test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          demo = Path('artifacts/api-server/src/lib/ai/demo.ts')
+          text = demo.read_text()
+          marker = '    } else if (lc.includes("verify") || lc.includes("claim")) {\n      content = this.demoClaimVerification();'
+          replacement = '''    } else if (lc.includes('write the "') && lc.includes("section")) {
+              content = this.demoDraftSection();
+            } else if (lc.includes("verify") || lc.includes("claim")) {
+              content = this.demoClaimVerification();'''
+          if replacement not in text:
+              if marker not in text:
+                  raise SystemExit('demo classification marker not found')
+              text = text.replace(marker, replacement, 1)
+              demo.write_text(text)
+
+          test = Path('artifacts/api-server/src/lib/ai/demo.test.ts')
+          t = test.read_text()
+          case = '''
+
+            it("returns draft prose for section-writing prompts that include verified claims", async () => {
+              const result = await provider.generate([
+                {
+                  role: "user",
+                  content:
+                    'Write the "Introduction" section for this blog.\\nVerified Claims:\\n- A supported claim',
+                },
+              ]);
+
+              expect(result.content).toContain("This section demonstrates where your drafted content will appear");
+              expect(result.content).not.toContain('"verificationStatus"');
+            });
+          '''
+          if 'returns draft prose for section-writing prompts that include verified claims' not in t:
+              pos = t.rfind('\n});')
+              if pos < 0:
+                  raise SystemExit('test describe terminator not found')
+              t = t[:pos] + case + t[pos:]
+              test.write_text(t)
+          PY
+
+      - name: Commit product fix
+        id: fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/api-server/src/lib/ai/demo.ts artifacts/api-server/src/lib/ai/demo.test.ts
+          if git diff --cached --quiet; then
+            echo "No new product fix required"
+          else
+            git commit -m "fix: draft demo sections when prompts include verified claims"
+            git push origin HEAD:${PRODUCT_BRANCH}
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Regression-test demo provider
+        run: pnpm --filter @workspace/api-server exec vitest run src/lib/ai/demo.test.ts
+
+      - name: Preserve deterministic PNG and reset UI evidence directory
+        run: |
+          cp docs/evidence/ui/ui-test-image.png "$RUNNER_TEMP/ui-test-image.png"
+          echo "DEMO_IMAGE_PATH=$RUNNER_TEMP/ui-test-image.png" >> "$GITHUB_ENV"
+          rm -rf docs/evidence/ui
+          mkdir -p docs/evidence/ui
+
+      - name: Prepare isolated test database
+        run: |
+          echo "MIGRATIONS_DIR=$GITHUB_WORKSPACE/lib/db/drizzle" >> "$GITHUB_ENV"
+          pnpm --filter @workspace/api-server test:db:prepare
+
+      - name: Build and start API
+        run: |
+          pnpm --filter @workspace/api-server build
+          PORT=8080 pnpm --filter @workspace/api-server start > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:8080/api/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+
+      - name: Start real Content OS frontend
+        run: |
+          PORT=5173 API_PORT=8080 pnpm --filter @workspace/content-os exec vite --config vite.config.ts --host 0.0.0.0 --port 5173 > "$RUNNER_TEMP/ui.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/ui.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:5173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/ui.log"
+          exit 1
+
+      - name: Install Playwright Chromium without persisting dependency changes
+        run: |
+          pnpm add -Dw playwright@1.55.0 --ignore-workspace-root-check
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Capture final real UI proof
+        run: node evidence-tools/.github/scripts/final-content-os-ui-proof.mjs
+
+      - name: Upload final proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-os-final-ui-proof-${{ steps.fix.outputs.sha }}
+          path: docs/evidence/ui/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit final screenshots and manifest to product branch
+        run: |
+          git restore pnpm-lock.yaml package.json 2>/dev/null || true
+          git add docs/evidence/ui
+          git commit -m "docs: recapture final Content OS UI proof at ${TARGET_SHA}"
+          git push origin HEAD:${PRODUCT_BRANCH}
+          echo "EVIDENCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Stop local services
+        if: always()
+        run: |
+          [[ -f "$RUNNER_TEMP/ui.pid" ]] && kill "$(cat "$RUNNER_TEMP/ui.pid")" || true
+          [[ -f "$RUNNER_TEMP/api.pid" ]] && kill "$(cat "$RUNNER_TEMP/api.pid")" || true
