@@ -1,0 +1,148 @@
+name: UI proof e66260b v3
+
+on:
+  push:
+    branches:
+      - evidence/ui-proof-e66260b
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TARGET_SHA: e66260b0cf7573114793aced0384862c92faf191
+  TARGET_BRANCH: manus/content-machine-closeout
+
+jobs:
+  capture-ui:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: content_machine_test
+          POSTGRES_PASSWORD: content_machine_test
+          POSTGRES_DB: content_machine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U content_machine_test -d content_machine_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      ALLOW_TEST_DATABASE_RESET: "true"
+      DATABASE_URL: postgresql://content_machine_test:content_machine_test@localhost:5432/content_machine_test
+      MIGRATIONS_DIR: ${{ github.workspace }}/lib/db/drizzle
+      SESSION_SECRET: ui-proof-test-session-secret-not-production
+      ADMIN_PASSWORD: ui-proof-test-password-not-production
+      TEST_ADMIN_PASSWORD: ui-proof-test-password-not-production
+      PORT: "8080"
+      API_PORT: "8080"
+    steps:
+      - name: Checkout exact product commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+
+      - name: Checkout evidence tooling separately
+        uses: actions/checkout@v4
+        with:
+          ref: evidence/ui-proof-e66260b
+          path: evidence-tools
+          sparse-checkout: |
+            .github/scripts/capture-content-os-ui.mjs
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install product dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare isolated integration database
+        run: pnpm --filter @workspace/api-server test:db:prepare
+
+      - name: Build and start API
+        run: |
+          pnpm --filter @workspace/api-server build
+          PORT=8080 pnpm --filter @workspace/api-server start > "$RUNNER_TEMP/content-machine-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/content-machine-api.pid"
+          for attempt in {1..45}; do
+            curl --fail --silent http://127.0.0.1:8080/api/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/content-machine-api.log"
+          exit 1
+
+      - name: Start real Content OS frontend
+        run: |
+          PORT=5173 API_PORT=8080 pnpm --filter @workspace/content-os exec vite --config vite.config.ts --host 0.0.0.0 --port 5173 > "$RUNNER_TEMP/content-os-ui.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/content-os-ui.pid"
+          for attempt in {1..45}; do
+            curl --fail --silent http://127.0.0.1:5173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/content-os-ui.log"
+          exit 1
+
+      - name: Install Playwright locally without persisting product changes
+        run: |
+          pnpm add -Dw playwright@1.55.0 --ignore-workspace-root-check
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Prepare deterministic test media
+        run: |
+          cat > "$RUNNER_TEMP/demo-image.svg" <<'SVG'
+          <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
+            <rect width="1200" height="675" fill="#111111"/>
+            <rect x="70" y="70" width="1060" height="535" rx="32" fill="#F9F8F6"/>
+            <circle cx="170" cy="170" r="44" fill="#C8102E"/>
+            <text x="245" y="187" font-family="Arial, sans-serif" font-size="58" font-weight="700" fill="#111111">CONTENT OS</text>
+            <text x="110" y="335" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="#111111">Deterministic UI Proof Image</text>
+            <text x="110" y="405" font-family="Arial, sans-serif" font-size="28" fill="#57534E">Safe local/test media inserted through the real editor workflow.</text>
+            <rect x="110" y="480" width="420" height="16" rx="8" fill="#C8102E"/>
+          </svg>
+          SVG
+
+      - name: Capture actual browser-rendered UI
+        run: node evidence-tools/.github/scripts/capture-content-os-ui.mjs
+
+      - name: Upload complete screenshot set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-os-ui-proof-e66260b-v3
+          path: docs/evidence/ui/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit screenshots and manifest to evidence branch
+        if: success()
+        run: |
+          cp -R docs/evidence/ui "$RUNNER_TEMP/ui-evidence"
+          git fetch origin evidence/ui-proof-e66260b
+          git switch evidence/ui-proof-e66260b
+          mkdir -p docs/evidence
+          rm -rf docs/evidence/ui
+          cp -R "$RUNNER_TEMP/ui-evidence" docs/evidence/ui
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/evidence/ui
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: add real Content OS UI evidence for e66260b"
+            git push origin evidence/ui-proof-e66260b
+          fi
+
+      - name: Stop local services
+        if: always()
+        run: |
+          [[ -f "$RUNNER_TEMP/content-os-ui.pid" ]] && kill "$(cat "$RUNNER_TEMP/content-os-ui.pid")" || true
+          [[ -f "$RUNNER_TEMP/content-machine-api.pid" ]] && kill "$(cat "$RUNNER_TEMP/content-machine-api.pid")" || true
