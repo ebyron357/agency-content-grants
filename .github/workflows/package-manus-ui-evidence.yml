@@ -1,0 +1,25 @@
+name: Package verified Manus UI evidence
+
+on:
+  push:
+    branches:
+      - evidence/ui-proof-e66260b
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verified evidence commit
+        uses: actions/checkout@v4
+        with:
+          ref: 1d3dec21a79fd8cb2bd32938f526c9745b78a50d
+      - name: Verify evidence manifest exists
+        run: test -f docs/evidence/ui/README.md
+      - name: Upload verified UI evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-os-manus-verified-ui-evidence
+          path: docs/evidence/ui/
+          if-no-files-found: error
+          retention-days: 30
