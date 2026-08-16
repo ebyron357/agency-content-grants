@@ -262,11 +262,11 @@ function Toolbar({
           <DialogHeader><DialogTitle>Insert image</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-stone-600 block mb-1">Image file (JPEG, PNG, GIF, WebP, SVG — max 10 MB)</label>
+              <label className="text-xs font-medium text-stone-600 block mb-1">Image file (JPEG, PNG, GIF, or WebP — max 10 MB)</label>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                accept="image/jpeg,image/png,image/gif,image/webp"
                 className="text-sm"
                 onChange={(e) => { setImageFile(e.target.files?.[0] ?? null); setImageError(""); }}
               />
