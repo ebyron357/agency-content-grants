@@ -1,0 +1,133 @@
+name: Final Content OS capture v2
+
+on:
+  push:
+    branches:
+      - evidence/ui-proof-e66260b
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PRODUCT_BRANCH: manus/content-machine-closeout
+  NODE_ENV: test
+  ALLOW_TEST_DATABASE_RESET: "true"
+  DATABASE_URL: postgresql://content_machine_test:content_machine_test@localhost:5432/content_machine_test
+  SESSION_SECRET: ui-proof-test-session-secret-not-production
+  ADMIN_PASSWORD: ui-proof-test-password-not-production
+  TEST_ADMIN_PASSWORD: ui-proof-test-password-not-production
+  PORT: "8080"
+  API_PORT: "8080"
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: content_machine_test
+          POSTGRES_PASSWORD: content_machine_test
+          POSTGRES_DB: content_machine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U content_machine_test -d content_machine_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_BRANCH }}
+          fetch-depth: 0
+
+      - name: Record exact application SHA
+        run: echo "TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: evidence/ui-proof-e66260b
+          path: evidence-tools
+          sparse-checkout: |
+            .github/scripts/final-content-os-ui-proof.mjs
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify application compiles
+        run: pnpm --filter @workspace/api-server build
+
+      - name: Preserve deterministic PNG and reset evidence directory
+        run: |
+          cp docs/evidence/ui/ui-test-image.png "$RUNNER_TEMP/ui-test-image.png"
+          echo "DEMO_IMAGE_PATH=$RUNNER_TEMP/ui-test-image.png" >> "$GITHUB_ENV"
+          rm -rf docs/evidence/ui
+          mkdir -p docs/evidence/ui
+          echo "MIGRATIONS_DIR=$GITHUB_WORKSPACE/lib/db/drizzle" >> "$GITHUB_ENV"
+
+      - name: Prepare isolated database
+        run: pnpm --filter @workspace/api-server test:db:prepare
+
+      - name: Start API
+        run: |
+          PORT=8080 pnpm --filter @workspace/api-server start > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:8080/api/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+
+      - name: Start real Content OS frontend
+        run: |
+          PORT=5173 API_PORT=8080 pnpm --filter @workspace/content-os exec vite --config vite.config.ts --host 0.0.0.0 --port 5173 > "$RUNNER_TEMP/ui.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/ui.pid"
+          for attempt in {1..60}; do
+            curl --fail --silent http://127.0.0.1:5173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/ui.log"
+          exit 1
+
+      - name: Install Playwright Chromium
+        run: |
+          pnpm add -Dw playwright@1.55.0 --ignore-workspace-root-check
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Capture final browser screenshots
+        run: node evidence-tools/.github/scripts/final-content-os-ui-proof.mjs
+
+      - name: Upload final proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-os-final-ui-proof-v2
+          path: docs/evidence/ui/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit final evidence to product branch
+        run: |
+          git restore package.json pnpm-lock.yaml 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/evidence/ui
+          git commit -m "docs: recapture final Content OS UI proof at ${TARGET_SHA}"
+          git push origin HEAD:${PRODUCT_BRANCH}
+
+      - name: Stop services
+        if: always()
+        run: |
+          [[ -f "$RUNNER_TEMP/ui.pid" ]] && kill "$(cat "$RUNNER_TEMP/ui.pid")" || true
+          [[ -f "$RUNNER_TEMP/api.pid" ]] && kill "$(cat "$RUNNER_TEMP/api.pid")" || true
