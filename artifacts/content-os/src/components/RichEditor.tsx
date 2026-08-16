@@ -67,7 +67,7 @@ export const VideoEmbed = Node.create({
             "iframe",
             {
               src,
-              class: "w-full aspect-video rounded border",
+              class: "w-full aspect-video rounded-2xl border border-white/10 shadow-xl shadow-black/30",
               frameborder: "0",
               allowfullscreen: "true",
               allow: "encrypted-media",
@@ -75,7 +75,7 @@ export const VideoEmbed = Node.create({
             },
           ]
         : ["p", { class: "text-red-500" }, "⚠ Unsupported video source"],
-      caption ? ["p", { class: "text-xs text-stone-500 text-center mt-1" }, caption] : ["span"],
+      caption ? ["p", { class: "mt-2 text-center text-xs text-white/35" }, caption] : ["span"],
     ];
   },
 });
@@ -102,9 +102,9 @@ function ToolBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "p-1.5 rounded text-stone-600 hover:bg-stone-100 transition-colors",
-        active && "bg-stone-200 text-stone-900",
-        disabled && "opacity-40 cursor-not-allowed"
+        "inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/[0.08] hover:text-white",
+        active && "bg-[#e5484d]/15 text-[#ff9b9b]",
+        disabled && "cursor-not-allowed opacity-25"
       )}
     >
       {children}
@@ -217,32 +217,32 @@ function Toolbar({
 
   return (
     <>
-      <div className="flex items-center gap-0.5 flex-wrap px-3 py-1.5 border-b border-stone-200 bg-stone-50">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-white/[0.08] bg-[#10131a] px-4 py-3 sm:px-7">
         <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} title="Heading 1"><Heading1 className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} title="Heading 2"><Heading2 className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} title="Heading 3"><Heading3 className="w-4 h-4" /></ToolBtn>
-        <div className="w-px h-5 bg-stone-300 mx-1" />
+        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
         <ToolBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Bold"><Bold className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="Italic"><Italic className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive("code")} title="Inline code"><Code className="w-4 h-4" /></ToolBtn>
-        <div className="w-px h-5 bg-stone-300 mx-1" />
+        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
         <ToolBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Bullet list"><List className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Ordered list"><ListOrdered className="w-4 h-4" /></ToolBtn>
-        <div className="w-px h-5 bg-stone-300 mx-1" />
+        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
         <ToolBtn onClick={handleLink} active={editor.isActive("link")} title="Insert/edit link"><Link2 className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => setImageOpen(true)} title="Insert image"><ImageIcon className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => setVideoOpen(true)} title="Insert video embed"><Video className="w-4 h-4" /></ToolBtn>
-        <div className="w-px h-5 bg-stone-300 mx-1" />
+        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
         <ToolBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo"><Undo className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo"><Redo className="w-4 h-4" /></ToolBtn>
       </div>
 
       {/* Link dialog */}
       <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm border-white/[0.1] bg-[#151922] text-white shadow-2xl shadow-black/50">
           <DialogHeader><DialogTitle>Insert link</DialogTitle></DialogHeader>
           <input
-            className="w-full border border-stone-200 rounded px-3 py-2 text-sm"
+            className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
             placeholder="https://example.com"
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
@@ -258,32 +258,32 @@ function Toolbar({
 
       {/* Image upload dialog */}
       <Dialog open={imageOpen} onOpenChange={setImageOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md border-white/[0.1] bg-[#151922] text-white shadow-2xl shadow-black/50">
           <DialogHeader><DialogTitle>Insert image</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-stone-600 block mb-1">Image file (JPEG, PNG, GIF, or WebP — max 10 MB)</label>
+              <label className="mb-1 block text-xs font-medium text-white/55">Image file (JPEG, PNG, GIF, or WebP — max 10 MB)</label>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
-                className="text-sm"
+                className="rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 py-2 text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/[0.08] file:px-3 file:py-1.5 file:text-xs file:text-white/70"
                 onChange={(e) => { setImageFile(e.target.files?.[0] ?? null); setImageError(""); }}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-600 block mb-1">Alt text (required for accessibility)</label>
+              <label className="mb-1 block text-xs font-medium text-white/55">Alt text (required for accessibility)</label>
               <input
-                className="w-full border border-stone-200 rounded px-3 py-2 text-sm"
+                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
                 placeholder="Describe the image…"
                 value={imageAlt}
                 onChange={(e) => setImageAlt(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-600 block mb-1">Caption (optional)</label>
+              <label className="mb-1 block text-xs font-medium text-white/55">Caption (optional)</label>
               <input
-                className="w-full border border-stone-200 rounded px-3 py-2 text-sm"
+                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
                 placeholder="Image caption…"
                 value={imageCaption}
                 onChange={(e) => setImageCaption(e.target.value)}
@@ -302,24 +302,24 @@ function Toolbar({
 
       {/* Video URL dialog */}
       <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md border-white/[0.1] bg-[#151922] text-white shadow-2xl shadow-black/50">
           <DialogHeader><DialogTitle>Insert video embed</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-stone-600 block mb-1">YouTube or Vimeo URL</label>
+              <label className="mb-1 block text-xs font-medium text-white/55">YouTube or Vimeo URL</label>
               <input
-                className="w-full border border-stone-200 rounded px-3 py-2 text-sm"
+                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
                 placeholder="https://www.youtube.com/watch?v=…"
                 value={videoUrl}
                 onChange={(e) => { setVideoUrl(e.target.value); setVideoError(""); }}
                 autoFocus
               />
-              <p className="text-xs text-stone-400 mt-1">Only YouTube and Vimeo HTTPS links are accepted.</p>
+              <p className="mt-1 text-xs text-white/35">Only YouTube and Vimeo HTTPS links are accepted.</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-600 block mb-1">Caption (optional)</label>
+              <label className="mb-1 block text-xs font-medium text-white/55">Caption (optional)</label>
               <input
-                className="w-full border border-stone-200 rounded px-3 py-2 text-sm"
+                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
                 placeholder="Video caption…"
                 value={videoCaption}
                 onChange={(e) => setVideoCaption(e.target.value)}
@@ -397,22 +397,22 @@ export function RichEditor({
   if (!editor) return null;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#0b0e14]">
       {!readOnly && (
         <Toolbar editor={editor} sectionId={sectionId} onImageInserted={onImageInserted} />
       )}
       <EditorContent
         editor={editor}
         className={cn(
-          "flex-1 overflow-y-auto p-6 text-sm text-stone-700 leading-relaxed focus-within:outline-none",
-          "prose prose-sm max-w-none",
-          "[&_.ProseMirror]:min-h-full [&_.ProseMirror]:outline-none",
+          "flex-1 overflow-y-auto px-5 py-8 text-[15px] leading-8 text-white/75 focus-within:outline-none sm:px-12 sm:py-10",
+          "prose prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-white prose-p:text-white/75 prose-strong:text-white prose-a:text-[#ff9b9b] prose-li:text-white/70",
+          "[&_.ProseMirror]:mx-auto [&_.ProseMirror]:min-h-full [&_.ProseMirror]:max-w-3xl [&_.ProseMirror]:outline-none",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
-          "[&_.ProseMirror_p.is-editor-empty:first-child::before]:text-stone-400",
+          "[&_.ProseMirror_p.is-editor-empty:first-child::before]:text-white/25",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0",
-          readOnly && "bg-stone-50 cursor-default"
+          readOnly && "bg-[#0b0e14] cursor-default"
         )}
       />
     </div>
