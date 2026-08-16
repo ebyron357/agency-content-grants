@@ -78,7 +78,7 @@ export default defineConfig(async ({ command }) => {
       // Proxy API calls to the Express server during development
       proxy: {
         '/api': {
-          target: `http://localhost:${process.env.API_PORT ?? 3000}`,
+          target: `http://localhost:${process.env.API_PORT ?? 8080}`,
           changeOrigin: true,
         },
       },
