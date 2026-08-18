@@ -28,6 +28,7 @@ import publishingRouter from "./publishing";
 import performanceRouter from "./performance";
 import apiKeysRouter from "./api-keys";
 import webhooksRouter from "./webhooks";
+import mediaRouter from "./media";
 
 export const router = Router();
 
@@ -61,3 +62,4 @@ router.use(publishingRouter);
 router.use(performanceRouter);
 router.use(apiKeysRouter);
 router.use(webhooksRouter);
+router.use(mediaRouter);

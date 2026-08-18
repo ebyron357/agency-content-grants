@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RepurposeTab } from './RepurposeTab';
 import { PublishDialog } from '@/components/publishing/PublishDialog';
+import { RichEditor } from '@/components/RichEditor';
 
 const WORKFLOW_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -184,7 +185,7 @@ function ResearchTab({ projectId }: { projectId: string }) {
           <p className="text-xs mt-1">Generate an AI-powered research strategy</p>
         </div>
       )}
-    </div>
+        </div>
   );
 }
 
@@ -421,6 +422,7 @@ function ClaimsTab({ projectId }: { projectId: string }) {
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[claim.verificationStatus ?? 'pending'] ?? 'bg-stone-100 text-stone-500'}`}>{claim.verificationStatus ?? 'pending'}</span>
                 <span className="text-xs text-stone-400 capitalize">{claim.claimType}</span>
                 {claim.confidence != null && <span className="text-xs text-stone-400">Confidence: {Math.round(claim.confidence * 100)}%</span>}
+                {claim.sourceTitle && <span className="text-xs text-blue-600">Source: {claim.sourceTitle}</span>}
                 {claim.timeSensitive && <span className="text-xs text-amber-500">⏰ Time-sensitive</span>}
               </div>
               {claim.reviewerNotes && <p className="text-xs text-stone-400 mt-1 italic">{claim.reviewerNotes}</p>}
@@ -528,114 +530,54 @@ function EditorTab({ projectId }: { projectId: string }) {
   const approveSection = useMutation({ mutationFn: (id: string) => apiPost(`/document-sections/${id}/approve`) });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editType, setEditType] = useState('natural_tone');
-  const [manualContent, setManualContent] = useState<string | null>(null);
+  const [richContent, setRichContent] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const refresh = () => qc.invalidateQueries({ queryKey: getGetDocumentQueryKey(projectId) });
   const sections = (doc as any)?.sections ?? [];
   const selected = sections.find((s: any) => s.id === selectedId) ?? sections[0] ?? null;
-  const displayContent = manualContent ?? selected?.content ?? '';
   const isPending = draftSection.isPending || editSection.isPending;
 
-  if (isLoading) return <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />;
+  const handleSave = useCallback(async () => {
+    if (!selected || !richContent) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await apiPatch(`/document-sections/${selected.id}`, { content: richContent, contentFormat: 'html' });
+      await refresh();
+    } catch (err) {
+      setSaveError((err as Error).message ?? 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }, [selected, richContent]);
+
+  if (isLoading) return <div className="h-64 animate-pulse rounded-3xl border border-white/[0.08] bg-white/[0.03]" />;
 
   if (!doc) return (
-    <div className="bg-white border border-dashed border-stone-200 rounded-lg p-10 text-center">
-      <p className="text-stone-500 font-medium mb-2">No document yet</p>
-      <p className="text-sm text-stone-400 mb-5">Create the document to start drafting from your approved outline</p>
-      <Button onClick={async () => { await initDoc.mutateAsync({ id: projectId }); refresh(); }} disabled={initDoc.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">
-        {initDoc.isPending ? 'Creating…' : 'Create Document'}
-      </Button>
+    <div className="flex min-h-[520px] items-center justify-center rounded-3xl border border-dashed border-white/[0.12] bg-[#0d1017] p-10 text-center text-white">
+      <div><div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e5484d]/[0.12] text-[#ff9696]"><Sparkles className="h-5 w-5" /></div><p className="mb-2 font-semibold">No document yet</p><p className="mb-5 text-sm text-white/45">Create the document to start drafting from your approved outline.</p><Button onClick={async () => { await initDoc.mutateAsync({ id: projectId }); refresh(); }} disabled={initDoc.isPending} className="bg-[#e5484d] text-white hover:bg-[#f15b5f]">{initDoc.isPending ? 'Creating…' : 'Create document'}</Button></div>
     </div>
   );
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-280px)] min-h-[500px]">
-      {/* Section list */}
-      <div className="w-52 flex-shrink-0 space-y-1 overflow-y-auto">
-        {sections.map((section: any) => (
-          <button key={section.id} onClick={() => { setSelectedId(section.id); setManualContent(null); }}
-            className={`w-full text-left px-3 py-2.5 rounded text-xs leading-snug transition-colors ${selected?.id === section.id ? 'bg-[#C8102E] text-white' : 'hover:bg-stone-100 text-stone-600'}`}>
-            <div className="flex items-center gap-1 mb-0.5">
-              {section.isLocked && <Lock className="w-2.5 h-2.5 opacity-60" />}
-              {section.isApproved && <CheckCircle className="w-2.5 h-2.5 text-green-400" />}
-            </div>
-            <span className="font-medium line-clamp-2">{section.title}</span>
-            {section.wordCount > 0 && <span className="opacity-60 text-[10px] mt-0.5 block">{section.wordCount}w</span>}
-          </button>
-        ))}
-        <div className="pt-2 px-1"><p className="text-xs text-stone-400">{(doc as any).wordCount ?? 0} total words</p></div>
-      </div>
+    <div className="rounded-[28px] border border-white/[0.09] bg-[#0d1017] text-white shadow-2xl shadow-black/20">
+      <div className="grid min-h-[720px] grid-cols-1 lg:grid-cols-[228px_minmax(0,1fr)_240px]">
+        <aside className="border-b border-white/[0.08] p-4 lg:border-b-0 lg:border-r lg:p-5">
+          <div className="mb-5 flex items-center justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">Document map</p><p className="mt-1 text-xs text-white/45">{(doc as any).wordCount ?? 0} words</p></div><span className="rounded-full border border-white/[0.1] px-2 py-1 text-[10px] text-white/35">{sections.length} parts</span></div>
+          <div className="flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-1 lg:overflow-visible">{sections.map((section: any, index: number) => <button key={section.id} onClick={() => { setSelectedId(section.id); setRichContent(null); }} className={cn('group min-w-[170px] rounded-2xl border px-3 py-3 text-left transition-all lg:min-w-0 lg:w-full', selected?.id === section.id ? 'border-[#e5484d]/55 bg-[#e5484d]/[0.12]' : 'border-transparent hover:border-white/[0.08] hover:bg-white/[0.03]')}><div className="mb-2 flex items-center justify-between"><span className={cn('font-mono text-[10px]', selected?.id === section.id ? 'text-[#ff9696]' : 'text-white/25')}>{String(index + 1).padStart(2, '0')}</span><span className="flex items-center gap-1">{section.isLocked && <Lock className="h-3 w-3 text-white/35" />}{section.isApproved && <CheckCircle className="h-3 w-3 text-emerald-300" />}</span></div><p className={cn('line-clamp-2 text-xs font-medium leading-5', selected?.id === section.id ? 'text-white' : 'text-white/55')}>{section.title}</p><p className="mt-1 text-[10px] text-white/25">{section.wordCount > 0 ? `${section.wordCount} words` : 'Not drafted'}</p></button>)}</div>
+        </aside>
 
-      {/* Editor */}
-      <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">
-        {selected ? (
-          <>
-            <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold text-stone-800 font-serif">{selected.title}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${selected.status === 'approved' ? 'bg-green-50 text-green-600' : selected.status === 'drafted' ? 'bg-blue-50 text-blue-600' : 'bg-stone-100 text-stone-500'}`}>{selected.status}</span>
-                  {selected.wordCount > 0 && <span className="text-xs text-stone-400">{selected.wordCount} words</span>}
-                </div>
-              </div>
-              <div className="flex gap-1.5">
-                <Button size="sm" variant="outline" onClick={async () => { selected.isLocked ? await unlockSection.mutateAsync(selected.id) : await lockSection.mutateAsync(selected.id); refresh(); }} title={selected.isLocked ? 'Unlock' : 'Lock'}>
-                  {selected.isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                </Button>
-                {!selected.isApproved && (
-                  <Button size="sm" onClick={async () => { await approveSection.mutateAsync(selected.id); refresh(); }} className="bg-green-600 hover:bg-green-700 text-white">Approve</Button>
-                )}
-              </div>
-            </div>
+        <section className="min-w-0 border-b border-white/[0.08] lg:border-b-0 lg:border-r">
+          {selected ? <>
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] px-5 py-4 sm:px-8"><div><div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/30"><span className="h-1.5 w-1.5 rounded-full bg-[#ff7979]" /> Writing canvas</div><h3 className="text-lg font-semibold tracking-tight text-white">{selected.title}</h3><div className="mt-1 flex items-center gap-2 text-xs text-white/35"><span className="rounded-full border border-white/[0.1] px-2 py-0.5">{selected.status}</span><span>{selected.wordCount || 0} words</span>{richContent !== null && <span className="text-amber-300">Unsaved changes</span>}</div></div><div className="flex items-center gap-2">{selected.isLocked && <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] px-3 py-1.5 text-xs text-white/45"><Lock className="h-3.5 w-3.5" /> Locked</span>}<button type="button" onClick={async () => { selected.isLocked ? await unlockSection.mutateAsync(selected.id) : await lockSection.mutateAsync(selected.id); refresh(); }} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.1] px-3 text-xs text-white/55 transition hover:border-white/25 hover:text-white">{selected.isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}{selected.isLocked ? 'Unlock' : 'Lock'}</button>{!selected.isApproved && <button type="button" onClick={async () => { await approveSection.mutateAsync(selected.id); refresh(); }} className="inline-flex h-9 items-center gap-2 rounded-xl bg-emerald-400/15 px-3 text-xs font-medium text-emerald-200 transition hover:bg-emerald-400/25"><CheckCircle className="h-3.5 w-3.5" /> Approve</button>}</div></div>
+            {!selected.isLocked && <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] bg-white/[0.015] px-5 py-3 sm:px-8"><button type="button" onClick={async () => { setRichContent(null); await draftSection.mutateAsync({ id: selected.id }); refresh(); }} disabled={isPending} className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#e5484d] px-3.5 text-xs font-semibold text-white transition hover:bg-[#f15b5f] disabled:opacity-50">{draftSection.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{selected.content ? 'Re-draft section' : 'Draft section'}</button>{selected.content && <><select value={editType} onChange={e => setEditType(e.target.value)} className="h-9 rounded-xl border border-white/[0.1] bg-[#080a0f] px-3 text-xs text-white/65"><option value="natural_tone">Natural tone</option><option value="developmental">Developmental edit</option><option value="continuity">Continuity check</option><option value="proofread">Proofread</option><option value="shorten">Shorten</option><option value="expand">Expand</option><option value="simplify">Simplify</option></select><button type="button" onClick={async () => { setRichContent(null); await editSection.mutateAsync({ id: selected.id, data: { editType } }); refresh(); }} disabled={isPending} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.1] px-3 text-xs text-white/60 transition hover:border-white/25 hover:text-white">{editSection.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Apply edit</button></>}{richContent !== null && <div className="ml-auto flex items-center gap-2"><button type="button" onClick={handleSave} disabled={saving} className="inline-flex h-9 items-center gap-2 rounded-xl bg-white px-3.5 text-xs font-semibold text-[#0d1017] transition hover:bg-white/90">{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{saving ? 'Saving…' : 'Save changes'}</button>{saveError && <span className="text-xs text-red-300">{saveError}</span>}</div>}</div>}
+            <div className="min-h-[560px] lg:h-[calc(100vh-420px)]">{isPending ? <div className="flex h-full min-h-[560px] items-center justify-center"><div className="text-center"><Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin text-[#ff7979]" /><p className="text-sm text-white/60">AI is writing this section…</p><p className="mt-1 text-xs text-white/30">The canvas will update when the pass is complete.</p></div></div> : <RichEditor key={selected.id} sectionId={selected.id} initialContent={selected?.content ?? ''} contentFormat={selected?.contentFormat === 'html' ? 'html' : 'plain'} readOnly={selected.isLocked} onChange={(html) => setRichContent(html)} onImageInserted={() => refresh()} />}</div>
+          </> : <div className="flex min-h-[560px] items-center justify-center p-8 text-center"><div><p className="text-sm font-medium text-white/65">Select a section to start writing</p><p className="mt-1 text-xs text-white/30">Your section navigation stays visible as you move through the draft.</p></div></div>}
+        </section>
 
-            {!selected.isLocked && (
-              <div className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
-                <Button onClick={async () => { setManualContent(null); await draftSection.mutateAsync({ id: selected.id }); refresh(); }} disabled={isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2 text-xs h-8">
-                  {draftSection.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {selected.content ? 'Re-draft' : 'Draft Section'}
-                </Button>
-                {selected.content && (
-                  <>
-                    <select value={editType} onChange={e => setEditType(e.target.value)} className="border border-stone-200 rounded px-2 py-1 text-xs text-stone-600 h-8">
-                      <option value="natural_tone">Natural Tone</option>
-                      <option value="developmental">Developmental Edit</option>
-                      <option value="continuity">Continuity Check</option>
-                      <option value="proofread">Proofread</option>
-                      <option value="shorten">Shorten</option>
-                      <option value="expand">Expand</option>
-                      <option value="simplify">Simplify</option>
-                    </select>
-                    <Button onClick={async () => { setManualContent(null); await editSection.mutateAsync({ id: selected.id, data: { editType } }); refresh(); }} disabled={isPending} variant="outline" className="gap-2 text-xs h-8">
-                      {editSection.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                      Apply Edit
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
-
-            <div className="flex-1 bg-white border border-stone-200 rounded-lg overflow-hidden flex flex-col">
-              {isPending ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center text-stone-400">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" />
-                    <p className="text-sm">AI is writing…</p>
-                  </div>
-                </div>
-              ) : (
-                <textarea
-                  className="flex-1 w-full p-6 text-sm text-stone-700 leading-relaxed resize-none focus:outline-none font-sans"
-                  value={displayContent}
-                  onChange={e => !selected.isLocked && setManualContent(e.target.value)}
-                  readOnly={selected.isLocked}
-                  placeholder={selected.isLocked ? 'Section is locked.' : "Click 'Draft Section' to generate content, or type here to write manually…"}
-                />
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 bg-white border border-stone-200 rounded-lg flex items-center justify-center text-stone-400 text-sm">Select a section from the left to start writing</div>
-        )}
+        <aside className="p-5 sm:p-6"><div className="mb-6 flex items-center justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">Workspace intelligence</p><p className="mt-1 text-xs text-white/45">Context for this section</p></div><Sparkles className="h-4 w-4 text-[#ff7979]" /></div><div className="space-y-3"><div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-medium text-white/65">Section state</span><span className="h-2 w-2 rounded-full bg-emerald-300" /></div><p className="text-2xl font-semibold text-white">{selected?.wordCount ?? 0}</p><p className="mt-1 text-xs text-white/30">words in this pass</p><div className="mt-4 h-1 rounded-full bg-white/[0.08]"><div className="h-full w-[72%] rounded-full bg-[#e5484d]" /></div><p className="mt-2 text-[10px] text-white/30">Draft completeness · active</p></div><div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4"><p className="mb-2 text-xs font-medium text-amber-100">Review attention</p><p className="text-xs leading-5 text-amber-100/55">Claims and citations can be checked from the Quality and Sources stages before approval.</p><button type="button" onClick={() => window.dispatchEvent(new CustomEvent('content-os-open-quality'))} className="mt-3 text-xs font-medium text-amber-200 underline underline-offset-4">View quality signals</button></div><div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"><p className="mb-3 text-xs font-medium text-white/65">Next best action</p><div className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#ff7979]" /><p className="text-xs leading-5 text-white/45">{selected?.isApproved ? 'Move to the next section or export the document.' : 'Review this section, then approve it when the voice and evidence feel right.'}</p></div></div></div></aside>
       </div>
     </div>
   );
@@ -743,7 +685,8 @@ function ExportTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       <div className="bg-white border border-stone-200 rounded-lg p-5">
-        <h3 className="font-semibold text-stone-800 mb-4">Export Document</h3>
+        <h3 className="font-semibold text-stone-800 mb-2">Export Document</h3>
+        <p className="text-xs text-stone-500 mb-4">Every export includes an evidence register when this project has sources or claims, including source links, retrieval status, and supporting excerpts.</p>
         <div className="flex items-center gap-3">
           <select value={format} onChange={e => setFormat(e.target.value)} className="border border-stone-200 rounded-md px-3 py-2 text-sm flex-1">
             {FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
@@ -976,31 +919,20 @@ export default function ProjectDetail() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-8 py-8">
-      <div className="mb-6">
-        <Link href="/projects" className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 mb-3"><ChevronLeft className="w-3 h-3" /> All Projects</Link>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs bg-stone-100 text-stone-500 px-2 py-0.5 rounded capitalize font-medium">{project.contentType}</span>
-              <span className={`text-xs px-2 py-0.5 rounded font-medium ${project.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-stone-100 text-stone-500'}`}>{project.status}</span>
-            </div>
-            <h1 className="text-2xl font-bold text-[#111] font-serif leading-snug">{project.title}</h1>
-            {(project as any).brandName && <p className="text-sm text-stone-400 mt-1">{(project as any).brandName}</p>}
+    <div className="min-h-screen bg-[#080a0f] px-4 py-5 text-white sm:px-6 lg:px-8 lg:py-8">
+      <div className="mx-auto max-w-[1480px]">
+        <div className="mb-7 flex items-center justify-between gap-4">
+          <Link href="/projects" className="inline-flex items-center gap-2 text-xs text-white/40 transition hover:text-white"><ChevronLeft className="h-3.5 w-3.5" /> All projects</Link>
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30"><span className="h-1.5 w-1.5 rounded-full bg-[#ff7979]" /> Editorial workspace</div>
+        </div>
+        <div className="mb-7 rounded-[28px] border border-white/[0.09] bg-[#10131a] p-5 shadow-2xl shadow-black/20 sm:p-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0"><div className="mb-3 flex flex-wrap items-center gap-2"><span className="rounded-full border border-[#e5484d]/35 bg-[#e5484d]/[0.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#ff9b9b]">{project.contentType}</span><span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.06] px-2.5 py-1 text-[10px] font-medium text-emerald-200">{project.status}</span>{(project as any).brandName && <span className="text-xs text-white/35">{(project as any).brandName}</span>}</div><h1 className="max-w-4xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">{project.title}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">Move from brief to approved draft with evidence, quality signals, and a clear next action at every stage.</p></div>
+            <div className="flex shrink-0 items-center gap-2"><span className="rounded-full border border-white/[0.1] px-3 py-2 text-xs text-white/45">{(docData as any)?.wordCount ?? 0} words</span><button type="button" onClick={() => setEditingProject(true)} className="rounded-xl border border-white/[0.1] px-3.5 py-2 text-xs font-medium text-white/65 transition hover:border-white/25 hover:text-white">Edit brief</button></div>
           </div>
         </div>
-      </div>
 
-      <div className="border-b border-stone-200 mb-6 overflow-x-auto">
-        <div className="flex gap-0 min-w-max">
-          {WORKFLOW_TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id ? 'border-[#C8102E] text-[#C8102E]' : 'border-transparent text-stone-500 hover:text-stone-800'}`}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        <div className="mb-7 overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#10131a] p-1.5"><div className="flex min-w-max gap-1">{WORKFLOW_TABS.map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn('rounded-xl px-3.5 py-2.5 text-xs font-medium whitespace-nowrap transition', activeTab === tab.id ? 'bg-white text-[#0d1017] shadow-lg' : 'text-white/38 hover:bg-white/[0.04] hover:text-white/80')}>{tab.label}</button>)}</div></div>
 
       {activeTab === 'overview' && <OverviewTab project={project} workflowStatus={workflowStatus} onEdit={() => setEditingProject(true)} />}
       {activeTab === 'research' && <ResearchTab projectId={id} />}
@@ -1016,6 +948,7 @@ export default function ProjectDetail() {
         <EditProjectModal project={project} onClose={() => setEditingProject(false)}
           onSave={async (form: any) => { await updateProject.mutateAsync(form); qc.invalidateQueries({ queryKey: getGetProjectQueryKey(id) }); setEditingProject(false); }} />
       )}
-    </div>
+        </div>
+      </div>
   );
 }

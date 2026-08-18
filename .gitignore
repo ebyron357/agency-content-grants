@@ -60,6 +60,7 @@ build/
 *.sqlite3
 data/exports/
 artifacts/api-server/data/exports/
+uploads/
 
 # recovered Replit-local working context, not application source
 attached_assets/
