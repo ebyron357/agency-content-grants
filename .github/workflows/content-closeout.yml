@@ -1,0 +1,51 @@
+name: Content Machine closeout validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck all workspaces
+        run: pnpm typecheck
+
+      - name: API unit tests
+        run: pnpm --filter @workspace/api-server test:unit
+
+      - name: Content OS tests
+        run: pnpm --filter @workspace/content-os test
+
+      - name: Production build
+        run: pnpm build
+
+      - name: Secret-pattern scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nEI '(sk_live_[A-Za-z0-9]{16,}|sk-proj-[A-Za-z0-9_-]{16,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|SUPABASE_SERVICE_ROLE_KEY\s*=\s*[^$])' -- ':!pnpm-lock.yaml' ':!docs/evidence/**'; then
+            echo 'Potential committed secret pattern found.' >&2
+            exit 1
+          fi
