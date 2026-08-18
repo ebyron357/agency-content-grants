@@ -49,3 +49,5 @@ jobs:
             echo 'Potential committed secret pattern found.' >&2
             exit 1
           fi
+
+      # This workflow is the exact-head repository gate; production infrastructure and UAT remain separate gates.
