@@ -1,18 +1,26 @@
-# HISTORICAL / NON-CANONICAL
-# This workflow remains as recovery-era evidence for the
-# `recovery/replit-content-machine-source` line. Pull requests targeting
-# `main` must use `.github/workflows/ci.yml` (workflow name: CI).
-name: Historical recovery baseline validation (non-canonical)
+# Canonical pull-request gate for `main`.
+# Historical recovery validation lives in recovery-baseline-validation.yml
+# and is not the required check for pull requests targeting main.
+name: CI
 
 on:
   pull_request:
     branches:
-      - recovery/replit-content-machine-source
+      - main
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   validate:
+    name: Format, typecheck, tests, build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16-alpine
@@ -38,25 +46,40 @@ jobs:
       PORT: "8080"
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.16.0
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24.15.0
           cache: pnpm
+
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm run format:check
+
       - name: Typecheck workspace
         run: pnpm run typecheck
+
+      - name: Run hermetic API unit tests
+        run: pnpm --filter @workspace/api-server test:unit
+
+      - name: Prepare isolated API test database
+        run: pnpm --filter @workspace/api-server test:db:prepare
+
       - name: Run API tests
         run: pnpm --filter @workspace/api-server test
+
       - name: Run Content OS tests
         run: pnpm --filter @workspace/content-os test
-      - name: Prepare isolated integration database
-        run: pnpm --filter @workspace/api-server test:db:prepare
+
       - name: Build API for integration tests
         run: pnpm --filter @workspace/api-server build
+
       - name: Start isolated API
         run: |
           pnpm --filter @workspace/api-server start > "$RUNNER_TEMP/content-machine-api.log" 2>&1 &
@@ -67,13 +90,16 @@ jobs:
           done
           cat "$RUNNER_TEMP/content-machine-api.log"
           exit 1
+
       - name: Run integration tests
         run: bash tests/integration-tests.sh
+
       - name: Stop isolated API
         if: always()
         run: |
           if [[ -f "$RUNNER_TEMP/content-machine-api.pid" ]]; then
             kill "$(cat "$RUNNER_TEMP/content-machine-api.pid")" || true
           fi
-      - name: Build complete workspace
+
+      - name: Production build
         run: pnpm run build

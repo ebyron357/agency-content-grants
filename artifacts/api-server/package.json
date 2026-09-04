@@ -8,8 +8,9 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:db:prepare": "tsx src/test/prepareDatabase.ts"
+    "test": "node ./scripts/run-api-tests.mjs",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:db:prepare": "node ./scripts/run-prepare-database.mjs"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.21.0",
