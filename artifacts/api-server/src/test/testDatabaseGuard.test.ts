@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { assertDisposableTestDatabase } from "@workspace/db";
+import { assertDisposableTestDatabase } from "@workspace/db/test-database-guard";
 
 const originalNodeEnv = process.env.NODE_ENV;
 const originalResetFlag = process.env.ALLOW_TEST_DATABASE_RESET;
