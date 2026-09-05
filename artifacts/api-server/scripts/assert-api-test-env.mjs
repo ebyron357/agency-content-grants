@@ -19,6 +19,23 @@ export function assertApiTestEnv() {
     problems.push(
       "DATABASE_URL must point at a disposable PostgreSQL database whose name ends in _test",
     );
+  } else {
+    // Mirror the reset guard without importing the database package. Never
+    // print URL values or parser errors: they can contain credentials.
+    try {
+      const parsed = new URL(process.env.DATABASE_URL);
+      if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
+        problems.push("DATABASE_URL must use PostgreSQL");
+      }
+      if (!["localhost", "127.0.0.1", "postgres"].includes(parsed.hostname)) {
+        problems.push("DATABASE_URL must use a local test host");
+      }
+      if (!parsed.pathname.slice(1).endsWith("_test")) {
+        problems.push("DATABASE_URL database name must end in _test");
+      }
+    } catch {
+      problems.push("DATABASE_URL must be a valid PostgreSQL URL");
+    }
   }
 
   if (problems.length === 0) {
