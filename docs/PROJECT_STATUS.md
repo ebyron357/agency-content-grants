@@ -89,6 +89,14 @@ Required audit targets:
 - Accessibility/responsive behavior.
 - Runtime/security/error-state quality.
 
+## Current CI / test-lane contract
+
+Pull requests targeting `main` are gated by `.github/workflows/ci.yml` (workflow name: **CI**). That is the canonical validation workflow. Details are in `docs/CI.md`.
+
+The historical `recovery-baseline-validation` workflow remains recovery-era evidence for `recovery/replit-content-machine-source`. It is not the required check for `main`.
+
+API tests must be invoked through `@workspace/api-server` package scripts. The full suite requires an explicit disposable PostgreSQL setup (`NODE_ENV=test`, `ALLOW_TEST_DATABASE_RESET=true`, `DATABASE_URL` to a `*_test` database). Individual Vitest file invocation from the repository root is rejected because `@workspace/db` throws at import when `DATABASE_URL` is unset.
+
 ## Current known technical facts
 
 - The recovered application includes `artifacts/content-os`, `artifacts/api-server`, `artifacts/mockup-sandbox`, `lib/db`, `lib/api-spec`, generated clients/schemas, migrations, scripts, and integration tests.

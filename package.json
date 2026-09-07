@@ -2,11 +2,13 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@11.16.0",
   "scripts": {
     "preinstall": "node scripts/enforce-pnpm.mjs",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "format:check": "prettier --check --ignore-unknown .prettierrc.json .github/workflows docs/CI.md artifacts/api-server/scripts artifacts/api-server/vitest.config.ts artifacts/api-server/vitest.unit.config.ts artifacts/api-server/package.json artifacts/api-server/src/test/testDatabaseGuard.test.ts lib/db/package.json package.json"
   },
   "private": true,
   "dependencies": {
