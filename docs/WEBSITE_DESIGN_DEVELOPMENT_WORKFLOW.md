@@ -178,3 +178,9 @@ work in this repository still requires the merge/production gates in
 Tool names above are examples of a qualified category, not a mandated
 toolchain — pick the specific tool that fits the client's stack and the
 team's existing licenses.
+
+## Agent entry point
+
+Use `prompts/WEBSITE_DESIGN_WORKFLOW_ORCHESTRATOR.md` to run this pipeline
+with an AI agent (Cursor Cloud Agent, Claude Code, or equivalent). It walks
+the stages above in order and stops at each owner-approval gate.

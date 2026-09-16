@@ -42,7 +42,8 @@ These are proposals, not approved dependencies.
 `docs/WEBSITE_DESIGN_DEVELOPMENT_WORKFLOW.md` defines the end-to-end pipeline
 for client website engagements — research, design generation, creative
 production, production design, development, and QA — and the owner-approval
-gates between them.
+gates between them. `prompts/WEBSITE_DESIGN_WORKFLOW_ORCHESTRATOR.md` is the
+agent prompt that executes it, stage by stage, stopping at each gate.
 
 ## Cursor entry point
 
