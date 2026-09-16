@@ -14,6 +14,7 @@
 | `docs/architecture/*` | ADRs and architecture evidence | Technical lead | Product owner approves material cost/ownership tradeoffs |
 | `docs/security/*` | Threat model and security controls | Security lead | Product owner accepts residual risk |
 | `docs/benchmarks/*` | Evaluation corpus and release rubric | Product and quality leads | Product owner approves release thresholds |
+| `docs/WEBSITE_DESIGN_DEVELOPMENT_WORKFLOW.md` | Client website design/dev pipeline and approval gates | Program lead | Approved PR |
 
 ## Rule
 

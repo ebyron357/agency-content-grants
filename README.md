@@ -37,6 +37,13 @@ These are proposals, not approved dependencies.
 - Monthly operating budget and revenue target
 - Final implementation approval or rejection
 
+## Client website design & development workflow
+
+`docs/WEBSITE_DESIGN_DEVELOPMENT_WORKFLOW.md` defines the end-to-end pipeline
+for client website engagements — research, design generation, creative
+production, production design, development, and QA — and the owner-approval
+gates between them.
+
 ## Cursor entry point
 
 Use `prompts/CURSOR_MASTER_ORCHESTRATOR.md` as the Cloud Agent or Automation prompt.
