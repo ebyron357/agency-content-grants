@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 /**
  * Hermetic API unit tests. These files do not import `@workspace/db` at
  * runtime (or they mock it before load), so they can run without DATABASE_URL.
+ * Run them with `npm run test:unit`.
  * The full suite in vitest.config.ts still requires the disposable test database.
  */
 export default defineConfig({
