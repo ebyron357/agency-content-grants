@@ -17,9 +17,9 @@ Date: 2026-08-16 UTC
 4. The authenticated shell loaded the Content OS navigation and New Content creation route without a runtime error.
 5. The New Content page exposed the topic field, eight content-type choices, brand selector, advanced options, and Generate Content action.
 
-## Remaining browser QA
+## Browser QA scope and remaining work
 
-A complete click-through of generation, project editor, media insertion, quality review, and export remains to be performed in the authenticated session. The integration suite separately completed the full deterministic generation and export workflow with 38 passed and 0 failed.
+The authenticated local click-through covered creation, deterministic generation, project editing, video insertion/rendering, quality-screen rendering, and Markdown export as recorded below. Image upload/rendering and responsive layouts are evidenced separately by the historical screenshot set in `docs/evidence/ui/`. This record does not prove production deployment parity, cross-tenant behavior in a hosted environment, durable object storage, or a complete assistive-technology audit; those remain release gates.
 
 ## Creation and editor verification
 

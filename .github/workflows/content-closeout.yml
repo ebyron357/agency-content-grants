@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -nEI '(sk_live_[A-Za-z0-9]{16,}|sk-proj-[A-Za-z0-9_-]{16,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|SUPABASE_SERVICE_ROLE_KEY\s*=\s*[^$])' -- ':!pnpm-lock.yaml' ':!docs/evidence/**'; then
+          if git grep -nEI '(sk_live_[A-Za-z0-9]{16,}|sk-proj-[A-Za-z0-9_-]{16,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|SUPABASE_SERVICE_ROLE_KEY\s*=\s*[^$])' -- ':!pnpm-lock.yaml'; then
             echo 'Potential committed secret pattern found.' >&2
             exit 1
           fi

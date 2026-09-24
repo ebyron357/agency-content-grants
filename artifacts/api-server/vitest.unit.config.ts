@@ -16,6 +16,7 @@ export default defineConfig({
       "src/__tests__/image-validator.test.ts",
       "src/__tests__/ownership.test.ts",
       "src/__tests__/patch-hardening.test.ts",
+      "src/__tests__/rich-text.test.ts",
       "src/__tests__/video-validator.test.ts",
       "src/lib/ai/demo.test.ts",
       "src/lib/repurposing.test.ts",

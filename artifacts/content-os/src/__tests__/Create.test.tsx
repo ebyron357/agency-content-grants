@@ -17,16 +17,16 @@ const mockNavigate = vi.fn();
 vi.mock("wouter", () => ({
   useLocation: () => ["", mockNavigate],
   Link: ({ href, children, ...props }: any) => (
-    <a href={href} {...props}>{children}</a>
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }));
 
 // Mock API client hooks
 vi.mock("@workspace/api-client-react", () => ({
   useListBrands: () => ({
-    data: [
-      { id: "brand1", name: "Test Brand", industry: "Tech" },
-    ],
+    data: [{ id: "brand1", name: "Test Brand", industry: "Tech" }],
   }),
 }));
 
@@ -50,11 +50,12 @@ describe("Create page — form validation", () => {
     expect(screen.getByText("Generate Content")).toBeDefined();
   });
 
-  it("shows all 8 content type options", () => {
+  it("shows all supported content type options including manuals and processes", () => {
     render(<Create />);
     expect(screen.getByText("Blog Post")).toBeDefined();
     expect(screen.getByText("Article")).toBeDefined();
     expect(screen.getByText("Guide")).toBeDefined();
+    expect(screen.getByText("Manual")).toBeDefined();
     expect(screen.getByText("White Paper")).toBeDefined();
     expect(screen.getByText("Newsletter")).toBeDefined();
     expect(screen.getByText("Ebook")).toBeDefined();
@@ -106,7 +107,9 @@ describe("Create page — form validation", () => {
     render(<Create />);
 
     await user.click(screen.getByText("Advanced options"));
-    expect(screen.getByPlaceholderText(/e.g. Marketing managers/i)).toBeDefined();
+    expect(
+      screen.getByPlaceholderText(/e.g. Marketing managers/i),
+    ).toBeDefined();
   });
 
   it("does not call apiPost when topic is empty", async () => {
@@ -141,6 +144,8 @@ describe("Create page — duplicate-submission prevention", () => {
 
     // After first click, should show loading state (button disappears, replaced by spinner screen)
     // The Generate button is no longer rendered during loading
-    expect(screen.queryByRole("button", { name: /generate content/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /generate content/i }),
+    ).toBeNull();
   });
 });

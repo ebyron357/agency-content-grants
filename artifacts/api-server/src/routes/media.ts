@@ -18,9 +18,9 @@ import { db } from "@workspace/db";
 import { contentImagesTable, contentVideosTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { writeFile, mkdir, readFile } from "fs/promises";
+import { writeFile, mkdir, readFile, unlink } from "fs/promises";
 import { existsSync } from "fs";
-import { join, resolve } from "path";
+import { join } from "path";
 import { getSectionOwned } from "../middleware/ownershipHelpers";
 import { parseVideoUrl } from "../lib/videoValidator";
 import {
@@ -29,6 +29,11 @@ import {
   extensionForImageType,
   hasImageSignature,
 } from "../lib/imageValidator";
+import {
+  ensureMediaRoot,
+  getMediaRoot,
+  resolveMediaPath,
+} from "../lib/mediaStorage";
 
 const router: IRouter = Router();
 
@@ -40,7 +45,8 @@ const imageUploadLimiter = rateLimit({
   message: { error: "Too many image uploads. Please wait a few minutes." },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.session?.userId ?? ipKeyGenerator(req.ip ?? "unknown"),
+  keyGenerator: (req) =>
+    req.session?.userId ?? ipKeyGenerator(req.ip ?? "unknown"),
   skip: () => false,
 });
 
@@ -50,15 +56,14 @@ const imageServeLimiter = rateLimit({
   message: { error: "Too many requests." },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.session?.userId ?? ipKeyGenerator(req.ip ?? "unknown"),
+  keyGenerator: (req) =>
+    req.session?.userId ?? ipKeyGenerator(req.ip ?? "unknown"),
 });
 
 // ── Image storage configuration ──────────────────────────────────────────────
 
-const MEDIA_DIR = join(process.cwd(), "data", "media-uploads");
-
 async function ensureMediaDir() {
-  await mkdir(MEDIA_DIR, { recursive: true });
+  await ensureMediaRoot();
 }
 
 /**
@@ -93,7 +98,11 @@ const imageUpload = multer({
     if (ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Unsupported image type: ${file.mimetype}. Allowed: jpeg, png, gif, webp`));
+      cb(
+        new Error(
+          `Unsupported image type: ${file.mimetype}. Allowed: jpeg, png, gif, webp`,
+        ),
+      );
     }
   },
 });
@@ -125,26 +134,47 @@ router.post(
 
     const file = req.file;
     if (!file) {
-      res.status(400).json({ error: "No image file provided (field name: image)" });
+      res
+        .status(400)
+        .json({ error: "No image file provided (field name: image)" });
       return;
     }
 
-    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype) || !hasImageSignature(file.buffer, file.mimetype)) {
-      res.status(400).json({ error: "Image content does not match a supported raster image type" });
+    if (
+      !ALLOWED_IMAGE_TYPES.has(file.mimetype) ||
+      !hasImageSignature(file.buffer, file.mimetype)
+    ) {
+      res
+        .status(400)
+        .json({
+          error: "Image content does not match a supported raster image type",
+        });
       return;
     }
 
     const ext = extensionForImageType(file.mimetype);
     const storageKey = `${req.session.userId!}/${randomUUID()}${ext}`;
-    const filePath = join(MEDIA_DIR, storageKey);
+    const filePath = resolveMediaPath(storageKey);
 
     await ensureMediaDir();
-    await mkdir(join(MEDIA_DIR, req.session.userId!), { recursive: true });
+    await mkdir(join(getMediaRoot(), req.session.userId!), { recursive: true });
     await writeFile(filePath, file.buffer);
 
     const imageId = randomUUID();
-    const altText = typeof req.body.altText === "string" ? req.body.altText.slice(0, 500) : "";
-    const caption = typeof req.body.caption === "string" ? req.body.caption.slice(0, 500) : "";
+    const altText =
+      typeof req.body.altText === "string"
+        ? req.body.altText.trim().slice(0, 500)
+        : "";
+    const caption =
+      typeof req.body.caption === "string"
+        ? req.body.caption.slice(0, 500)
+        : "";
+
+    if (!altText) {
+      await unlink(filePath).catch(() => undefined);
+      res.status(400).json({ error: "Alt text is required for accessibility" });
+      return;
+    }
 
     let image;
     try {
@@ -163,7 +193,7 @@ router.post(
         })
         .returning();
     } catch (error) {
-      await import("fs/promises").then(({ unlink }) => unlink(filePath).catch(() => undefined));
+      await unlink(filePath).catch(() => undefined);
       throw error;
     }
 
@@ -174,51 +204,56 @@ router.post(
   },
 );
 
-router.get("/media/images/:id", imageServeLimiter, async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+router.get(
+  "/media/images/:id",
+  imageServeLimiter,
+  async (req, res): Promise<void> => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-  const [image] = await db
-    .select()
-    .from(contentImagesTable)
-    .where(eq(contentImagesTable.id, id))
-    .limit(1);
+    const [image] = await db
+      .select()
+      .from(contentImagesTable)
+      .where(eq(contentImagesTable.id, id))
+      .limit(1);
 
-  if (!image) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
+    if (!image) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
 
-  if (image.userId !== req.session.userId) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
+    if (image.userId !== req.session.userId) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
 
-  const storageKey = image.storageKey.replace(/\.\./g, "").replace(/[^a-zA-Z0-9._\-/]/g, "");
-  const filePath = resolve(join(MEDIA_DIR, storageKey));
-  if (!filePath.startsWith(resolve(MEDIA_DIR) + "/")) {
-    res.status(400).json({ error: "Invalid storage key" });
-    return;
-  }
+    let filePath: string;
+    try {
+      filePath = resolveMediaPath(image.storageKey);
+    } catch {
+      res.status(400).json({ error: "Invalid storage key" });
+      return;
+    }
 
-  if (!existsSync(filePath)) {
-    res.status(404).json({ error: "File not found on disk" });
-    return;
-  }
+    if (!existsSync(filePath)) {
+      res.status(404).json({ error: "File not found on disk" });
+      return;
+    }
 
-  const buffer = await readFile(filePath);
-  res.setHeader("Content-Type", image.mimeType);
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
-  );
-  res.setHeader(
-    "Content-Disposition",
-    `inline; filename="${image.filename.replace(/[^a-zA-Z0-9._\-]/g, "_")}"`,
-  );
-  res.setHeader("Cache-Control", "private, max-age=3600");
-  res.send(buffer);
-});
+    const buffer = await readFile(filePath);
+    res.setHeader("Content-Type", image.mimeType);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${image.filename.replace(/[^a-zA-Z0-9._\-]/g, "_")}"`,
+    );
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(buffer);
+  },
+);
 
 router.patch("/media/images/:id", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -234,15 +269,23 @@ router.patch("/media/images/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const section = await getMutableSection(image.documentSectionId, req.session.userId!, res);
+  const section = await getMutableSection(
+    image.documentSectionId,
+    req.session.userId!,
+    res,
+  );
   if (!section) return;
 
   const update: Record<string, string> = {};
-  if (typeof req.body.altText === "string") update.altText = req.body.altText.slice(0, 500);
-  if (typeof req.body.caption === "string") update.caption = req.body.caption.slice(0, 500);
+  if (typeof req.body.altText === "string")
+    update.altText = req.body.altText.slice(0, 500);
+  if (typeof req.body.caption === "string")
+    update.caption = req.body.caption.slice(0, 500);
 
   if (Object.keys(update).length === 0) {
-    res.status(400).json({ error: "No updatable fields provided (altText, caption)" });
+    res
+      .status(400)
+      .json({ error: "No updatable fields provided (altText, caption)" });
     return;
   }
 
@@ -269,80 +312,94 @@ router.delete("/media/images/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const section = await getMutableSection(image.documentSectionId, req.session.userId!, res);
+  const section = await getMutableSection(
+    image.documentSectionId,
+    req.session.userId!,
+    res,
+  );
   if (!section) return;
 
   await db.delete(contentImagesTable).where(eq(contentImagesTable.id, id));
-  await import("fs/promises").then(({ unlink }) =>
-    unlink(resolve(join(MEDIA_DIR, image.storageKey))).catch(() => undefined),
-  );
+  await unlink(resolveMediaPath(image.storageKey)).catch(() => undefined);
   res.status(204).end();
 });
 
-router.get("/document-sections/:id/media/images", async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const section = await getSectionOwned(id, req.session.userId!, res);
-  if (!section) return;
+router.get(
+  "/document-sections/:id/media/images",
+  async (req, res): Promise<void> => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const section = await getSectionOwned(id, req.session.userId!, res);
+    if (!section) return;
 
-  const images = await db
-    .select()
-    .from(contentImagesTable)
-    .where(eq(contentImagesTable.documentSectionId, id));
+    const images = await db
+      .select()
+      .from(contentImagesTable)
+      .where(eq(contentImagesTable.documentSectionId, id));
 
-  res.json(images.map((img) => ({ ...img, url: `/api/media/images/${img.id}` })));
-});
+    res.json(
+      images.map((img) => ({ ...img, url: `/api/media/images/${img.id}` })),
+    );
+  },
+);
 
 // ── Video URL validation and storage ─────────────────────────────────────────
 
-router.post("/document-sections/:id/media/videos", async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const section = await getMutableSection(id, req.session.userId!, res);
-  if (!section) return;
+router.post(
+  "/document-sections/:id/media/videos",
+  async (req, res): Promise<void> => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const section = await getMutableSection(id, req.session.userId!, res);
+    if (!section) return;
 
-  const { url, caption } = req.body;
-  if (typeof url !== "string" || !url.trim()) {
-    res.status(400).json({ error: "url is required" });
-    return;
-  }
+    const { url, caption } = req.body;
+    if (typeof url !== "string" || !url.trim()) {
+      res.status(400).json({ error: "url is required" });
+      return;
+    }
 
-  const meta = parseVideoUrl(url.trim());
-  if (!meta) {
-    res.status(400).json({
-      error: "Unsupported or invalid video URL. Only YouTube and Vimeo HTTPS URLs are accepted.",
-    });
-    return;
-  }
+    const meta = parseVideoUrl(url.trim());
+    if (!meta) {
+      res.status(400).json({
+        error:
+          "Unsupported or invalid video URL. Only YouTube and Vimeo HTTPS URLs are accepted.",
+      });
+      return;
+    }
 
-  const videoId = randomUUID();
-  const [video] = await db
-    .insert(contentVideosTable)
-    .values({
-      id: videoId,
-      documentSectionId: id,
-      userId: req.session.userId!,
-      provider: meta.provider,
-      videoId: meta.videoId,
-      originalUrl: url.trim().slice(0, 2000),
-      embedUrl: meta.embedUrl,
-      caption: typeof caption === "string" ? caption.slice(0, 500) : "",
-    })
-    .returning();
+    const videoId = randomUUID();
+    const [video] = await db
+      .insert(contentVideosTable)
+      .values({
+        id: videoId,
+        documentSectionId: id,
+        userId: req.session.userId!,
+        provider: meta.provider,
+        videoId: meta.videoId,
+        originalUrl: url.trim().slice(0, 2000),
+        embedUrl: meta.embedUrl,
+        caption: typeof caption === "string" ? caption.slice(0, 500) : "",
+      })
+      .returning();
 
-  res.status(201).json(video);
-});
+    res.status(201).json(video);
+  },
+);
 
-router.get("/document-sections/:id/media/videos", async (req, res): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const section = await getSectionOwned(id, req.session.userId!, res);
-  if (!section) return;
+router.get(
+  "/document-sections/:id/media/videos",
+  async (req, res): Promise<void> => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const section = await getSectionOwned(id, req.session.userId!, res);
+    if (!section) return;
 
-  const videos = await db
-    .select()
-    .from(contentVideosTable)
-    .where(eq(contentVideosTable.documentSectionId, id));
+    const videos = await db
+      .select()
+      .from(contentVideosTable)
+      .where(eq(contentVideosTable.documentSectionId, id));
 
-  res.json(videos);
-});
+    res.json(videos);
+  },
+);
 
 router.delete("/media/videos/:id", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -358,7 +415,11 @@ router.delete("/media/videos/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const section = await getMutableSection(video.documentSectionId, req.session.userId!, res);
+  const section = await getMutableSection(
+    video.documentSectionId,
+    req.session.userId!,
+    res,
+  );
   if (!section) return;
 
   await db.delete(contentVideosTable).where(eq(contentVideosTable.id, id));
@@ -375,7 +436,8 @@ router.post("/media/videos/validate", async (req, res): Promise<void> => {
   const meta = parseVideoUrl(url.trim());
   if (!meta) {
     res.status(400).json({
-      error: "Unsupported or invalid video URL. Only YouTube and Vimeo HTTPS URLs are accepted.",
+      error:
+        "Unsupported or invalid video URL. Only YouTube and Vimeo HTTPS URLs are accepted.",
     });
     return;
   }

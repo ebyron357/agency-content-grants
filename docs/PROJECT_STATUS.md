@@ -1,170 +1,192 @@
-# Project Status
+# Content OS — Complete Project Status
 
-## Overall status
+**Author:** Manus AI
+**Repository:** [ebyron357/agency-content-grants](https://github.com/ebyron357/agency-content-grants)
+**Branch:** `manus/content-machine-closeout`
+**Candidate:** current `manus/content-machine-closeout` HEAD; the immutable SHA is recorded in the PR validation receipt after the final commit
+**Status date:** 23 September 2026
+**Decision:** **NO-GO for production launch; GO for continued controlled development and review**
 
-The authoritative Replit Content Machine source has been recovered, stabilized, and merged into the canonical GitHub `main` branch. Recovery PR #5 and recovery PR #4 are merged. The recovered workspace is executable and evidence-backed.
+## Executive status
 
-The project has now moved from recovery/stabilization into **ACTIVE PRODUCT CLOSEOUT** under the owner-approved replacement decision in `docs/GO_NO_GO_DECISION.md`.
+Content OS is now a coherent, authenticated content-production workspace rather than a generic prompt box. Its strongest product direction is an evidence-first guided workflow: a user begins with a question or assignment, the system turns that intent into a research plan and outline, sources are stored and reviewed, claims can be linked to sources, the draft is produced in a structured editor, quality review is run before publication, and exports retain an evidence register. This is materially more defensible than positioning the product as another undifferentiated AI writer.
 
-Current executive state:
+The current repository is technically healthy for controlled testing. On the current closeout worktree, frozen installation, configured formatting, repository typecheck, 105 API unit tests, 19 Content OS tests, production build, and the repository secret-pattern scan pass. The previously recorded authenticated integration suite passed with **38 passed, 0 failed, 0 skipped**; exact-head database reset, API, and integration results are supplied by the canonical GitHub CI run for the final candidate. Production launch remains **NO-GO** because deployment parity, durable production object storage, production secrets, real-provider observability, cross-tenant E2E in the deployed environment, accessibility conformance evidence, and rollback readiness still require owner-controlled verification.
 
-- Recovery/source preservation: **COMPLETE**
-- Recovery baseline stabilization: **COMPLETE**
-- Baseline automated validation: **PASS**
-- Product implementation closeout: **AUTHORIZED / ACTIVE**
-- Production deployment: **NOT YET VERIFIED / CONDITIONAL GO AFTER RELEASE GATES**
-- Replit as development/deployment target: **NO-GO; reference/recovery evidence only**
+## Product thesis and positioning
 
-## Canonical repository state
+> **Content OS turns a vague content assignment into a defensible, reviewable content package.**
 
-- Repository: `ebyron357/agency-content-grants`
-- Default branch: `main`
-- Latest recovery merge recorded for closeout baseline: `6eeead8ec49a04eb788597b75c1e6f326339608e`
-- Recovered source commit: `fba398e2945fc39405b9bdf2543b28df4aac65ee`
-- Merged recovery/stabilization PRs: #5 and #4
-- Remaining legacy governance PR #3 predates the recovered application and must be reconciled against current `main` before any merge decision.
+The product should not compete primarily on raw generation speed. Jasper currently emphasizes marketing workflows, agents, brand knowledge, audiences, deep research, and scaled content execution; Copy.ai emphasizes no-code workflows, scraping, research agents, events, and GTM automation; Notion AI emphasizes contextual workspace agents, enterprise search, meeting notes, research mode, and AI blocks. Those products are strong in automation or general workspace context, but the public positioning does not make source-to-claim traceability the central user contract.[1] [2] [3]
 
-## Verified baseline evidence
+Content OS should own the **guided evidence chain**. The differentiating mechanism is not a single model or a decorative “AI” label; it is the sequence and the visible proof objects that the sequence produces. Every substantial output should be explainable through a brief, a source set, a claims ledger, a review decision, and an export appendix. The system should be useful to a beginner while still producing artifacts that a professional editor, strategist, compliance reviewer, or subject-matter expert can inspect.
 
-The recovered baseline has passed the executable validation needed to start product closeout:
+## Target users and adaptive experience
 
-- `pnpm install --frozen-lockfile`: PASS across the recovered workspace.
-- Repository-wide typecheck: PASS.
-- API tests: 249/249 PASS in the stabilized evidence set.
-- Content OS tests: 10/10 PASS.
-- Disposable PostgreSQL 16 setup and migration/reset validation: PASS.
-- Integration validation: PASS without hidden skips, including fresh export creation/verification.
-- Aggregate build: PASS for recovered workspaces.
-- Secret scan: PASS.
-- Review-driven stabilization fixes: merged.
+The primary user is a non-technical person who knows what they want to communicate but does not know how to turn it into a defensible brief, research process, or publishable draft. Secondary users include solo consultants, small-agency strategists, editors, subject-matter experts, and small marketing teams that need repeatable quality without enterprise workflow complexity.
 
-The recovery evidence remains in `docs/recovery/RECOVERY_VALIDATION.md` and `RECOVERY_PROVENANCE.md`.
+| User state | Product response | Evidence of fit |
+|---|---|---|
+| Beginner with a vague topic | Ask for topic, audience, purpose, and desired outcome; generate a brief before drafting | The existing Create flow already validates topic, content type, brand, and advanced options. |
+| User with no sources | Explain why sources matter and offer URL or PDF ingestion with clear next steps | Source Library supports manual URL entry and PDF upload/extraction. |
+| User with scattered references | Normalize source metadata, show retrieval status, and make approval/rejection explicit | Source records include publisher, author, date, excerpts, status, and ownership checks. |
+| User making factual claims | Show claim status, confidence, source title, and supporting excerpt | Claims Ledger now surfaces source linkage when the API returns it. |
+| User drafting | Keep the editor focused on structure, section status, locks, approvals, and readable content | Tiptap-backed rich editing, section navigation, locking, approval, media insertion, and AI editing are present. |
+| User preparing publication | Explain readiness blockers and preserve the evidence register in exports | Quality and Export tabs exist; all exports now append the evidence register when evidence exists. |
+| Mobile or constrained viewport | Collapse navigation to an icon rail and preserve readable hierarchy | Final responsive screenshot evidence verified dashboard, creation, project, and editor views. |
 
-## What this evidence proves
+## Core workflow mechanism
 
-The baseline is now suitable for active implementation work. It proves the recovered application can install, typecheck, test, migrate, integrate, export, and build under the stabilized test/CI conditions.
+The recommended product loop is **Question → Brief → Source plan → Source ingestion → Claims ledger → Outline → Draft → Review → Export**. Each stage should produce a durable object, expose the next recommended action, and make uncertainty visible instead of silently filling gaps with model output.
 
-It does **not** yet prove that all approved product requirements are implemented or that a production deployment is complete.
+| Stage | Durable object | User decision | Current implementation status |
+|---|---|---|---|
+| Question | Project assignment | Clarify audience, purpose, constraints, and desired outcome | Implemented in Create and project settings. |
+| Brief | Research plan and outline | Approve scope and questions | Implemented with research-plan and outline routes. |
+| Source plan | Source records | Add, approve, reject, or revisit sources | Implemented with URL/PDF source management and ownership checks. |
+| Claims ledger | Claim records | Verify, link, and review claims | Implemented; source linkage exists in the API and is now surfaced in the UI. |
+| Draft | Document sections and revisions | Edit, lock, approve, and refine | Implemented in the rich editor. |
+| Review | Quality evaluation and issues | Decide whether to fix, accept, or block publication | Implemented with quality and readiness routes. |
+| Export | Downloadable package | Select format and retain traceability | Implemented; evidence register is appended to Markdown, HTML, TXT, DOCX, and PDF outputs. |
 
-## Approved final product outcome
+## Competitive landscape
 
-Closeout is now authorized for a production-quality Content Machine that provides:
+| Product | Current public strength | Gap Content OS can own | Strategic response |
+|---|---|---|---|
+| Jasper | Marketing-specific agents, brand voice, knowledge, audiences, deep research, and scaled content workflows | Evidence chain is not the primary visible contract for an ordinary user | Win on guided defensibility, reviewability, and claim-level proof. |
+| Copy.ai | No-code workflow builder, scraping, research agents, event triggers, and GTM automation | Workflow flexibility can shift complexity onto the user and does not inherently guarantee source quality | Win on opinionated beginner guidance and human-readable evidence objects. |
+| Notion AI | Workspace context, agents, enterprise search, meeting notes, and general knowledge work | Broad workspace assistance is not the same as source-to-claim publishing discipline | Win on a focused content-production path with explicit readiness gates. |
 
-1. Long-form blog/article creation and editing.
-2. Manuals, guides, reports, and comparable structured long-form artifacts.
-3. A practical rich editor workflow rather than a static/mockup-only experience.
-4. Image insertion/upload/reference behavior with persistence and rendered output.
-5. Supported video embedding/URL behavior with validation, persistence, and rendered output.
-6. Project/document save, reopen, edit, lifecycle, and core navigation flows.
-7. Backend/API/database persistence with correct tenant isolation and security.
-8. Required export behavior tied to the correct project/document.
-9. Authentication, authorization, rate limiting, error handling, secret controls, and production safeguards.
-10. Responsive/accessibility quality for critical workflows.
-11. A verified production deployment whose commit matches the accepted GitHub state.
+The competitive conclusion is not that Content OS should build every automation feature. It should make the **right work visible in the right order**: a beginner should know what to do next, and a reviewer should know why a sentence is present.
 
-## Immediate implementation gap audit
+## Open-source evaluation and adoption decisions
 
-The next autonomous closeout agent must audit the recovered `main` implementation against the approved final product outcome before coding. It must not assume that a capability is missing merely because older governance documents prohibited it, and it must not assume that recovered UI labels prove end-to-end functionality.
+| Candidate | Relevant capability | License / maintenance evidence | Decision |
+|---|---|---|---|
+| [Tiptap](https://github.com/ueberdosis/tiptap) | Headless rich-text editor and ProseMirror-based extension ecosystem | MIT; active repository with a large contributor and release ecosystem | **Adopted.** It is already the editor foundation. |
+| [Docling](https://github.com/docling-project/docling) | PDF, DOCX, PPTX, XLSX, HTML, image, transcript, email, layout, table, and reading-order ingestion | MIT; local and air-gapped execution is documented | **Evaluate for next ingestion milestone.** It is a strong fit, but Python/model footprint, sandboxing, queueing, and storage costs must be measured before production adoption. |
+| [axe-core](https://github.com/dequelabs/axe-core) | Automated WCAG-oriented browser accessibility checks | MPL-2.0 with third-party notices; active maintenance | **Adopt for CI.** Automated checks do not replace manual review, but they are an appropriate repeatable gate. |
+| [Citation.js](https://citation.js.org/) plus CSL | Convert DOI, BibTeX, Wikidata, and related formats to CSL-JSON and render deterministic styles | Dependency and style-license review required before server-side shipping | **Architecture direction.** Use CSL-JSON as the internal citation shape; keep citation formatting separate from source authority scoring. |
+| [citeproc-js](https://github.com/Juris-M/citeproc-js) | CSL citation and bibliography processor | Mature implementation; license review required | **Evaluate alongside Citation.js.** Choose one deterministic processor after a legal and bundle-size review. |
 
-For each capability it must classify the current state as one of:
+The current implementation deliberately avoids pretending that a library adoption is complete merely because it appears in a plan. Tiptap is adopted. The evidence appendix and source-ingestion hardening are implemented without adding a citation dependency prematurely. Docling, axe-core, and CSL processing remain explicit next-stage decisions with license, runtime, and operational review recorded.
 
-- `PASS — implemented and verified`
-- `IMPLEMENTED — verification missing`
-- `PARTIAL — specific gaps listed`
-- `MISSING`
-- `BLOCKED — external dependency named`
+## Implemented changes in this update
 
-Required audit targets:
+### Secure source ingestion
 
-- Long-form article/blog workflow.
-- Manual/guide workflow.
-- Editor formatting and save/reload behavior.
-- Image handling.
-- Video embedding.
-- Project/document persistence.
-- Navigation and required routes.
-- Export behavior.
-- Authentication/authorization/tenant boundaries.
-- Production configuration/deployment readiness.
-- Accessibility/responsive behavior.
-- Runtime/security/error-state quality.
+The manual source-create route no longer spreads arbitrary request-body fields into the database. It now accepts an explicit allowlist and validates a supplied source URL before persistence. Source fetching no longer uses an unguarded direct `fetch`; it reuses the existing DNS-rebinding-safe HTTP path, refuses internal or reserved destinations, does not follow unvalidated redirects, and applies a 15-second timeout. This closes a concrete SSRF and mass-assignment risk in the evidence path while preserving legitimate public HTTP/HTTPS source collection.
 
-## Current CI / test-lane contract
+### Evidence-aware export
 
-Pull requests targeting `main` are gated by `.github/workflows/ci.yml` (workflow name: **CI**). That is the canonical validation workflow. Details are in `docs/CI.md`.
+The exporter now loads project sources and claims and builds a deterministic evidence register. Each source receives a stable export key, such as `S1`, and the appendix includes title, URL where safe, author, publisher, retrieval date, status, linked claim text, verification status, and supporting excerpt. The appendix is rendered into Markdown, HTML, TXT, DOCX, and PDF exports. The implementation avoids claiming that every draft sentence is automatically verified; it preserves the evidence that the user and system have actually stored.
 
-The historical `recovery-baseline-validation` workflow remains recovery-era evidence for `recovery/replit-content-machine-source`. It is not the required check for `main`.
+### Evidence visibility in the product UI
 
-API tests must be invoked through `@workspace/api-server` package scripts. The full suite requires an explicit disposable PostgreSQL setup (`NODE_ENV=test`, `ALLOW_TEST_DATABASE_RESET=true`, `DATABASE_URL` to a `*_test` database). Individual Vitest file invocation from the repository root is rejected because `@workspace/db` throws at import when `DATABASE_URL` is unset.
+The Claims Ledger now surfaces the linked source title when available. The Export tab explains that evidence-bearing exports retain source links, retrieval status, and supporting excerpts. This connects the visible review workflow to the artifact that leaves the application.
 
-## Current known technical facts
+### Previously completed experience and security work retained
 
-- The recovered application includes `artifacts/content-os`, `artifacts/api-server`, `artifacts/mockup-sandbox`, `lib/db`, `lib/api-spec`, generated clients/schemas, migrations, scripts, and integration tests.
-- Export verification has already proven generation of a fresh valid DOCX artifact associated with the expected project/format.
-- The recovered archive contains no original Replit Git history and therefore cannot prove the historical Replit deployment SHA. That provenance gap no longer blocks using the recovered source as the GitHub baseline, but it prevents claims about exact historical Replit deployment parity.
-- Replit is not the production target for this closeout.
+The current branch also includes the premium first-click shell, responsive sidebar icon rail, lazy route loading, polished login and dashboard experiences, Tiptap rich authoring, safe media validation, ownership middleware, export path protection, and historical browser UI proof across required viewports. The automated behavior is revalidated on the current candidate; the retained browser screenshots remain explicitly tied to their historical capture SHA.
 
-## Governing authorization
+## Architecture direction
 
-`docs/GO_NO_GO_DECISION.md` now records **GO — evidence-gated Content Machine product closeout and production-readiness execution**.
+The current architecture is a TypeScript monorepo with a React/Vite frontend, Express API, Drizzle/PostgreSQL persistence, session authentication, object-storage abstraction, Tiptap editor, background-style export processing, and deterministic demo-provider support for isolated testing. The next architecture slice should preserve this shape rather than introduce a second application framework.
 
-`AGENTS.md` has been updated to match that authorization and defines the product verification matrix, non-negotiable safeguards, merge gate, deployment gate, and Definition of Done.
+| Concern | Current boundary | Recommended next step |
+|---|---|---|
+| Source ingestion | `routes/sources.ts`, PDF parser, object storage | Add a queued ingestion worker with content-type sniffing, size/time budgets, provenance fields, and optional Docling adapter. |
+| Evidence model | `sources`, `claims`, `research_plans` | Add explicit source snapshots, hash/version, extraction method, citation style, and claim-to-section references. |
+| Citation formatting | Exporter appendix currently uses deterministic source keys | Add CSL-JSON normalization and one reviewed processor; preserve source-trust fields separately. |
+| Quality | Quality evaluator and readiness endpoint | Add citation coverage, unsupported-claim severity, stale-source flags, and contradiction review to readiness. |
+| Accessibility | Manual visual QA and existing semantic UI patterns | Add axe-core browser checks to CI, then manually review keyboard flow, focus order, zoom, and screen-reader labels. |
+| Observability | API logs and export status | Add structured job IDs, ingestion/export latency, provider failures, and redacted audit events. |
+| Deployment | Local and repository-level validation | Verify production SHA parity, migrations, storage, secrets, health, rollback, and tenant isolation on the actual deployment target. |
 
-There is no longer a valid recovery-only prohibition on editor, media, video, publishing-readiness, or approved product implementation work.
+## Verification evidence
 
-## Remaining work
+| Verification | Result | Notes |
+|---|---:|---|
+| Frozen install | Passed locally | `pnpm install --frozen-lockfile` completed for all nine workspace projects. |
+| Configured formatting | Passed locally | Repository `format:check` completed successfully. |
+| Workspace typecheck | Passed | Full TypeScript build completed. |
+| API unit tests | Passed locally | 105 tests passed, plus 17 API test-environment guard checks. |
+| Frontend tests | Passed locally | 19 tests passed across creation workflow and persisted-media behavior. |
+| Production build | Passed | API, Content OS, mockup, libraries, and scripts built successfully. |
+| Exact-head database/API/integration suite | Pending canonical CI receipt | Local PostgreSQL/Docker is unavailable in this worktree; `.github/workflows/ci.yml` runs database preparation, the full API suite, and `tests/integration-tests.sh` on the pushed candidate. |
+| Historical integration suite | Passed | **38 passed, 0 failed, 0 skipped** against disposable PostgreSQL and deterministic local API on the earlier recorded candidate. |
+| DOCX/PDF signatures | Passed | DOCX `PK` signature and PDF `%PDF` signature verified. |
+| Citation appendix smoke test | Passed | A real source-linked claim appeared in a downloaded Markdown export. |
+| Ownership and auth | Passed locally | Authenticated routes and owner checks were exercised against isolated data. |
+| Responsive UI proof | Passed locally | Desktop, laptop, tablet, and mobile screenshots are stored under `docs/evidence/ui/`. |
+| Accessibility automated gate | Not yet complete | axe-core is evaluated but not yet integrated into this repository’s CI. Manual review remains required. |
+| Production deployment parity | Not verified | No claim is made about a deployed production SHA or live environment. |
 
-### P0 — Establish one canonical closeout implementation path
+## Visual and product assessment
 
-- Audit current `main` against the approved outcome.
-- Identify which recovered frontend/application tree is canonical for the product.
-- Preserve unique assets/behavior before consolidating duplicates.
-- Create or designate one focused closeout branch and one canonical closeout PR.
+The product’s current controlled-test UI is cohesive and credible. The dashboard is a clear command center; the Create flow is approachable; the editor exposes meaningful status and approval controls; the responsive icon rail prevents the mobile layout from becoming a desktop sidebar squeezed into a narrow viewport; and the export workflow now explains evidence retention.
 
-### P0/P1 — Close verified product gaps
+| Dimension | Score |
+|---|---:|
+| Positioning clarity | 86/100 |
+| Beginner guidance | 84/100 |
+| Evidence and trust model | 82/100 |
+| Editor usability | 84/100 |
+| Responsive presentation | 84/100 |
+| Accessibility readiness | 76/100 |
+| Export integrity | 88/100 |
+| Security posture in verified local paths | 86/100 |
+| Production readiness | 58/100 |
+| **Overall current product score** | **82/100** |
 
-Implement only the gaps demonstrated by the audit, with special attention to:
+The production-readiness score is intentionally lower than the product score because local correctness and production readiness are different claims.
 
-- Long-form article creation/persistence.
-- Manual/guide creation/persistence.
-- Rich-editor save/reload behavior.
-- Image insertion/persistence/rendering.
-- Video insertion/persistence/rendering.
-- Core navigation and project/document lifecycle.
-- Auth/tenant boundary and backend reliability.
-- Production configuration and deployment parity.
+## Release decision and remaining gates
 
-### Release verification
+### Decision: NO-GO for production launch
 
-Before final GO:
+The product is ready for continued controlled development, stakeholder review, and a production-candidate hardening cycle. It is not ready for an honest production-launch declaration until the following owner-controlled gates are completed.
 
-- Frozen install PASS.
-- Typecheck PASS.
-- Lint PASS where configured.
-- Unit/integration/end-to-end tests PASS with no hidden skips.
-- Migration/setup PASS with destructive safeguards intact.
-- Production build PASS.
-- Browser verification PASS for every critical workflow.
-- Required persistence/media/export integration checks PASS.
-- Secret/security checks PASS.
-- No P0 or required P1 remains.
-- Canonical PR is mergeable and review-clean.
-- Candidate deployment maps exactly to reviewed GitHub commit.
+| Gate | Required evidence |
+|---|---|
+| Deployment parity | Deployed SHA equals the reviewed final branch SHA and the built artifact is traceable to that commit. |
+| Database | Production PostgreSQL migrations apply cleanly, backups are configured, and rollback behavior is tested. |
+| Storage | PDF/image/video objects use durable production storage with retention, access control, and orphan cleanup. |
+| Secrets and providers | Production session secret, AI provider keys, admin controls, and rate limits are configured in a secret manager; no test/demo provider is active. |
+| Tenant isolation | Deployed authenticated E2E proves one user cannot read, mutate, download, or export another user’s project, source, claim, media, or export. |
+| Accessibility | axe-core CI plus manual keyboard, focus, zoom, and screen-reader review pass on the core workflow. |
+| Source trust | Redirect policy, robots/terms posture, extraction limits, snapshot/hash retention, and citation-style policy are reviewed. |
+| Operations | Health checks, structured logs, alerting, job timeouts, provider failure handling, and rollback procedure are tested. |
+| Product acceptance | A non-technical user completes Question → Brief → Source → Claim → Draft → Review → Export without coaching, and a reviewer can reproduce the evidence trail. |
 
-After production promotion, verify the production target, critical routes, representative synthetic authoring/persistence flow, runtime errors, and repository/deployment parity before recording COMPLETE.
+## Near-term implementation plan
 
-## Legacy governance work
+**P0 — Make the evidence chain production-grade.** Add source snapshots and hashes, explicit extraction provenance, claim-to-section links, stale-source handling, and citation coverage in publication readiness. Integrate axe-core into browser CI and add tests for the new source URL policy.
 
-The pre-recovery Stage 0 documents remain useful historical and architectural evidence, but they may not override the current approved closeout decision. Any stale work package or pull request must be reconciled against the recovered `main` before it is merged or used to govern implementation.
+**P1 — Improve ingestion breadth safely.** Introduce a queued ingestion adapter interface. Start with the existing PDF path, then evaluate Docling in an isolated worker for DOCX, PPTX, XLSX, image, and complex-PDF parsing. Enforce size, CPU, memory, timeout, and file-type budgets.
 
-In particular, open PR #3 was created before the recovered application entered the repository and should not be merged unchanged merely because it was previously next in the Stage 0 sequence.
+**P1 — Improve beginner guidance.** Add stage-specific empty states and one recommended next action on Research, Sources, Claims, Quality, and Export. Keep advanced controls available, but explain why they matter in plain language.
 
-## Current next action
+**P2 — Add deterministic citations.** Normalize DOI/BibTeX/Wikidata and manually entered sources into CSL-JSON, select one reviewed CSL processor, support at least APA and Chicago-style output, and preserve a human-review override for ambiguous metadata.
 
-Execute one autonomous implementation-gap audit against current `main`, create a single canonical closeout issue/PR from that evidence, implement every verified P0/required P1 product gap, run the complete release gate, and move the verified candidate through production deployment only when the gate is green.
+**P2 — Production readiness.** Execute the deployment, migration, storage, security, accessibility, observability, rollback, and tenant-isolation gates against the real target environment. Only then change the decision from NO-GO to GO.
 
-## Current verdict
+## References
 
-**GO FOR ACTIVE PRODUCT CLOSEOUT. NOT YET PRODUCTION COMPLETE.**
+[1]: https://www.jasper.ai/pricing "Jasper pricing and product capabilities"
 
-The recovery problem is resolved. The remaining job is to finish and verify the actual product, not to repeat recovery or governance-only planning.
+[2]: https://www.copy.ai/platform/building-workflows "Copy.ai workflow builder"
+
+[3]: https://www.notion.com/product/ai "Notion AI product page"
+
+[4]: https://github.com/ueberdosis/tiptap "Tiptap GitHub repository"
+
+[5]: https://github.com/docling-project/docling "Docling GitHub repository"
+
+[6]: https://github.com/dequelabs/axe-core "axe-core GitHub repository"
+
+[7]: https://citation.js.org/ "Citation.js official site"
+
+[8]: https://github.com/Juris-M/citeproc-js "citeproc-js GitHub repository"
+
+[9]: https://github.com/citation-style-language/styles "Citation Style Language styles repository"

@@ -7,8 +7,9 @@ import {
   exportsTable,
   sourcesTable,
   claimsTable,
+  contentImagesTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { writeFile, mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -22,13 +23,12 @@ import {
   AlignmentType,
 } from "docx";
 import PDFDocument from "pdfkit";
+import { sanitizeRichHtml, sectionText, stripHtml } from "../richText";
+import { resolveMediaPath } from "../mediaStorage";
+import { embedImagesForExport } from "../exportHtml";
 
 // Persistent export directory — survives server restarts (workspace filesystem, not /tmp)
-const EXPORT_DIR = join(
-  process.cwd(),
-  "data",
-  "exports"
-);
+const EXPORT_DIR = join(process.cwd(), "data", "exports");
 
 async function ensureExportDir() {
   await mkdir(EXPORT_DIR, { recursive: true });
@@ -47,40 +47,6 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/**
- * Strip HTML tags and decode common entities to produce plain text.
- * Used ONLY by text-based exporters (DOCX, PDF, plain-text, Markdown).
- * The output is NEVER re-rendered as HTML — it goes directly to
- * non-executing formats — so entity decoding (&amp; → &) is safe and
- * intentional for readability.
- */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<\/h[1-6]>/gi, "\n\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-/**
- * Normalise section content for text-based exporters.
- * Returns plain text whether the stored content is plain or HTML.
- */
-function sectionText(section: { content: string | null; contentFormat?: string | null }): string {
-  const raw = section.content ?? "";
-  if (!raw) return "";
-  return section.contentFormat === "html" ? stripHtml(raw) : raw;
-}
-
 type EvidenceRecord = {
   key: string;
   title: string;
@@ -89,14 +55,20 @@ type EvidenceRecord = {
   author: string | null;
   retrievalDate: string | null;
   status: string;
-  claims: Array<{ claimText: string; supportingExcerpt: string | null; verificationStatus: string }>;
+  claims: Array<{
+    claimText: string;
+    supportingExcerpt: string | null;
+    verificationStatus: string;
+  }>;
 };
 
 function safeCitationUrl(url: string | null): string | null {
   if (!url) return null;
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null;
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed.toString()
+      : null;
   } catch {
     return null;
   }
@@ -119,20 +91,36 @@ async function buildEvidence(projectId: string): Promise<EvidenceRecord[]> {
       status: source.status,
       claims: claims
         .filter((claim) => claim.sourceId === source.id)
-        .map((claim) => ({ claimText: claim.claimText, supportingExcerpt: claim.supportingExcerpt, verificationStatus: claim.verificationStatus })),
+        .map((claim) => ({
+          claimText: claim.claimText,
+          supportingExcerpt: claim.supportingExcerpt,
+          verificationStatus: claim.verificationStatus,
+        })),
     }));
 }
 
 function evidenceMarkdown(evidence: EvidenceRecord[]): string {
   if (!evidence.length) return "";
-  const lines = ["## Evidence register", "", "The following sources and claim links were stored with this project at export time.", ""];
+  const lines = [
+    "## Evidence register",
+    "",
+    "The following sources and claim links were stored with this project at export time.",
+    "",
+  ];
   for (const source of evidence) {
-    const citation = source.url ? `[${source.key}](${source.url})` : `[${source.key}]`;
-    const attribution = [source.author, source.publisher].filter(Boolean).join(", ");
-    lines.push(`${citation} ${source.title}${attribution ? ` — ${attribution}` : ""}. Status: ${source.status}${source.retrievalDate ? `; retrieved ${source.retrievalDate}` : ""}.`);
+    const citation = source.url
+      ? `[${source.key}](${source.url})`
+      : `[${source.key}]`;
+    const attribution = [source.author, source.publisher]
+      .filter(Boolean)
+      .join(", ");
+    lines.push(
+      `${citation} ${source.title}${attribution ? ` — ${attribution}` : ""}. Status: ${source.status}${source.retrievalDate ? `; retrieved ${source.retrievalDate}` : ""}.`,
+    );
     for (const claim of source.claims) {
       lines.push(`- Claim: ${claim.claimText} (${claim.verificationStatus})`);
-      if (claim.supportingExcerpt) lines.push(`  - Supporting excerpt: ${claim.supportingExcerpt}`);
+      if (claim.supportingExcerpt)
+        lines.push(`  - Supporting excerpt: ${claim.supportingExcerpt}`);
     }
     lines.push("");
   }
@@ -140,17 +128,27 @@ function evidenceMarkdown(evidence: EvidenceRecord[]): string {
 }
 
 function evidencePlainText(evidence: EvidenceRecord[]): string {
-  return stripHtml(evidenceMarkdown(evidence).replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 — $2"));
+  return stripHtml(
+    evidenceMarkdown(evidence).replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 — $2"),
+  );
 }
 
 function evidenceHtml(evidence: EvidenceRecord[]): string {
   if (!evidence.length) return "";
-  const items = evidence.map((source) => {
-    const url = source.url ? ` <a href="${escapeHtml(source.url)}">${escapeHtml(source.url)}</a>` : "";
-    const attribution = [source.author, source.publisher].filter(Boolean).join(", ");
-    const claims = source.claims.length ? `<ul>${source.claims.map((claim) => `<li>${escapeHtml(claim.claimText)} <em>(${escapeHtml(claim.verificationStatus)})</em>${claim.supportingExcerpt ? `<br><small>${escapeHtml(claim.supportingExcerpt)}</small>` : ""}</li>`).join("")}</ul>` : "";
-    return `<li><strong>${escapeHtml(source.key)} — ${escapeHtml(source.title)}</strong>${attribution ? ` — ${escapeHtml(attribution)}` : ""}.${url} <span>Status: ${escapeHtml(source.status)}</span>${claims}</li>`;
-  }).join("");
+  const items = evidence
+    .map((source) => {
+      const url = source.url
+        ? ` <a href="${escapeHtml(source.url)}">${escapeHtml(source.url)}</a>`
+        : "";
+      const attribution = [source.author, source.publisher]
+        .filter(Boolean)
+        .join(", ");
+      const claims = source.claims.length
+        ? `<ul>${source.claims.map((claim) => `<li>${escapeHtml(claim.claimText)} <em>(${escapeHtml(claim.verificationStatus)})</em>${claim.supportingExcerpt ? `<br><small>${escapeHtml(claim.supportingExcerpt)}</small>` : ""}</li>`).join("")}</ul>`
+        : "";
+      return `<li><strong>${escapeHtml(source.key)} — ${escapeHtml(source.title)}</strong>${attribution ? ` — ${escapeHtml(attribution)}` : ""}.${url} <span>Status: ${escapeHtml(source.status)}</span>${claims}</li>`;
+    })
+    .join("");
   return `<section><h2>Evidence register</h2><p>Sources and claim links stored with this project at export time.</p><ol>${items}</ol></section>`;
 }
 
@@ -159,7 +157,11 @@ function evidenceHtml(evidence: EvidenceRecord[]): string {
 function buildDocxChildren(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  sections: Array<{
+    title: string;
+    content: string | null;
+    contentFormat?: string | null;
+  }>,
   evidence: EvidenceRecord[] = [],
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [];
@@ -170,15 +172,17 @@ function buildDocxChildren(
       text: title,
       heading: HeadingLevel.TITLE,
       spacing: { after: 200 },
-    })
+    }),
   );
 
   if (brand) {
     paragraphs.push(
       new Paragraph({
-        children: [new TextRun({ text: brand, italics: true, color: "555555" })],
+        children: [
+          new TextRun({ text: brand, italics: true, color: "555555" }),
+        ],
         spacing: { after: 400 },
-      })
+      }),
     );
   }
 
@@ -189,7 +193,7 @@ function buildDocxChildren(
         text: section.title,
         heading: HeadingLevel.HEADING_1,
         spacing: { before: 400, after: 120 },
-      })
+      }),
     );
 
     const body = sectionText(section) || "[No content drafted yet]";
@@ -201,17 +205,51 @@ function buildDocxChildren(
           children: [new TextRun({ text: trimmed })],
           spacing: { after: 160 },
           alignment: AlignmentType.JUSTIFIED,
-        })
+        }),
       );
     }
   }
 
   if (evidence.length) {
-    paragraphs.push(new Paragraph({ text: "Evidence register", heading: HeadingLevel.HEADING_1 }));
-    paragraphs.push(new Paragraph({ text: "Sources and claim links stored with this project at export time." }));
+    paragraphs.push(
+      new Paragraph({
+        text: "Evidence register",
+        heading: HeadingLevel.HEADING_1,
+      }),
+    );
+    paragraphs.push(
+      new Paragraph({
+        text: "Sources and claim links stored with this project at export time.",
+      }),
+    );
     for (const source of evidence) {
-      paragraphs.push(new Paragraph({ text: `${source.key} — ${source.title}${source.url ? ` — ${source.url}` : ""} (${source.status})` }));
-      for (const claim of source.claims) paragraphs.push(new Paragraph({ text: `Claim: ${claim.claimText} (${claim.verificationStatus})` }));
+      paragraphs.push(
+        new Paragraph({
+          text: `${source.key} — ${source.title}${source.url ? ` — ${source.url}` : ""} (${source.status})`,
+        }),
+      );
+      const attribution = [source.author, source.publisher]
+        .filter(Boolean)
+        .join(", ");
+      if (attribution)
+        paragraphs.push(new Paragraph({ text: `Attribution: ${attribution}` }));
+      if (source.retrievalDate)
+        paragraphs.push(
+          new Paragraph({ text: `Retrieved: ${source.retrievalDate}` }),
+        );
+      for (const claim of source.claims) {
+        paragraphs.push(
+          new Paragraph({
+            text: `Claim: ${claim.claimText} (${claim.verificationStatus})`,
+          }),
+        );
+        if (claim.supportingExcerpt)
+          paragraphs.push(
+            new Paragraph({
+              text: `Supporting excerpt: ${claim.supportingExcerpt}`,
+            }),
+          );
+      }
     }
   }
 
@@ -221,7 +259,11 @@ function buildDocxChildren(
 async function generateDocx(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  sections: Array<{
+    title: string;
+    content: string | null;
+    contentFormat?: string | null;
+  }>,
   evidence: EvidenceRecord[] = [],
 ): Promise<Buffer> {
   const doc = new Document({
@@ -255,7 +297,11 @@ async function generateDocx(
 async function generatePdf(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  sections: Array<{
+    title: string;
+    content: string | null;
+    contentFormat?: string | null;
+  }>,
   evidence: EvidenceRecord[] = [],
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -263,7 +309,11 @@ async function generatePdf(
     const doc = new PDFDocument({
       size: "LETTER",
       margins: { top: 72, bottom: 72, left: 72, right: 72 },
-      info: { Title: title, Author: brand || "Content OS", Creator: "Content OS" },
+      info: {
+        Title: title,
+        Author: brand || "Content OS",
+        Creator: "Content OS",
+      },
     });
 
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -271,10 +321,7 @@ async function generatePdf(
     doc.on("error", reject);
 
     // Title page
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(24)
-      .text(title, { align: "center" });
+    doc.font("Helvetica-Bold").fontSize(24).text(title, { align: "center" });
 
     if (brand) {
       doc
@@ -309,12 +356,37 @@ async function generatePdf(
     }
 
     if (evidence.length) {
-      doc.addPage().font("Helvetica-Bold").fontSize(14).text("Evidence register").moveDown(0.4);
-      doc.font("Helvetica").fontSize(10).text("Sources and claim links stored with this project at export time.").moveDown(0.6);
+      doc
+        .addPage()
+        .font("Helvetica-Bold")
+        .fontSize(14)
+        .text("Evidence register")
+        .moveDown(0.4);
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .text(
+          "Sources and claim links stored with this project at export time.",
+        )
+        .moveDown(0.6);
       for (const source of evidence) {
         doc.font("Helvetica-Bold").text(`${source.key} — ${source.title}`);
-        doc.font("Helvetica").text(`${source.url ?? "No URL recorded"} · Status: ${source.status}`);
-        for (const claim of source.claims) doc.text(`Claim: ${claim.claimText} (${claim.verificationStatus})`);
+        doc
+          .font("Helvetica")
+          .text(
+            `${source.url ?? "No URL recorded"} · Status: ${source.status}`,
+          );
+        const attribution = [source.author, source.publisher]
+          .filter(Boolean)
+          .join(", ");
+        if (attribution) doc.text(`Attribution: ${attribution}`);
+        if (source.retrievalDate)
+          doc.text(`Retrieved: ${source.retrievalDate}`);
+        for (const claim of source.claims) {
+          doc.text(`Claim: ${claim.claimText} (${claim.verificationStatus})`);
+          if (claim.supportingExcerpt)
+            doc.text(`Supporting excerpt: ${claim.supportingExcerpt}`);
+        }
         doc.moveDown(0.4);
       }
     }
@@ -328,13 +400,22 @@ async function generatePdf(
 function generateMarkdown(
   title: string,
   brand: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  sections: Array<{
+    title: string;
+    content: string | null;
+    contentFormat?: string | null;
+  }>,
   evidence: EvidenceRecord[] = [],
 ): string {
   const lines = [`# ${title}`, "", brand ? `*${brand}*` : "", ""];
   for (const section of sections) {
     const text = sectionText(section);
-    lines.push(`## ${section.title}`, "", text || "*[No content drafted yet]*", "");
+    lines.push(
+      `## ${section.title}`,
+      "",
+      text || "*[No content drafted yet]*",
+      "",
+    );
   }
   const appendix = evidenceMarkdown(evidence);
   return `${lines.join("\n")}\n${appendix}`;
@@ -344,8 +425,13 @@ function generateHTML(
   title: string,
   brand: string,
   contentType: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  sections: Array<{
+    title: string;
+    content: string | null;
+    contentFormat?: string | null;
+  }>,
   evidence: EvidenceRecord[] = [],
+  inlineImages: Array<{ id: string; mimeType: string; data: Buffer }> = [],
 ): string {
   const body = sections
     .map((s) => {
@@ -354,7 +440,10 @@ function generateHTML(
         sectionBody = "<p><em>No content yet</em></p>";
       } else if (s.contentFormat === "html") {
         // Content is already HTML from the rich editor — embed directly
-        sectionBody = s.content;
+        sectionBody = embedImagesForExport(
+          sanitizeRichHtml(s.content),
+          inlineImages,
+        );
       } else {
         // Plain text: escape and wrap in paragraphs
         sectionBody = `<p>${escapeHtml(s.content).replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")}</p>`;
@@ -382,18 +471,17 @@ function generateHTML(
 
 function generatePlainText(
   title: string,
-  sections: Array<{ title: string; content: string | null; contentFormat?: string | null }>,
+  sections: Array<{
+    title: string;
+    content: string | null;
+    contentFormat?: string | null;
+  }>,
   evidence: EvidenceRecord[] = [],
 ): string {
   const lines = [title, "=".repeat(title.length), ""];
   for (const section of sections) {
     const text = sectionText(section) || "[No content]";
-    lines.push(
-      section.title,
-      "-".repeat(section.title.length),
-      text,
-      ""
-    );
+    lines.push(section.title, "-".repeat(section.title.length), text, "");
   }
   return `${lines.join("\n")}\n${evidencePlainText(evidence)}`;
 }
@@ -402,7 +490,7 @@ function generatePlainText(
 
 export async function exportDocument(
   projectId: string,
-  format: string
+  format: string,
 ): Promise<{
   fileUrl: string;
   fileSizeBytes: number;
@@ -422,6 +510,34 @@ export async function exportDocument(
     .where(eq(documentSectionsTable.documentId, document.id));
   const sorted = sections.sort((a, b) => a.sortOrder - b.sortOrder);
   const evidence = await buildEvidence(projectId);
+  const imageRows = sorted.length
+    ? await db
+        .select()
+        .from(contentImagesTable)
+        .where(
+          inArray(
+            contentImagesTable.documentSectionId,
+            sorted.map((section) => section.id),
+          ),
+        )
+    : [];
+  const inlineImages = (
+    await Promise.all(
+      imageRows.map(async (image) => {
+        try {
+          return [
+            {
+              id: image.id,
+              mimeType: image.mimeType,
+              data: await readFile(resolveMediaPath(image.storageKey)),
+            },
+          ];
+        } catch {
+          return [];
+        }
+      }),
+    )
+  ).flat();
 
   const [project] = await db
     .select()
@@ -450,7 +566,12 @@ export async function exportDocument(
   switch (format) {
     case "docx": {
       filePath = join(EXPORT_DIR, `${filename}.docx`);
-      const buffer = await generateDocx(document.title, brand?.name ?? "", sorted, evidence);
+      const buffer = await generateDocx(
+        document.title,
+        brand?.name ?? "",
+        sorted,
+        evidence,
+      );
       await writeFile(filePath, buffer);
       fileSizeBytes = buffer.length;
       fileUrl = `/api/exports/download/${filename}.docx`;
@@ -463,7 +584,12 @@ export async function exportDocument(
 
     case "pdf": {
       filePath = join(EXPORT_DIR, `${filename}.pdf`);
-      const buffer = await generatePdf(document.title, brand?.name ?? "", sorted, evidence);
+      const buffer = await generatePdf(
+        document.title,
+        brand?.name ?? "",
+        sorted,
+        evidence,
+      );
       await writeFile(filePath, buffer);
       fileSizeBytes = buffer.length;
       fileUrl = `/api/exports/download/${filename}.pdf`;
@@ -476,22 +602,36 @@ export async function exportDocument(
     }
 
     case "markdown": {
-      const content = generateMarkdown(document.title, brand?.name ?? "", sorted, evidence);
+      const content = generateMarkdown(
+        document.title,
+        brand?.name ?? "",
+        sorted,
+        evidence,
+      );
       filePath = join(EXPORT_DIR, `${filename}.md`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
       fileUrl = `/api/exports/download/${filename}.md`;
-      if (!content.includes(document.title)) issues.push("Title not found in export");
+      if (!content.includes(document.title))
+        issues.push("Title not found in export");
       break;
     }
 
     case "html": {
-      const content = generateHTML(document.title, brand?.name ?? "", project.contentType, sorted, evidence);
+      const content = generateHTML(
+        document.title,
+        brand?.name ?? "",
+        project.contentType,
+        sorted,
+        evidence,
+        inlineImages,
+      );
       filePath = join(EXPORT_DIR, `${filename}.html`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
       fileUrl = `/api/exports/download/${filename}.html`;
-      if (!content.includes(document.title)) issues.push("Title not found in export");
+      if (!content.includes(document.title))
+        issues.push("Title not found in export");
       break;
     }
 
@@ -502,7 +642,8 @@ export async function exportDocument(
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
       fileUrl = `/api/exports/download/${filename}.txt`;
-      if (!content.includes(document.title)) issues.push("Title not found in export");
+      if (!content.includes(document.title))
+        issues.push("Title not found in export");
       break;
     }
   }

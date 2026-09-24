@@ -1,6 +1,8 @@
 # Content OS UI Evidence
 
-## Exact build
+## Historical UI capture build
+
+This manifest describes a historical local/test capture at the SHA below. It is retained as visual evidence and is not the exact-head validation record for the current PR candidate.
 
 | Field | Value |
 |---|---|
