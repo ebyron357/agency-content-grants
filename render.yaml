@@ -2,7 +2,7 @@ services:
   - type: web
     name: agency-content-grants
     runtime: node
-    plan: 0.5c-1g
+    plan: 0.5c-512mb
     region: ohio
     branch: manus/content-machine-closeout
     autoDeployTrigger: off
