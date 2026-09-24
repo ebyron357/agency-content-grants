@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: agency-content-grants
+    runtime: node
+    plan: 0.5c-1g
+    region: ohio
+    branch: manus/content-machine-closeout
+    autoDeployTrigger: off
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm --filter @workspace/api-server start
+    healthCheckPath: /api/readyz
+    disk:
+      name: content-machine-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 24.15.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agency-content-grants-db
+          property: connectionString
+      - key: UPLOAD_DIR
+        value: /var/data/uploads/images
+      - key: SOURCE_UPLOAD_DIR
+        value: /var/data/uploads/sources
+      - key: EXPORT_DIR
+        value: /var/data/exports
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+databases:
+  - name: agency-content-grants-db
+    plan: 0.5c-1g
+    region: ohio
+    databaseName: content_machine
+    user: content_machine
+    diskSizeGB: 15
+    storageAutoscalingEnabled: true
