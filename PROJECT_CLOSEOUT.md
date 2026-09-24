@@ -1,6 +1,6 @@
-# PROJECT CLOSEOUT — Content OS
+# HISTORICAL PROJECT CLOSEOUT — Content OS
 
-Living handoff document. Last updated: 2026-08-11.
+Historical handoff snapshot. Last updated: 2026-08-11. The current source of truth is `docs/PROJECT_STATUS.md`.
 
 ## Scope delivered
 

@@ -130,6 +130,8 @@ function ToolBtn({
     <button
       type="button"
       title={title}
+      aria-label={title}
+      aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
       className={cn(
@@ -272,7 +274,11 @@ function Toolbar({
 
   return (
     <>
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-white/[0.08] bg-[#10131a] px-4 py-3 sm:px-7">
+      <div
+        role="toolbar"
+        aria-label="Rich text formatting"
+        className="flex items-center gap-1 overflow-x-auto border-b border-white/[0.08] bg-[#10131a] px-4 py-3 sm:px-7"
+      >
         <ToolBtn
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 1 }).run()
@@ -477,7 +483,9 @@ function Toolbar({
             <Button
               size="sm"
               onClick={handleImageUpload}
-              disabled={imageUploading || !imageFile || !hasRequiredAltText(imageAlt)}
+              disabled={
+                imageUploading || !imageFile || !hasRequiredAltText(imageAlt)
+              }
               className="bg-[#C8102E] hover:bg-[#a80d25] text-white"
             >
               {imageUploading ? "Uploading…" : "Insert"}
@@ -591,6 +599,15 @@ export function RichEditor({
     ],
     content: initialHtml,
     editable: !readOnly,
+    editorProps: {
+      attributes: {
+        "aria-label": readOnly
+          ? "Document section content"
+          : "Document section editor",
+        role: "textbox",
+        "aria-multiline": "true",
+      },
+    },
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },

@@ -26,12 +26,11 @@ import PDFDocument from "pdfkit";
 import { sanitizeRichHtml, sectionText, stripHtml } from "../richText";
 import { resolveMediaPath } from "../mediaStorage";
 import { embedImagesForExport } from "../exportHtml";
+import { getExportRoot } from "../readiness";
 
 // Persistent export directory — survives server restarts (workspace filesystem, not /tmp)
-const EXPORT_DIR = join(process.cwd(), "data", "exports");
-
 async function ensureExportDir() {
-  await mkdir(EXPORT_DIR, { recursive: true });
+  await mkdir(getExportRoot(), { recursive: true });
 }
 
 function countWords(text: string): number {
@@ -565,7 +564,7 @@ export async function exportDocument(
 
   switch (format) {
     case "docx": {
-      filePath = join(EXPORT_DIR, `${filename}.docx`);
+      filePath = join(getExportRoot(), `${filename}.docx`);
       const buffer = await generateDocx(
         document.title,
         brand?.name ?? "",
@@ -583,7 +582,7 @@ export async function exportDocument(
     }
 
     case "pdf": {
-      filePath = join(EXPORT_DIR, `${filename}.pdf`);
+      filePath = join(getExportRoot(), `${filename}.pdf`);
       const buffer = await generatePdf(
         document.title,
         brand?.name ?? "",
@@ -608,7 +607,7 @@ export async function exportDocument(
         sorted,
         evidence,
       );
-      filePath = join(EXPORT_DIR, `${filename}.md`);
+      filePath = join(getExportRoot(), `${filename}.md`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
       fileUrl = `/api/exports/download/${filename}.md`;
@@ -626,7 +625,7 @@ export async function exportDocument(
         evidence,
         inlineImages,
       );
-      filePath = join(EXPORT_DIR, `${filename}.html`);
+      filePath = join(getExportRoot(), `${filename}.html`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
       fileUrl = `/api/exports/download/${filename}.html`;
@@ -638,7 +637,7 @@ export async function exportDocument(
     case "txt":
     default: {
       const content = generatePlainText(document.title, sorted, evidence);
-      filePath = join(EXPORT_DIR, `${filename}.txt`);
+      filePath = join(getExportRoot(), `${filename}.txt`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
       fileUrl = `/api/exports/download/${filename}.txt`;
@@ -659,5 +658,5 @@ export async function exportDocument(
 // ── Download helper: also used by the route ──────────────────────────────────
 
 export function getExportDir(): string {
-  return EXPORT_DIR;
+  return getExportRoot();
 }
