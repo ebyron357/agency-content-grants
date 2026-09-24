@@ -31,7 +31,7 @@ import {
   getListExportsQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { apiPost, apiPatch, apiDelete } from '@/lib/api';
+import { apiPost, apiPatch, apiDelete, resolveApiAssetUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useDraftAllSections, type SectionProgress } from '@/hooks/useDraftAllSections';
 import { ChevronLeft, Sparkles, CheckCircle, XCircle, Loader2, Lock, Unlock, Download, Plus, Trash2, AlertTriangle, RefreshCw, FileText, Upload, Send } from 'lucide-react';
@@ -708,7 +708,7 @@ function ExportTab({ projectId }: { projectId: string }) {
             </div>
             <span className={`text-xs font-medium ${statusColors[exp.status ?? ''] ?? 'text-stone-400'}`}>{exp.status}</span>
             {exp.status === 'completed' && exp.fileUrl && (
-              <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/api${exp.fileUrl}`} download className="text-xs text-[#C8102E] underline hover:no-underline">Download</a>
+              <a href={resolveApiAssetUrl(exp.fileUrl as string)} download className="text-xs text-[#C8102E] underline hover:no-underline">Download</a>
             )}
           </div>
         ))}

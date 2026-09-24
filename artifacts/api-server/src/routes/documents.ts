@@ -21,6 +21,7 @@ import {
 } from "../middleware/ownershipHelpers";
 import { logActivity } from "../lib/activity";
 import { sanitizeRichHtml, stripHtml } from "../lib/richText";
+import { rejectsSectionContentMutation } from "../lib/sectionMutation";
 
 const router: IRouter = Router();
 
@@ -149,10 +150,12 @@ router.patch("/document-sections/:id", async (req, res): Promise<void> => {
   const section = await getSectionOwned(id, req.session.userId!, res);
   if (!section) return;
 
-  if (section.isLocked && req.body.content) {
-    res
-      .status(400)
-      .json({ error: "Section is locked. Unlock it before editing." });
+  if (rejectsSectionContentMutation(section, req.body)) {
+    res.status(409).json({
+      error: section.isApproved
+        ? "Section is approved. Reopen it before editing."
+        : "Section is locked. Unlock it before editing.",
+    });
     return;
   }
 

@@ -21,6 +21,15 @@ describe("rich HTML handling", () => {
     expect(result).toContain('title="Embedded video"');
   });
 
+  it("removes arbitrary and non-HTTPS iframe embeds", () => {
+    const result = sanitizeRichHtml(
+      '<iframe src="https://evil.example/embed/x" onload="alert(1)"></iframe><iframe src="http://www.youtube-nocookie.com/embed/abc"></iframe>',
+    );
+    expect(result).not.toContain("<iframe");
+    expect(result).not.toContain("evil.example");
+    expect(result).not.toContain("onload");
+  });
+
   it("strips markup through the production helper", () => {
     expect(stripHtml("<h2>Title</h2><p>Body &amp; detail</p>")).toBe(
       "Title\n\nBody & detail",

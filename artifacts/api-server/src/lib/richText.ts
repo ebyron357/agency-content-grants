@@ -5,6 +5,19 @@ const ALLOWED_VIDEO_HOSTNAMES = [
   "player.vimeo.com",
 ];
 
+function isAllowedVideoEmbed(src: string | undefined): boolean {
+  if (!src) return false;
+  try {
+    const url = new URL(src);
+    return (
+      url.protocol === "https:" &&
+      ALLOWED_VIDEO_HOSTNAMES.includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function sanitizeRichHtml(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
@@ -55,13 +68,16 @@ export function sanitizeRichHtml(html: string): string {
         tagName: "a",
         attribs: { ...attribs, rel: "noopener noreferrer" },
       }),
-      iframe: (_tagName, attribs) => ({
-        tagName: "iframe",
-        attribs: {
-          ...attribs,
-          title: attribs.title?.trim() || "Embedded video",
-        },
-      }),
+      iframe: (_tagName, attribs) =>
+        isAllowedVideoEmbed(attribs.src)
+          ? {
+              tagName: "iframe",
+              attribs: {
+                ...attribs,
+                title: attribs.title?.trim() || "Embedded video",
+              },
+            }
+          : { tagName: "span", attribs: {} },
     },
   });
 }

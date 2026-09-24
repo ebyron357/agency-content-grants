@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { exportDocument, getExportDir } from "../lib/exporters";
 import { createReadStream, existsSync } from "fs";
 import { join, resolve } from "path";
+import { isPathWithinDirectory } from "../lib/pathSafety";
 import { getProjectOwned, getExportOwned } from "../middleware/ownershipHelpers";
 import { logActivity } from "../lib/activity";
 
@@ -107,7 +108,7 @@ router.get("/exports/download/:filename", async (req, res): Promise<void> => {
   // Resolve the absolute path and confirm it stays within the export directory
   const exportDir = getExportDir();
   const filePath = resolve(join(exportDir, safe));
-  if (!filePath.startsWith(resolve(exportDir) + "/") && filePath !== resolve(exportDir)) {
+  if (!isPathWithinDirectory(exportDir, filePath)) {
     res.status(400).json({ error: "Invalid filename" });
     return;
   }
