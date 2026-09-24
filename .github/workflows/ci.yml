@@ -80,6 +80,9 @@ jobs:
       - name: Build API for integration tests
         run: pnpm --filter @workspace/api-server build
 
+      - name: Build frontend for browser accessibility tests
+        run: pnpm --filter @workspace/content-os build
+
       - name: Start isolated API
         run: |
           pnpm --filter @workspace/api-server start > "$RUNNER_TEMP/content-machine-api.log" 2>&1 &
