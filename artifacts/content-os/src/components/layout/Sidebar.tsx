@@ -34,7 +34,7 @@ export function Sidebar() {
           </div>
           <div className="hidden md:block">
             <p className="text-xs font-bold tracking-widest uppercase text-[#111] font-serif">Content OS</p>
-            <p className="text-[10px] text-stone-400 leading-none mt-0.5">Editorial Suite</p>
+            <p className="text-[10px] text-stone-600 leading-none mt-0.5">Editorial Suite</p>
           </div>
         </div>
       </div>
@@ -68,7 +68,7 @@ export function Sidebar() {
             <span className="hidden md:inline">Sign out</span>
           </button>
         </div>
-        <p className="hidden px-2 text-[10px] text-stone-400 md:block">Multi-brand AI content</p>
+        <p className="hidden px-2 text-[10px] text-stone-600 md:block">Multi-brand AI content</p>
       </div>
     </aside>
   );
