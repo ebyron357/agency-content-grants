@@ -30,6 +30,12 @@ Every PR must identify:
 - Security, licensing, cost, and tenant-isolation implications
 - Exact next authorized action
 
+## Required CI for pull requests targeting `main`
+
+The canonical GitHub Actions workflow is `.github/workflows/ci.yml` (workflow name: **CI**). See `docs/CI.md`.
+
+`.github/workflows/recovery-baseline-validation.yml` is historical recovery evidence and is not the required `main` pull-request gate.
+
 ## Merge standard
 
 A PR may merge only when its claims are supported by repository evidence and all required human gates are satisfied. Missing evidence must be recorded as a blocker, never filled with invented completion.
