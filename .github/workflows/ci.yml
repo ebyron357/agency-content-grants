@@ -94,6 +94,12 @@ jobs:
       - name: Run integration tests
         run: bash tests/integration-tests.sh
 
+      - name: Install browser for accessibility gate
+        run: pnpm --filter @workspace/content-os exec playwright install --with-deps chromium
+
+      - name: Run authenticated accessibility gate
+        run: pnpm --filter @workspace/content-os test:a11y
+
       - name: Stop isolated API
         if: always()
         run: |
