@@ -4,7 +4,6 @@ import { requireAuth } from "../middleware/requireAuth";
 // ── Public routers (no auth required) ────────────────────────────────────────
 import authRouter from "./auth";
 import healthRouter from "./health";
-import storageRouter from "./storage"; // public-objects endpoint + upload (internal auth check)
 import automationRouter from "./automation"; // action API — API-key-or-session auth handled internally
 
 // ── Protected routers ─────────────────────────────────────────────────────────
@@ -28,13 +27,13 @@ import publishingRouter from "./publishing";
 import performanceRouter from "./performance";
 import apiKeysRouter from "./api-keys";
 import webhooksRouter from "./webhooks";
+import mediaRouter from "./media";
 
 export const router = Router();
 
 // ── Public routes (must be mounted BEFORE requireAuth) ────────────────────────
-router.use(authRouter);   // /auth/login, /auth/logout, /auth/me
+router.use(authRouter); // /auth/login, /auth/logout, /auth/me
 router.use(healthRouter); // /healthz
-router.use(storageRouter); // /storage/public-objects/* (public) + /storage/uploads/request-url (internal check)
 router.use(automationRouter); // /automation/* — API-key-or-session auth, checked per-route inside the router
 
 // ── Require authentication for all routes below ───────────────────────────────
@@ -61,3 +60,4 @@ router.use(publishingRouter);
 router.use(performanceRouter);
 router.use(apiKeysRouter);
 router.use(webhooksRouter);
+router.use(mediaRouter);

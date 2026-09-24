@@ -1,4 +1,10 @@
-import type { AIProvider, ChatMessage, GenerationOptions, GenerationResult } from "./types";
+import type {
+  AIProvider,
+  ChatMessage,
+  GenerationOptions,
+  GenerationResult,
+} from "./types";
+import { providerFetch, providerHttpError } from "./providerRequest";
 
 const GEMINI_MODELS = [
   "gemini-2.0-flash",
@@ -22,30 +28,59 @@ export class GeminiProvider implements AIProvider {
     return GEMINI_MODELS;
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string; latencyMs: number }> {
+  async testConnection(): Promise<{
+    success: boolean;
+    message: string;
+    latencyMs: number;
+  }> {
     const start = Date.now();
     if (!this.isConfigured()) {
-      return { success: false, message: "GEMINI_API_KEY is not set. Add it to Replit Secrets.", latencyMs: 0 };
+      return {
+        success: false,
+        message: "GEMINI_API_KEY is not set. Add it to Replit Secrets.",
+        latencyMs: 0,
+      };
     }
     try {
       const model = "gemini-2.0-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.getKey()}`;
-      const res = await fetch(url, {
+      const res = await providerFetch("Gemini", url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: "ping" }] }], generationConfig: { maxOutputTokens: 5 } }),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: "ping" }] }],
+          generationConfig: { maxOutputTokens: 5 },
+        }),
       });
       if (!res.ok) {
-        return { success: false, message: `Gemini API error: ${res.status} ${res.statusText}`, latencyMs: Date.now() - start };
+        return {
+          success: false,
+          message: `Gemini API error: ${res.status} ${res.statusText}`,
+          latencyMs: Date.now() - start,
+        };
       }
-      return { success: true, message: "Connected to Google Gemini successfully.", latencyMs: Date.now() - start };
+      return {
+        success: true,
+        message: "Connected to Google Gemini successfully.",
+        latencyMs: Date.now() - start,
+      };
     } catch (e) {
-      return { success: false, message: `Connection failed: ${(e as Error).message}`, latencyMs: Date.now() - start };
+      return {
+        success: false,
+        message: `Connection failed: ${(e as Error).message}`,
+        latencyMs: Date.now() - start,
+      };
     }
   }
 
-  async generate(messages: ChatMessage[], options: GenerationOptions = {}): Promise<GenerationResult> {
-    if (!this.isConfigured()) throw new Error("GEMINI_API_KEY is not configured. Add it to Replit Secrets.");
+  async generate(
+    messages: ChatMessage[],
+    options: GenerationOptions = {},
+  ): Promise<GenerationResult> {
+    if (!this.isConfigured())
+      throw new Error(
+        "GEMINI_API_KEY is not configured. Add it to Replit Secrets.",
+      );
 
     const model = options.model ?? "gemini-2.0-flash";
     const start = Date.now();
@@ -59,22 +94,26 @@ export class GeminiProvider implements AIProvider {
     }));
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.getKey()}`;
-    const res = await fetch(url, {
+    const res = await providerFetch("Gemini", url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
+        ...(systemMsg
+          ? { systemInstruction: { parts: [{ text: systemMsg.content }] } }
+          : {}),
         contents,
-        generationConfig: { maxOutputTokens: options.maxTokens ?? 4000, temperature: options.temperature ?? 0.7 },
+        generationConfig: {
+          maxOutputTokens: options.maxTokens ?? 4000,
+          temperature: options.temperature ?? 0.7,
+        },
       }),
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Gemini API error ${res.status}: ${err}`);
+      throw providerHttpError("Gemini", res.status);
     }
 
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     const latencyMs = Date.now() - start;
     const usage = data.usageMetadata ?? {};
 

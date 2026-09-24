@@ -34,4 +34,18 @@ describe("DemoProvider stage classification", () => {
     const parsed = JSON.parse(result.content);
     expect(parsed.verificationStatus).toBeDefined();
   });
+
+  it("returns draft prose for section-writing prompts that include verified claims", async () => {
+    const result = await provider.generate([
+      {
+        role: "user",
+        content:
+          'Write the "Introduction" section for this blog.\nVerified Claims:\n- A supported claim',
+      },
+    ]);
+
+    expect(result.content).toContain("This section demonstrates where your drafted content will appear");
+    expect(result.content).not.toContain('"verificationStatus"');
+  });
+
 });

@@ -1,6 +1,13 @@
 /** Direct API call helpers for operations not covered by generated hooks */
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+export function resolveApiAssetUrl(path: string): string {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return normalized.startsWith('/api/')
+    ? `${BASE}${normalized}`
+    : `${BASE}/api${normalized}`;
+}
+
 /** Redirect to login when the session has expired */
 function handleUnauthorized(res: Response): void {
   if (res.status === 401) {

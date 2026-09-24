@@ -35,31 +35,32 @@ export default function Login({ onSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F8F6] flex items-center justify-center">
-      <div className="w-full max-w-sm px-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
+      <div className="relative w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-9 h-9 bg-[#C8102E] rounded flex items-center justify-center flex-shrink-0">
+        <div className="mb-8 flex items-center justify-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
             <Newspaper className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold tracking-widest uppercase text-[#111] font-serif">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-foreground">
               Content OS
             </p>
-            <p className="text-xs text-stone-400 leading-none mt-0.5">Editorial Suite</p>
+            <p className="mt-1 text-xs leading-none text-muted-foreground">Editorial Suite</p>
           </div>
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-stone-200 rounded-lg p-8 shadow-sm">
-          <h1 className="text-lg font-semibold text-stone-900 mb-1">Sign in</h1>
-          <p className="text-sm text-stone-500 mb-6">Enter your team password to continue</p>
+        <div className="rounded-2xl border border-border/70 bg-card p-7 shadow-xl shadow-foreground/5 sm:p-9">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">Welcome back</p>
+          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">Sign in to Content OS</h1>
+          <p className="mb-7 text-sm leading-relaxed text-muted-foreground">Enter your team password to continue building.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-stone-700 mb-1.5"
+                className="mb-2 block text-sm font-medium text-foreground"
               >
                 Password
               </label>
@@ -68,7 +69,7 @@ export default function Login({ onSuccess }: LoginProps) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent"
+                className="h-11 w-full rounded-xl border border-input bg-background px-3.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/25"
                 placeholder="Team password"
                 required
                 autoFocus
@@ -76,12 +77,12 @@ export default function Login({ onSuccess }: LoginProps) {
               />
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
 
             <button
               type="submit"
               disabled={loading || !password}
-              className="w-full bg-[#C8102E] text-white text-sm font-medium py-2 px-4 rounded hover:bg-[#a00c24] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
