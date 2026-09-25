@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: 0.5c-512mb
     region: ohio
-    branch: manus/content-machine-closeout
+    branch: main
     autoDeployTrigger: off
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
     startCommand: pnpm --filter @workspace/api-server start
