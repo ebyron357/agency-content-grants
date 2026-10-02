@@ -322,7 +322,7 @@ export default function Create() {
                 </div>
                 <Target className="h-5 w-5 text-muted-foreground" />
               </div>
-              <Textarea
+              <Textarea aria-label="Describe what you want to write"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="e.g. How electric vehicles are reshaping the automotive industry in 2025"

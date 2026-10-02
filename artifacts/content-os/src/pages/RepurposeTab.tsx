@@ -123,7 +123,7 @@ function AssetCard({ asset, channelLabel, projectId, batchId, brandId }: { asset
         </div>
       </div>
       <div className="p-4 space-y-2">
-        <Textarea
+        <Textarea aria-label={`${asset.channel} asset content`}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={asset.channel === 'twitter_thread' || asset.channel === 'short_video_script' ? 8 : 5}
@@ -310,13 +310,13 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Campaign name (optional)" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
-          <Input placeholder="Tone override (optional)" value={tone} onChange={(e) => setTone(e.target.value)} />
-          <Input placeholder="Audience override (optional)" value={audience} onChange={(e) => setAudience(e.target.value)} />
-          <Input placeholder="Call to action (optional)" value={cta} onChange={(e) => setCta(e.target.value)} />
-          <Input placeholder="Target length (optional)" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} />
+          <Input aria-label="Campaign name" placeholder="Campaign name (optional)" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
+          <Input aria-label="Tone override" placeholder="Tone override (optional)" value={tone} onChange={(e) => setTone(e.target.value)} />
+          <Input aria-label="Audience override" placeholder="Audience override (optional)" value={audience} onChange={(e) => setAudience(e.target.value)} />
+          <Input aria-label="Call to action" placeholder="Call to action (optional)" value={cta} onChange={(e) => setCta(e.target.value)} />
+          <Input aria-label="Target length" placeholder="Target length (optional)" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} />
         </div>
-        <Textarea placeholder="Additional instructions (optional)" value={additionalInstructions} onChange={(e) => setAdditionalInstructions(e.target.value)} rows={2} />
+        <Textarea aria-label="Additional instructions" placeholder="Additional instructions (optional)" value={additionalInstructions} onChange={(e) => setAdditionalInstructions(e.target.value)} rows={2} />
 
         {brandId && hasPresetValues && (
           <div className="border-t border-border pt-3">
@@ -326,7 +326,7 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
               </Button>
             ) : (
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Preset name"
                   autoFocus
                   placeholder={'Preset name (e.g. "LinkedIn launch CTA")'}
                   value={presetName}

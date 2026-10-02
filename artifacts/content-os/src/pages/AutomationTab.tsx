@@ -82,11 +82,13 @@ function ApiKeysSection() {
 
       {creating && (
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <Input placeholder="Key name (e.g. 'n8n production')" value={name} onChange={e => setName(e.target.value)} className="text-sm" />
-          <div className="flex flex-wrap gap-2">
+          <Input aria-label="API key name" placeholder="Key name (e.g. 'n8n production')" value={name} onChange={e => setName(e.target.value)} className="text-sm" />
+          <div role="group" aria-label="API key scopes" className="flex flex-wrap gap-2">
             {SCOPES.map(s => (
               <button
                 key={s}
+                type="button"
+                aria-pressed={scopes.includes(s)}
                 onClick={() => setScopes(cur => cur.includes(s) ? cur.filter(x => x !== s) : [...cur, s])}
                 className={`text-xs px-2.5 py-1 rounded-full border ${scopes.includes(s) ? 'bg-primary text-white border-brand' : 'border-border text-muted-foreground'}`}
               >
@@ -217,11 +219,13 @@ function WebhooksSection() {
 
       {creating && (
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <Input placeholder="https://your-n8n-instance.example.com/webhook/..." value={url} onChange={e => setUrl(e.target.value)} className="text-sm" />
-          <div className="flex flex-wrap gap-2">
+          <Input aria-label="Webhook endpoint URL" placeholder="https://your-n8n-instance.example.com/webhook/..." value={url} onChange={e => setUrl(e.target.value)} className="text-sm" />
+          <div role="group" aria-label="Webhook event types" className="flex flex-wrap gap-2">
             {eventTypes.map(t => (
               <button
                 key={t}
+                type="button"
+                aria-pressed={selectedTypes.includes(t)}
                 onClick={() => setSelectedTypes(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t])}
                 className={`text-xs px-2.5 py-1 rounded-full border font-mono ${selectedTypes.includes(t) ? 'bg-primary text-white border-brand' : 'border-border text-muted-foreground'}`}
               >
@@ -252,9 +256,9 @@ function WebhooksSection() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Button size="sm" variant="outline" onClick={() => setExpanded(expanded === sub.id ? null : sub.id)}>Deliveries</Button>
-              <Button size="sm" variant="outline" onClick={() => handleRotateSecret(sub.id)}><RotateCw className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" aria-label="Rotate signing secret" title="Rotate signing secret" onClick={() => handleRotateSecret(sub.id)}><RotateCw className="w-3.5 h-3.5" aria-hidden="true" /></Button>
               <Button size="sm" variant="outline" onClick={() => handleToggleActive(sub)}>{sub.isActive ? 'Pause' : 'Resume'}</Button>
-              <Button size="sm" variant="outline" onClick={() => handleDelete(sub.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" aria-label="Delete subscription" title="Delete subscription" onClick={() => handleDelete(sub.id)}><Trash2 className="w-3.5 h-3.5" aria-hidden="true" /></Button>
             </div>
           </div>
           {expanded === sub.id && (

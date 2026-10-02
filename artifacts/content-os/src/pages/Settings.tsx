@@ -265,7 +265,7 @@ function ModelConfigTab() {
                 <p className="text-xs text-muted-foreground leading-snug">{stage.description}</p>
               </div>
               {editing ? (
-                <select
+                <select aria-label={`${stage.label} model`}
                   value={val}
                   onChange={e => setForm(f => ({ ...f, [stage.key]: e.target.value }))}
                   className="flex-1 border border-border rounded px-3 py-1.5 text-sm"

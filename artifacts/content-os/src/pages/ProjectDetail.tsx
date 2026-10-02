@@ -1102,13 +1102,13 @@ function OutlineTab({ projectId }: { projectId: string }) {
             >
               {editingId === section.id ? (
                 <div className="space-y-3">
-                  <Input
+                  <Input aria-label="Section title"
                     value={editForm.title ?? ""}
                     onChange={(e) =>
                       setEditForm((f) => ({ ...f, title: e.target.value }))
                     }
                   />
-                  <Textarea
+                  <Textarea aria-label="Section purpose"
                     value={editForm.purpose ?? ""}
                     onChange={(e) =>
                       setEditForm((f) => ({ ...f, purpose: e.target.value }))
@@ -1117,7 +1117,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
                     placeholder="Purpose"
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
+                    <Input aria-label="Target word count"
                       type="number"
                       value={editForm.targetWordCount ?? ""}
                       onChange={(e) =>
@@ -1128,7 +1128,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
                       }
                       placeholder="Target word count"
                     />
-                    <Input
+                    <Input aria-label="Reader outcome"
                       value={editForm.readerOutcome ?? ""}
                       onChange={(e) =>
                         setEditForm((f) => ({

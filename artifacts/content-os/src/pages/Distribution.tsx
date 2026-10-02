@@ -290,12 +290,12 @@ function PublicationRow({ publication, destinationsById, brandId }: { publicatio
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => setShowHistory((s) => !s)}>
-            <History className="w-3 h-3" />
+          <Button size="sm" variant="outline" aria-label="Show publish history" aria-expanded={showHistory} className="h-7 px-2 text-[11px]" onClick={() => setShowHistory((s) => !s)}>
+            <History className="w-3 h-3" aria-hidden="true" />
           </Button>
           {publication.status === 'pending' && (
-            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => setRescheduling((s) => !s)}>
-              <CalendarClock className="w-3 h-3" />
+            <Button size="sm" variant="outline" aria-label="Reschedule" aria-expanded={rescheduling} className="h-7 px-2 text-[11px]" onClick={() => setRescheduling((s) => !s)}>
+              <CalendarClock className="w-3 h-3" aria-hidden="true" />
             </Button>
           )}
           {(publication.status === 'pending' || publication.status === 'queued') && (
@@ -311,7 +311,7 @@ function PublicationRow({ publication, destinationsById, brandId }: { publicatio
       </div>
       {rescheduling && (
         <div className="flex items-center gap-2 mt-2">
-          <Input type="datetime-local" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-8 text-xs w-56" />
+          <Input aria-label="New scheduled date and time" type="datetime-local" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="h-8 text-xs w-56" />
           <Button
             size="sm" className="h-8 text-xs bg-primary hover:bg-primary/90 text-white"
             disabled={!newTime || reschedule.isPending}

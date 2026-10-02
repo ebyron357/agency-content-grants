@@ -210,7 +210,7 @@ export default function BrandDetail() {
       {activeTab === 'Brand Facts' && (
         <div className="space-y-4">
           <form onSubmit={async e => { e.preventDefault(); if (!newFactClaim.trim()) return; await createFact.mutateAsync({ claim: newFactClaim, isVerified: false }); qc.invalidateQueries({ queryKey: getListBrandFactsQueryKey(id) }); setNewFactClaim(''); }} className="flex gap-2">
-            <Input value={newFactClaim} onChange={e => setNewFactClaim(e.target.value)} placeholder="Add a verified brand fact (e.g. 'Founded in 2010 in Austin, TX')" className="flex-1" />
+            <Input aria-label="New brand fact" value={newFactClaim} onChange={e => setNewFactClaim(e.target.value)} placeholder="Add a verified brand fact (e.g. 'Founded in 2010 in Austin, TX')" className="flex-1" />
             <Button type="submit" disabled={createFact.isPending} className="bg-primary hover:bg-primary/90 text-white gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Fact</Button>
           </form>
           <div className="space-y-2">
@@ -243,7 +243,7 @@ export default function BrandDetail() {
           <div className="bg-card border border-border rounded-2xl p-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Content Validator</p>
             <p className="text-xs text-muted-foreground mb-3">Paste any draft to check it against this brand's rules — banned phrases, preferred terminology, required claims, and compliance.</p>
-            <Textarea value={validateText} onChange={e => setValidateText(e.target.value)} rows={4} placeholder="Paste content to validate against this brand's rules…" />
+            <Textarea aria-label="Content to validate against brand facts" value={validateText} onChange={e => setValidateText(e.target.value)} rows={4} placeholder="Paste content to validate against this brand's rules…" />
             <div className="flex items-center gap-3 mt-2">
               <Button size="sm" disabled={!validateText.trim() || validateContent.isPending} onClick={() => validateContent.mutate(validateText)} className="bg-primary hover:bg-primary/90 text-white">
                 {validateContent.isPending ? 'Checking…' : 'Check Against Brand Brain'}
