@@ -1,0 +1,37 @@
+HEAD 2857cada58043e3acf2c5f8688bcb0a2867a5077
+install=0
+format=0
+typecheck=0
+api-unit=0
+db-prepare=0
+api-tests=0
+frontend-tests=0
+api-build=0
+frontend-build=0
+integration=0
+a11y=0
+audit=0
+gitleaks=0
+production-build=0
+
+--- api unit
+Test Files  16 passed (16)
+Tests  116 passed (116)
+--- api (DB-backed)
+Test Files  32 passed (32)
+Tests  292 passed (292)
+--- content-os
+Test Files  4 passed (4)
+Tests  21 passed (21)
+--- integration
+Results: 40 passed | 0 failed | 0 skipped
+--- accessibility (Playwright + axe)
+[1/2] e2e/accessibility.spec.ts:16:1 › login and authenticated core screens pass the accessibility gate
+[2/2] e2e/accessibility.spec.ts:63:1 › every primary authenticated route passes the accessibility gate on one design system
+2 passed (31.6s)
+--- pnpm audit --audit-level=high
+No known vulnerabilities found
+--- gitleaks
+░    gitleaks
+58 commits scanned.
+no leaks found

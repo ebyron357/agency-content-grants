@@ -1,0 +1,7 @@
+Production-mode boot on a fresh PostgreSQL 16 database (NODE_ENV=production, durable directories, TLS-terminating proxy)
+healthz: {"status":"ok","commit":"2857cada58043e3acf2c5f8688bcb0a2867a5077"}
+readyz (no provider key): {"status":"not_ready","checks":{"configuration":"failed","database":"ok","storage":"ok"}}
+[migrate] Applying pending migrations from /home/user/agency-content-grants/artifacts/api-server/dist/drizzle
+[migrate] Migrations complete
+smoke exit=0
+readyz (provider key set): {"status":"ready","checks":{"configuration":"ok","database":"ok","storage":"ok"}}
