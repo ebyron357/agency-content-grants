@@ -63,7 +63,7 @@ Levels: **Impl** implemented · **Local** verified locally · **CI** verified in
 | 29 | Production smoke, runtime-error review, production rollback | **BLOCKED — owner** | — | Runs immediately after gate 28 |
 | 30 | Operator / client handoff documentation | PASS | Impl | See Documentation |
 | 31 | Project deletion removes the project's files (images, source PDFs, exports) | PASS | Unit · Rehearsal | `lib/projectFiles.ts`; smoke rehearsal leaves no files on disk |
-| 32 | PR #16 automated reviews | PASS | CI | Copilot findings fixed (media dropped from non-HTML exports, export files left on disk, smoke exit status, toggle state, dialog radius); Cursor Security Agent passed; Cursor Bugbot did not run (Cursor usage limit) |
+| 32 | PR #16 automated reviews | PASS | CI | Copilot findings fixed (media dropped from non-HTML exports, export files left on disk, smoke exit status, toggle state, dialog radius); Cursor Security Agent passed; Cursor Bugbot's check ended neutral (Cursor usage limit) with no findings |
 
 Evidence files: [`evidence/release/2026-10-02/`](evidence/release/2026-10-02/) (local gate log, production-mode smoke logs, rehearsal record).
 
