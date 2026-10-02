@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the Stage 0 work plan (July 2026); Stage 0 has ended. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](DOCUMENT_OWNERSHIP_MAP.md).
+
 # Stage 0 Execution Plan
 
 ## Objective

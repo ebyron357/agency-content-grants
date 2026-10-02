@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the Replit-era handoff snapshot (11 August 2026). Its deployment advice (publish via Replit) is obsolete: Replit is not a deployment target. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](docs/DOCUMENT_OWNERSHIP_MAP.md).
+
 # HISTORICAL PROJECT CLOSEOUT — Content OS
 
 Historical handoff snapshot. Last updated: 2026-08-11. The current source of truth is `docs/PROJECT_STATUS.md`.

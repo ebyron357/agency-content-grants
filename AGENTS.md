@@ -4,20 +4,21 @@
 
 Finish the Agency Content and Grant Intelligence Platform as an evidence-first, secure, multi-tenant Content Machine that supports professional long-form content creation, manual/guide workflows, media-rich editing, export, publishing readiness, and production deployment without weakening tenant isolation, security, or evidence standards.
 
-## Current authorization
+## Current state and authorization
 
-The human owner authorized the recovery baseline and stabilization on 2026-08-12 and subsequently authorized execution of the remaining product closeout work needed to finish the Content Machine at production quality.
+`docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 2 October 2026:
 
-`docs/GO_NO_GO_DECISION.md` is the controlling authorization record. The current authorization is **GO — evidence-gated product closeout and production-readiness execution**.
+- The release candidate on `main` is **VERIFIED COMPLETE** (Issue #8 UI/UX lock and all repository, CI, accessibility, security and production-mode rehearsal gates).
+- Production is **NO-GO** only because the Render environment has not been created; that step is owner-only (paid resources and owner-held secrets). Agents must not create paid resources.
 
-Agents may implement, test, integrate, and prepare deployment for the approved closeout scope. Merge and production promotion are allowed only after the explicit evidence gates in this file and `docs/GO_NO_GO_DECISION.md` pass. No agent may bypass a failing gate merely to meet a schedule.
+Agents may maintain, fix and verify the product within the approved scope below, prepare and verify deployments, and update the governing records. No agent may bypass a failing gate merely to meet a schedule.
 
 ## Source of truth
 
-1. GitHub `main` is the technical source of truth for accepted code and governing documents.
-2. ClickUp is the executive operating board and should be updated to match verified GitHub/production state.
-3. Replit is recovery/reference evidence only and is not the development or deployment authority.
-4. Preview deployments and agent self-reports are evidence inputs, not proof of production completion.
+1. GitHub `main` is the technical source of truth for accepted code and governing documents. Current authority is listed in `docs/DOCUMENT_OWNERSHIP_MAP.md`; documents marked historical describe past states only.
+2. ClickUp (control task `86e2tjzyc`) is the executive operating board and must be updated to match verified GitHub/production state.
+3. Render (`render.yaml`) is the production deployment target. Replit is recovery/reference evidence only and is not a development or deployment authority.
+4. Preview deployments, local rehearsals and agent self-reports are evidence inputs, not proof of production completion.
 
 ## Approved closeout scope
 
@@ -51,7 +52,7 @@ Grant/proposal intelligence features outside the already approved product plan r
 9. Never force-merge, bypass branch protection, hide failures, dismiss actionable review feedback without resolution, or promote a failing build.
 10. Work in a dedicated branch and use a focused pull request for implementation changes unless an existing approved closeout PR is explicitly designated as canonical.
 11. Run all applicable validation before declaring a deliverable complete.
-12. Production merge/promotion is permitted only after the Definition of Done and deployment gates below pass and the resulting state is recorded in GitHub and ClickUp.
+12. Merging to `main` and promoting to production are permitted only when their respective gates below pass, and the resulting state is recorded in GitHub and ClickUp. A production GO additionally requires the Definition of Done.
 13. Do not purchase services, change billing, rotate unrelated credentials, or perform destructive production-data operations as part of closeout without explicit owner approval.
 14. Use synthetic/test data for verification whenever possible. Production smoke tests must be clearly labeled and must not create misleading customer/business records.
 15. Replit must not be treated as the canonical source or production deployment target unless a later approved governing decision explicitly changes that rule.
@@ -71,7 +72,7 @@ For each closeout work package:
 9. Record evidence, unresolved external dependencies, and GO/NO-GO status.
 10. Update `docs/PROJECT_STATUS.md` as one complete current-state document.
 11. Open/update one focused canonical pull request and resolve all actionable review threads.
-12. Merge and promote only when the production gate is green; otherwise leave an exact blocker with an executable next action.
+12. Merge only when the merge gate is green and promote only when the production gate is green; otherwise leave an exact blocker with an executable next action.
 
 ## Required product verification matrix
 
@@ -119,17 +120,22 @@ A project is **COMPLETE / GO** only when all applicable conditions are true:
 
 ## Merge and production deployment gate
 
-Merge to `main` and production promotion are authorized when:
+`main` is the reviewed release branch; Render deploys from it only when someone triggers a manual deploy (`autoDeployTrigger: off`). Merging and promoting are therefore separate gates.
 
-1. The closeout PR is mergeable and current with its base.
-2. Required checks are green.
+**Merge to `main`** is authorized when:
+
+1. The PR is mergeable and current with its base, without force or bypass.
+2. Required checks (`CI`) are green.
 3. No unresolved requested changes or actionable P0/P1 review findings remain.
-4. Required preview/browser verification passes.
+4. Browser/accessibility verification for changed user flows passes.
 5. No unresolved secret/security finding blocks release.
-6. Production configuration/dependencies needed for the approved scope are verified.
-7. The deployment target is identified and repository-to-deployment parity can be proven.
 
-After promotion, run a production smoke test and verify runtime health. If production verification fails, record **NO-GO**, roll back or fix through the safest available path, and do not declare completion.
+**Production promotion** is authorized when, in addition:
+
+6. Production configuration and secrets are present in Render without being exposed.
+7. The commit to deploy is the reviewed `main` commit, and `/api/healthz` (`commit`) can prove parity after deploy.
+
+After promotion, run `tests/production-smoke.sh` and review Render logs (`docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4). If production verification fails, record **NO-GO**, roll back or fix through the safest available path, and do not declare completion.
 
 ## Decision labels
 
@@ -156,4 +162,4 @@ A checkbox or project status may be marked complete only when:
 
 ## Current execution directive
 
-Recovery is complete and the baseline is stable. The next authorized action is not another planning-only Stage 0 loop. Execute the remaining Content Machine product gaps, verify them against this document, and drive the canonical implementation through one evidence-backed closeout PR to final production GO.
+The product closeout is implemented and verified; do not reopen completed work or start a new product cycle. The next action is the owner's: create the Render environment (`docs/GO_NO_GO_DECISION.md`). After that, an agent or operator runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.

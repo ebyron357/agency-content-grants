@@ -1,0 +1,13 @@
+---
+description: Governs all work on Content Machine (agency-content-grants)
+globs:
+alwaysApply: true
+---
+
+# Content Machine governance rule
+
+Read `AGENTS.md`, `docs/PROJECT_STATUS.md` and `docs/GO_NO_GO_DECISION.md` before changing anything. `docs/DOCUMENT_OWNERSHIP_MAP.md` lists which documents are current; documents marked historical (Stage 0 charter and plan, recovery records, Replit notes) describe past states and must not be followed as instructions.
+
+The product closeout is implemented and verified. Do not reopen completed work or start a new product cycle. Production is blocked only on the owner creating the Render environment; never create paid resources, change billing or handle production secrets.
+
+Work on a dedicated branch, open a focused pull request, keep `CI` green, never weaken tests, typecheck, authentication, ownership checks, database guards, secret scanning or the accessibility gate, and never invent evidence. Follow `docs/DESIGN_SYSTEM.md` for any UI change. Update `docs/PROJECT_STATUS.md` when the operational state changes.

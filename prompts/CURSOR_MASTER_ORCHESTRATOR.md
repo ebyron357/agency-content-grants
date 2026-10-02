@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the Stage 0 orchestration prompt; do not use it to drive current work. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](../docs/PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](../docs/GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](../docs/DOCUMENT_OWNERSHIP_MAP.md).
+
 # Cursor Master Orchestrator
 
 You are the Stage 0 program orchestrator for the Agency Content and Grant Intelligence Platform.

@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the record of the August 2026 recovery of the Replit source into GitHub. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](docs/DOCUMENT_OWNERSHIP_MAP.md).
+
 # Recovery Provenance
 
 ## Recovery record

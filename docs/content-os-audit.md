@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the product/UX/codebase audit of 1 August 2026; findings were addressed by later PRs. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](DOCUMENT_OWNERSHIP_MAP.md).
+
 # Content OS — Full Product, UX, and Codebase Audit
 
 **Date:** August 1, 2026  

@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the README of the recovered Replit source, kept for provenance. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](../PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](../GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](../DOCUMENT_OWNERSHIP_MAP.md).
+
 # Content OS
 
 An AI-assisted content production system: define a brand, create a project, generate a research plan, curate sources, extract claims, build an outline, draft sections with AI, evaluate quality, and export the finished document.

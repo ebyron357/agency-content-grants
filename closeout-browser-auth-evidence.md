@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the local browser QA of 16 August 2026, against the earlier light UI. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](docs/DOCUMENT_OWNERSHIP_MAP.md).
+
 # Authenticated browser QA evidence
 
 Date: 2026-08-16 UTC

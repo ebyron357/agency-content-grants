@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the repository baseline at Stage 0 (July 2026), before any application code existed. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](DOCUMENT_OWNERSHIP_MAP.md).
+
 # Repository Baseline
 
 ## Canonical repository

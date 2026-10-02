@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the manifest for the September 2026 screenshots in this folder, which show the earlier light UI. Current screenshots: closeout-2026-10-02/. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](../../PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](../../GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](../../DOCUMENT_OWNERSHIP_MAP.md).
+
 # Content OS UI Evidence
 
 ## Historical UI capture build

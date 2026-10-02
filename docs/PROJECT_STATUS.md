@@ -1,208 +1,118 @@
-# Content OS — Complete Project Status
+# Content Machine — Project Status (closeout record)
 
-**Author:** Manus AI
-**Repository:** [ebyron357/agency-content-grants](https://github.com/ebyron357/agency-content-grants)
-**Branch:** `manus/content-machine-closeout`
-**Candidate:** current `manus/content-machine-closeout` HEAD; the immutable SHA is recorded in the PR validation receipt after the final commit
-**Status date:** 24 September 2026
-**Decision:** **NO-GO for production launch; GO for continued controlled development and review**
+**This is the single current status record.** Status date: **2 October 2026**. Owner: Emmanuel Andre Byron (`ebyron357`). Governing issue: [#8](https://github.com/ebyron357/agency-content-grants/issues/8). Closeout PR: [#16](https://github.com/ebyron357/agency-content-grants/pull/16). ClickUp control task: `86e2tjzyc`.
 
-This is the single canonical current project-status document and master release checklist. `PROJECT_CLOSEOUT.md`, recovery records, screenshots, and other evidence documents are historical/supporting records, not competing current status sources.
+## Verdict
 
-## Master project checklist
+| | |
+|---|---|
+| Closure state | **BLOCKED — OWNER ACTION REQUIRED** (production environment only) |
+| Release candidate | **VERIFIED COMPLETE** — all repository, CI, browser, accessibility, security and production-mode rehearsal gates pass |
+| Production | **NO-GO — not deployed.** No Render service exists yet; creating it needs the owner's Render account, billing approval and owner-held secrets |
+| Decision record | [`docs/GO_NO_GO_DECISION.md`](GO_NO_GO_DECISION.md) |
 
-| ID   | Phase                   | Task                                                                                       | Status            | Owner/Agent                | Dependency                            | Evidence Required                                                       | Evidence Found                                                                                                                                 | Next Action                                         |
-| ---- | ----------------------- | ------------------------------------------------------------------------------------------ | ----------------- | -------------------------- | ------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| 1.1  | Re-baseline             | Fetch and record current main and candidate parity                                         | VERIFIED COMPLETE | Release agent              | GitHub access                         | Exact SHAs and ahead/behind                                             | main `47dd1fc`; PR #11 `47c54dc`; 29 ahead, 0 behind; clean worktree at baseline                                                               | Recheck before RC freeze                            |
-| 1.2  | Re-baseline             | Review open PRs and CI/security checks                                                     | VERIFIED COMPLETE | Release agent              | GitHub access                         | Current PR/check inventory                                              | PR #11 mergeable; CI, closeout validation, approval agent, and security reviewer passed; PR #6 remains stale draft/dirty                       | Recheck after push                                  |
-| 1.3  | Re-baseline             | Establish production deployment state                                                      | VERIFIED COMPLETE | Release agent              | GitHub access                         | Deployment inventory                                                    | GitHub deployments API returned no deployments                                                                                                 | Keep production gate blocked until deployment       |
-| 2.1  | Remediation             | Dependency-aware liveness/readiness                                                        | VERIFIED COMPLETE | Release agent              | PostgreSQL and durable paths          | Unit/integration tests; 503 failure behavior                            | `/healthz` is liveness; `/readyz` checks DB, migrations, writable media/source/export paths, and critical production config; tests pass        | Configure production paths                          |
-| 2.2  | Remediation             | AI provider timeout and safe errors                                                        | VERIFIED COMPLETE | Release agent              | None                                  | Tests for timeout signal/error redaction                                | OpenAI, Anthropic, and Gemini share explicit timeout and safe error handling; regression tests pass                                            | Configure one real provider                         |
-| 2.3  | Remediation             | Remove active Replit-sidecar storage dependency                                            | VERIFIED COMPLETE | Release agent              | Durable production mount later        | Active-path proof and persistence tests                                 | Active PDF flow uses configurable filesystem storage; image/source/export paths are configurable and readiness-checked; path tests pass        | Mount durable production storage                    |
-| 2.4  | Remediation             | Accessibility fixes                                                                        | VERIFIED COMPLETE | Release agent              | Browser runtime                       | Automated scan plus keyboard/focus/zoom/manual checks                   | Skip link, main target, editor/toolbar names, selects, and confirmed contrast failures corrected                                               | Preserve accessibility tests                        |
-| 2.5  | Remediation             | Error handling and observability                                                           | VERIFIED COMPLETE | Release agent              | None                                  | Safe responses and structured redacted logs                             | Provider/readiness/storage failures use structured logs and safe public errors; Pino secret redaction retained; failure tests pass             | Verify production log delivery                      |
-| 3.1  | Code quality            | Frozen install, format, typecheck, unit/API/frontend/integration/build/security/migrations | VERIFIED COMPLETE | Release agent and CI       | Disposable PostgreSQL                 | Exact command outputs at final head                                     | CI `35957538953`: install, format, typecheck, migrations, 289 API, 21 frontend, 38 integration, accessibility, and build pass                  | Preserve exact-head CI                              |
-| 4.1  | Accessibility QC        | Independent browser accessibility gate                                                     | VERIFIED COMPLETE | QA agent                   | Completed remediation and running app | Automated PASS and manual keyboard/focus/labels/zoom/semantics evidence | Playwright/axe passes authenticated login, Create, and Dashboard; manual login keyboard focus and 200% zoom pass                               | Preserve the CI gate                                |
-| 5.1  | Security QC             | Auth, ownership, isolation, upload, export, secret, migration checks                       | VERIFIED COMPLETE | Security QA                | Completed remediation                 | Current-head automated and live isolation evidence                      | 289 API tests, 38/38 integration checks, secret scan, and approval review pass; external security automation remains pending without a finding | Recheck external review before production           |
-| 6.1  | Release candidate       | Freeze clean exact SHA based on current main                                               | IN PROGRESS       | Release agent              | All QC gates pass                     | Clean SHA, 0 behind, green CI, no post-QC changes                       | Candidate branch is 0 behind; final evidence-only commit and CI rerun remain                                                                   | Commit this checklist and rerun CI                  |
-| 7.1  | Owner gate              | Obtain only genuinely owner-controlled production prerequisites                            | BLOCKED           | Owner                      | Frozen RC and selected target         | Billing/credentials/secret-entry completion signal                      | No production platform credentials or provider key are available to the agent                                                                  | Ask for the next single action only after RC freeze |
-| 8.1  | Production              | Deploy exact RC with durable PostgreSQL/storage/secrets                                    | BLOCKED           | Release agent + owner gate | Owner gate                            | Deployment ID/URL, migrations, SHA parity                               | No deployment exists                                                                                                                           | Execute after owner gate                            |
-| 9.1  | Production verification | Smoke, provider, persistence, accessibility, isolation, logs                               | BLOCKED           | Release/QA agents          | Exact-SHA deployment                  | Production test evidence                                                | No production environment exists                                                                                                               | Execute after deployment                            |
-| 10.1 | Rollback                | Perform rollback and restore approved release                                              | BLOCKED           | Release agent              | Two production deployments            | Rollback logs plus DB/storage integrity                                 | No production environment exists                                                                                                               | Execute after production verification               |
-| 10.2 | Closeout                | Reconcile evidence and declare final status                                                | BLOCKED           | Release agent              | Every prior gate verified             | Complete final matrix with zero remaining work                          | Current decision remains NO-GO                                                                                                                 | Update this same document only                      |
+## Release identity
 
-## Executive status
+| Field | Value |
+|---|---|
+| Repository | [`ebyron357/agency-content-grants`](https://github.com/ebyron357/agency-content-grants) |
+| Canonical branch | `main` |
+| Reviewed release-candidate SHA | **`2857cada58043e3acf2c5f8688bcb0a2867a5077`** — last commit that changes application code, tests, build, CI or deployment config |
+| Commits after the candidate | Documentation and evidence only. Verify: `git diff --stat 2857cad origin/main -- . ':(exclude)docs' ':(exclude)*.md' ':(exclude).cursor' ':(exclude).env.example'` prints nothing |
+| Release commit to deploy | The `main` commit created by merging PR #16 (recorded in the Issue #8 closing evidence comment and ClickUp `86e2tjzyc`) |
+| Production deployment SHA | **None — no deployment exists** |
+| Deployment provider | Render, from [`render.yaml`](../render.yaml): web service + managed PostgreSQL + 10 GB persistent disk at `/var/data`, `autoDeployTrigger: off`, health check `/api/readyz` |
+| Production URL | **Not provisioned.** Render assigns `https://<service-name>.onrender.com`; with the blueprint's service name the expected URL is `https://agency-content-grants.onrender.com` (confirm in the Render dashboard after creation) |
+| Login URL | The production URL root (`/`) — the app shows the sign-in screen until a session exists |
+| Deployment state evidence | 2 Oct 2026 05:34 UTC: `https://agency-content-grants.onrender.com/api/healthz` returned Render's generic `404 Not Found` (no service). No Vercel project is linked to the repository; the five Railway projects on the connected account are unrelated apps. This agent environment holds no Render credential and its network policy blocks `api.render.com` and `*.onrender.com` |
 
-Content OS is now a coherent, authenticated content-production workspace rather than a generic prompt box. Its strongest product direction is an evidence-first guided workflow: a user begins with a question or assignment, the system turns that intent into a research plan and outline, sources are stored and reviewed, claims can be linked to sources, the draft is produced in a structured editor, quality review is run before publication, and exports retain an evidence register. This is materially more defensible than positioning the product as another undifferentiated AI writer.
+## Gate results
 
-The current repository is technically healthy for release-candidate testing. Frozen installation, configured formatting, repository typecheck, migrations, **289 API tests**, **21 Content OS tests**, **38 passed / 0 failed / 0 skipped integration checks**, authenticated Playwright/axe accessibility checks, production build, and the repository secret-pattern scan pass. Production launch remains **NO-GO** because deployment parity, a durable production PostgreSQL instance and filesystem mount, production secrets, a real AI provider, production log verification, deployed isolation/smoke evidence, and an executed rollback still require the production owner gate and live environment.
+Levels: **Impl** implemented · **Local** verified locally · **CI** verified in GitHub Actions · **Browser** verified in a real browser · **Rehearsal** verified against a production-mode build (`NODE_ENV=production`, fresh PostgreSQL 16, durable directories, secure cookies behind a TLS proxy) · **Prod** verified in production.
 
-## Product thesis and positioning
+| # | Gate | Status | Level | Evidence |
+|---|---|---|---|---|
+| 1 | Issue #8 UI/UX system lock (one dark system on every authenticated route) | PASS | Impl · Browser · CI | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md); screenshots [`evidence/ui/closeout-2026-10-02/`](evidence/ui/closeout-2026-10-02/) (before: `before/`) |
+| 2 | Frozen dependency install | PASS | Local · CI | `pnpm install --frozen-lockfile` |
+| 3 | Formatting (configured Prettier scope) | PASS | Local · CI | `pnpm run format:check` |
+| 4 | Lint | NOT APPLICABLE | — | No linter is configured in this repository; the Prettier check is the configured style gate |
+| 5 | Repository typecheck | PASS | Local · CI | `pnpm run typecheck` |
+| 6 | API unit tests (hermetic) | PASS — 116/116 | Local · CI | `pnpm --filter @workspace/api-server test:unit` |
+| 7 | Disposable database preparation / migrations | PASS | Local · CI · Rehearsal | `test:db:prepare` (guarded: `NODE_ENV=test`, `ALLOW_TEST_DATABASE_RESET`, `_test` database); fresh production database migrated at startup |
+| 8 | API tests (database-backed) | PASS — 292/292 | Local · CI | `pnpm --filter @workspace/api-server test` |
+| 9 | Frontend tests | PASS — 21/21 | Local · CI | `pnpm --filter @workspace/content-os test` |
+| 10 | Integration suite | PASS — 40 passed, 0 failed, 0 skipped | Local · CI | `bash tests/integration-tests.sh` |
+| 11 | Accessibility (Playwright + axe, WCAG 2.0/2.1 A/AA, serious/critical) | PASS — login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, 404, all 9 project tabs, 390px navigation, no horizontal overflow | Browser · CI | `artifacts/content-os/e2e/accessibility.spec.ts` |
+| 12 | Production build | PASS | Local · CI | `pnpm run build` |
+| 13 | Secret scanning | PASS — no leaks | Local · CI | gitleaks over the full local history and in CI (`fetch-depth: 0`) |
+| 14 | Dependency audit | PASS — no known vulnerabilities | Local · CI | `pnpm audit --audit-level=high` after patching undici, ip-address, markdown-it |
+| 15 | SBOM | PASS | CI | CycloneDX artifact `sbom` on each CI run |
+| 16 | Authentication and session | PASS | CI · Rehearsal | Wrong password 401; login 200; `sid` cookie `HttpOnly` + `Secure` behind TLS; `/api/auth/me` reports session and admin elevation; logout ends access |
+| 17 | Unauthorised access rejected | PASS | CI · Rehearsal | Anonymous requests to projects, brands, dashboard, media, exports, API keys → 401 |
+| 18 | Tenant / ownership isolation | PASS | CI · Rehearsal | Cross-user ownership tests in the API suite; unknown and unowned IDs → 404; export path traversal → 400. Production runs one operator account (see limitations) |
+| 19 | Persistence | PASS | Rehearsal | Project, rich HTML and image survived a full service restart (image SHA-256 identical) |
+| 20 | Rich editor formatting | PASS | Browser · Rehearsal | Headings, emphasis, lists, links survive reload; `<script>` stripped server-side |
+| 21 | Images | PASS | Browser · Rehearsal | Upload with required alt text, owner-only serving, metadata persisted, renders after reload |
+| 22 | Video | PASS | Browser · Rehearsal | YouTube/Vimeo HTTPS accepted and persisted; unsafe URLs rejected |
+| 23 | Export | PASS | CI · Rehearsal | DOCX (`PK`), PDF (`%PDF`), HTML, Markdown, TXT generated, downloaded, owner-only |
+| 24 | Liveness / readiness | PASS | Rehearsal | `/api/healthz` → `{status:"ok", commit}`; `/api/readyz` → `ready` with database, storage and a provider key; `not_ready` without a provider key in production (by design) |
+| 25 | SHA / deployment parity mechanism | PASS | Rehearsal | `/api/healthz` reports `RENDER_GIT_COMMIT`; smoke script compares it to `EXPECTED_SHA` |
+| 26 | Rollback procedure | PASS (rehearsed) | Rehearsal | Previous `main` build `fac3cb9` started on the same database and disk, served the same data, then rolled forward. No schema change between the two |
+| 27 | Production smoke script | PASS (rehearsed) | Rehearsal | [`tests/production-smoke.sh`](../tests/production-smoke.sh): 56 passed, 0 failed; negative provider check fails loudly and still cleans up |
+| 28 | Production deployment at reviewed SHA | **BLOCKED — owner** | — | No Render service; see Blocker |
+| 29 | Production smoke, runtime-error review, production rollback | **BLOCKED — owner** | — | Runs immediately after gate 28 |
+| 30 | Operator / client handoff documentation | PASS | Impl | See Documentation |
 
-> **Content OS turns a vague content assignment into a defensible, reviewable content package.**
+Evidence files: [`evidence/release/2026-10-02/`](evidence/release/2026-10-02/) (local gate log, production-mode smoke logs, rehearsal record).
 
-The product should not compete primarily on raw generation speed. Jasper currently emphasizes marketing workflows, agents, brand knowledge, audiences, deep research, and scaled content execution; Copy.ai emphasizes no-code workflows, scraping, research agents, events, and GTM automation; Notion AI emphasizes contextual workspace agents, enterprise search, meeting notes, research mode, and AI blocks. Those products are strong in automation or general workspace context, but the public positioning does not make source-to-claim traceability the central user contract.[1] [2] [3]
+## Remaining blocker
 
-Content OS should own the **guided evidence chain**. The differentiating mechanism is not a single model or a decorative “AI” label; it is the sequence and the visible proof objects that the sequence produces. Every substantial output should be explainable through a brief, a source set, a claims ledger, a review decision, and an export appendix. The system should be useful to a beginner while still producing artifacts that a professional editor, strategist, compliance reviewer, or subject-matter expert can inspect.
+**BLOCKER:** The production environment does not exist. Render resources in `render.yaml` (web service, PostgreSQL, persistent disk) are paid plans that must be created in the owner's Render account, and production needs owner-held secrets (`ADMIN_PASSWORD`, one AI provider key; `/api/readyz` stays `not_ready` without the key).
 
-## Target users and adaptive experience
+**EVIDENCE:** Render returns its no-service 404 for the expected hostname; no deployment exists on Vercel or Railway; this agent environment has no Render credential and cannot reach `api.render.com` or `*.onrender.com`.
 
-The primary user is a non-technical person who knows what they want to communicate but does not know how to turn it into a defensible brief, research process, or publishable draft. Secondary users include solo consultants, small-agency strategists, editors, subject-matter experts, and small marketing teams that need repeatable quality without enterprise workflow complexity.
+**WHO OWNS IT:** Emmanuel Andre Byron (`ebyron357`), product owner and Render/billing account holder.
 
-| User state                     | Product response                                                                             | Evidence of fit                                                                                                 |
-| ------------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Beginner with a vague topic    | Ask for topic, audience, purpose, and desired outcome; generate a brief before drafting      | The existing Create flow already validates topic, content type, brand, and advanced options.                    |
-| User with no sources           | Explain why sources matter and offer URL or PDF ingestion with clear next steps              | Source Library supports manual URL entry and PDF upload/extraction.                                             |
-| User with scattered references | Normalize source metadata, show retrieval status, and make approval/rejection explicit       | Source records include publisher, author, date, excerpts, status, and ownership checks.                         |
-| User making factual claims     | Show claim status, confidence, source title, and supporting excerpt                          | Claims Ledger now surfaces source linkage when the API returns it.                                              |
-| User drafting                  | Keep the editor focused on structure, section status, locks, approvals, and readable content | Tiptap-backed rich editing, section navigation, locking, approval, media insertion, and AI editing are present. |
-| User preparing publication     | Explain readiness blockers and preserve the evidence register in exports                     | Quality and Export tabs exist; all exports now append the evidence register when evidence exists.               |
-| Mobile or constrained viewport | Collapse navigation to an icon rail and preserve readable hierarchy                          | Final responsive screenshot evidence verified dashboard, creation, project, and editor views.                   |
+**EXACT SINGLE ACTION REQUIRED:** In the Render dashboard choose **New → Blueprint**, select `ebyron357/agency-content-grants` (branch `main`), approve the plan charges, and enter `ADMIN_PASSWORD` and `OPENAI_API_KEY` when prompted. Render then performs the first deploy of `main`.
 
-## Core workflow mechanism
+Everything after that action is scripted: run `tests/production-smoke.sh` against the new URL with `EXPECTED_SHA` set to `main` (step-by-step in [`DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](DEPLOYMENT_AND_RECOVERY_RUNBOOK.md#4-verify-the-deployment)), then record the result here, on Issue #8 and in ClickUp. When it passes, the decision becomes **PRODUCTION GO**.
 
-The recommended product loop is **Question → Brief → Source plan → Source ingestion → Claims ledger → Outline → Draft → Review → Export**. Each stage should produce a durable object, expose the next recommended action, and make uncertainty visible instead of silently filling gaps with model output.
+## Known limitations that remain
 
-| Stage         | Durable object                  | User decision                                               | Current implementation status                                                             |
-| ------------- | ------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Question      | Project assignment              | Clarify audience, purpose, constraints, and desired outcome | Implemented in Create and project settings.                                               |
-| Brief         | Research plan and outline       | Approve scope and questions                                 | Implemented with research-plan and outline routes.                                        |
-| Source plan   | Source records                  | Add, approve, reject, or revisit sources                    | Implemented with URL/PDF source management and ownership checks.                          |
-| Claims ledger | Claim records                   | Verify, link, and review claims                             | Implemented; source linkage exists in the API and is now surfaced in the UI.              |
-| Draft         | Document sections and revisions | Edit, lock, approve, and refine                             | Implemented in the rich editor.                                                           |
-| Review        | Quality evaluation and issues   | Decide whether to fix, accept, or block publication         | Implemented with quality and readiness routes.                                            |
-| Export        | Downloadable package            | Select format and retain traceability                       | Implemented; evidence register is appended to Markdown, HTML, TXT, DOCX, and PDF outputs. |
+These are real, documented operating constraints. None blocks operation of the delivered scope.
 
-## Competitive landscape
+| Limitation | Effect | Where documented |
+|---|---|---|
+| One shared operator account (`admin`) authenticated by `ADMIN_PASSWORD`; no self-registration, per-person accounts, invitations, roles beyond admin elevation, or e-mail password reset | Everyone with access shares one workspace; access is revoked by rotating the password | [`SECURITY_AND_ACCESS_HANDOFF.md`](SECURITY_AND_ACCESS_HANDOFF.md) |
+| Single instance only: persistent disk, in-process schedulers | Cannot scale horizontally; each deploy has a short restart window (Render disables zero-downtime deploys for services with disks) | [`DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](DEPLOYMENT_AND_RECOVERY_RUNBOOK.md) |
+| Media, source PDFs and exports live on the Render disk, not object storage | Covered by Render's daily disk snapshots (kept ≥ 7 days); not rolled back with code | [`DATA_LIFECYCLE_AND_OFFBOARDING.md`](DATA_LIFECYCLE_AND_OFFBOARDING.md) |
+| AI generation requires an owner-paid provider key; without one the app runs labelled demo output and production readiness fails | Provider cost and availability are external dependencies | [`ADMIN_OPERATIONS_MANUAL.md`](ADMIN_OPERATIONS_MANUAL.md) |
+| Publishing destinations: built-in `demo` (simulated, labelled) and Typefully (needs `TYPEFULLY_API_KEY`); performance data only from providers that report metrics | No real channel is connected until the owner adds one | [`ADMIN_OPERATIONS_MANUAL.md`](ADMIN_OPERATIONS_MANUAL.md) |
+| No delete buttons for projects, brands, sources or images | Operator deletes them through the API with a signed-in session (documented recipe) | [`DATA_LIFECYCLE_AND_OFFBOARDING.md`](DATA_LIFECYCLE_AND_OFFBOARDING.md) §4 |
+| Grant/proposal intelligence | Not implemented; deferred future scope by owner decision | [`README.md`](../README.md) |
 
-| Product   | Current public strength                                                                                   | Gap Content OS can own                                                                                   | Strategic response                                                        |
-| --------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Jasper    | Marketing-specific agents, brand voice, knowledge, audiences, deep research, and scaled content workflows | Evidence chain is not the primary visible contract for an ordinary user                                  | Win on guided defensibility, reviewability, and claim-level proof.        |
-| Copy.ai   | No-code workflow builder, scraping, research agents, event triggers, and GTM automation                   | Workflow flexibility can shift complexity onto the user and does not inherently guarantee source quality | Win on opinionated beginner guidance and human-readable evidence objects. |
-| Notion AI | Workspace context, agents, enterprise search, meeting notes, and general knowledge work                   | Broad workspace assistance is not the same as source-to-claim publishing discipline                      | Win on a focused content-production path with explicit readiness gates.   |
+Non-blocking follow-ups (no operational effect): an unmounted legacy Replit object-storage route and inert `REPLIT_*` CORS variables remain in `artifacts/api-server`; the frontend bundle triggers Vite's 500 kB chunk-size warning.
 
-The competitive conclusion is not that Content OS should build every automation feature. It should make the **right work visible in the right order**: a beginner should know what to do next, and a reviewer should know why a sentence is present.
+## Documentation
 
-## Open-source evaluation and adoption decisions
+| Need | Document |
+|---|---|
+| Product, setup, architecture | [`README.md`](../README.md) |
+| Agent and contributor rules | [`AGENTS.md`](../AGENTS.md) |
+| Decision | [`GO_NO_GO_DECISION.md`](GO_NO_GO_DECISION.md) |
+| Document authority index | [`DOCUMENT_OWNERSHIP_MAP.md`](DOCUMENT_OWNERSHIP_MAP.md) |
+| User manual | [`CLIENT_USER_MANUAL.md`](CLIENT_USER_MANUAL.md) |
+| Admin / operator manual | [`ADMIN_OPERATIONS_MANUAL.md`](ADMIN_OPERATIONS_MANUAL.md) |
+| Security and access | [`SECURITY_AND_ACCESS_HANDOFF.md`](SECURITY_AND_ACCESS_HANDOFF.md) |
+| Deploy, verify, roll back, back up, restore | [`DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](DEPLOYMENT_AND_RECOVERY_RUNBOOK.md) |
+| Data ownership, export, deletion, offboarding | [`DATA_LIFECYCLE_AND_OFFBOARDING.md`](DATA_LIFECYCLE_AND_OFFBOARDING.md) |
+| Troubleshooting and support | [`TROUBLESHOOTING_AND_SUPPORT.md`](TROUBLESHOOTING_AND_SUPPORT.md) |
+| Access handoff template | [`CLIENT_ACCESS_HANDOFF_TEMPLATE.md`](CLIENT_ACCESS_HANDOFF_TEMPLATE.md) |
+| Acceptance checklist | [`FINAL_CLIENT_ACCEPTANCE.md`](FINAL_CLIENT_ACCEPTANCE.md) |
+| Design system | [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) |
+| CI contract | [`CI.md`](CI.md) |
+| Completion standard | [`PROJECT_COMPLETION_STANDARD.md`](PROJECT_COMPLETION_STANDARD.md) — `PROJECT_CLOSEOUT_STATUS.md` (§40) is satisfied by this file rather than a duplicate |
 
-| Candidate                                             | Relevant capability                                                                               | License / maintenance evidence                                           | Decision                                                                                                                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Tiptap](https://github.com/ueberdosis/tiptap)        | Headless rich-text editor and ProseMirror-based extension ecosystem                               | MIT; active repository with a large contributor and release ecosystem    | **Adopted.** It is already the editor foundation.                                                                                                                               |
-| [Docling](https://github.com/docling-project/docling) | PDF, DOCX, PPTX, XLSX, HTML, image, transcript, email, layout, table, and reading-order ingestion | MIT; local and air-gapped execution is documented                        | **Evaluate for next ingestion milestone.** It is a strong fit, but Python/model footprint, sandboxing, queueing, and storage costs must be measured before production adoption. |
-| [axe-core](https://github.com/dequelabs/axe-core)     | Automated WCAG-oriented browser accessibility checks                                              | MPL-2.0 with third-party notices; active maintenance                     | **Adopt for CI.** Automated checks do not replace manual review, but they are an appropriate repeatable gate.                                                                   |
-| [Citation.js](https://citation.js.org/) plus CSL      | Convert DOI, BibTeX, Wikidata, and related formats to CSL-JSON and render deterministic styles    | Dependency and style-license review required before server-side shipping | **Architecture direction.** Use CSL-JSON as the internal citation shape; keep citation formatting separate from source authority scoring.                                       |
-| [citeproc-js](https://github.com/Juris-M/citeproc-js) | CSL citation and bibliography processor                                                           | Mature implementation; license review required                           | **Evaluate alongside Citation.js.** Choose one deterministic processor after a legal and bundle-size review.                                                                    |
+## History
 
-The current implementation deliberately avoids pretending that a library adoption is complete merely because it appears in a plan. Tiptap is adopted. The evidence appendix and source-ingestion hardening are implemented without adding a citation dependency prematurely. Docling, axe-core, and CSL processing remain explicit next-stage decisions with license, runtime, and operational review recorded.
-
-## Implemented changes in this update
-
-### Secure source ingestion
-
-The manual source-create route no longer spreads arbitrary request-body fields into the database. It now accepts an explicit allowlist and validates a supplied source URL before persistence. Source fetching no longer uses an unguarded direct `fetch`; it reuses the existing DNS-rebinding-safe HTTP path, refuses internal or reserved destinations, does not follow unvalidated redirects, and applies a 15-second timeout. This closes a concrete SSRF and mass-assignment risk in the evidence path while preserving legitimate public HTTP/HTTPS source collection.
-
-### Evidence-aware export
-
-The exporter now loads project sources and claims and builds a deterministic evidence register. Each source receives a stable export key, such as `S1`, and the appendix includes title, URL where safe, author, publisher, retrieval date, status, linked claim text, verification status, and supporting excerpt. The appendix is rendered into Markdown, HTML, TXT, DOCX, and PDF exports. The implementation avoids claiming that every draft sentence is automatically verified; it preserves the evidence that the user and system have actually stored.
-
-### Evidence visibility in the product UI
-
-The Claims Ledger now surfaces the linked source title when available. The Export tab explains that evidence-bearing exports retain source links, retrieval status, and supporting excerpts. This connects the visible review workflow to the artifact that leaves the application.
-
-### Previously completed experience and security work retained
-
-The current branch also includes the premium first-click shell, responsive sidebar icon rail, lazy route loading, polished login and dashboard experiences, Tiptap rich authoring, safe media validation, ownership middleware, export path protection, and historical browser UI proof across required viewports. The automated behavior is revalidated on the current candidate; the retained browser screenshots remain explicitly tied to their historical capture SHA.
-
-## Architecture direction
-
-The current architecture is a TypeScript monorepo with a React/Vite frontend, Express API, Drizzle/PostgreSQL persistence, session authentication, object-storage abstraction, Tiptap editor, background-style export processing, and deterministic demo-provider support for isolated testing. The next architecture slice should preserve this shape rather than introduce a second application framework.
-
-| Concern             | Current boundary                                           | Recommended next step                                                                                                               |
-| ------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Source ingestion    | `routes/sources.ts`, PDF parser, object storage            | Add a queued ingestion worker with content-type sniffing, size/time budgets, provenance fields, and optional Docling adapter.       |
-| Evidence model      | `sources`, `claims`, `research_plans`                      | Add explicit source snapshots, hash/version, extraction method, citation style, and claim-to-section references.                    |
-| Citation formatting | Exporter appendix currently uses deterministic source keys | Add CSL-JSON normalization and one reviewed processor; preserve source-trust fields separately.                                     |
-| Quality             | Quality evaluator and readiness endpoint                   | Add citation coverage, unsupported-claim severity, stale-source flags, and contradiction review to readiness.                       |
-| Accessibility       | Manual visual QA and existing semantic UI patterns         | Add axe-core browser checks to CI, then manually review keyboard flow, focus order, zoom, and screen-reader labels.                 |
-| Observability       | API logs and export status                                 | Add structured job IDs, ingestion/export latency, provider failures, and redacted audit events.                                     |
-| Deployment          | Local and repository-level validation                      | Verify production SHA parity, migrations, storage, secrets, health, rollback, and tenant isolation on the actual deployment target. |
-
-## Verification evidence
-
-| Verification                              |                       Result | Notes                                                                                                                                                                                        |
-| ----------------------------------------- | ---------------------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Frozen install                            |               Passed locally | `pnpm install --frozen-lockfile` completed for all nine workspace projects.                                                                                                                  |
-| Configured formatting                     |               Passed locally | Repository `format:check` completed successfully.                                                                                                                                            |
-| Workspace typecheck                       |                       Passed | Full TypeScript build completed.                                                                                                                                                             |
-| API unit tests                            |               Passed locally | 105 tests passed, plus 17 API test-environment guard checks.                                                                                                                                 |
-| Frontend tests                            |               Passed locally | 19 tests passed across creation workflow and persisted-media behavior.                                                                                                                       |
-| Production build                          |                       Passed | API, Content OS, mockup, libraries, and scripts built successfully.                                                                                                                          |
-| Exact-head database/API/integration suite | Pending canonical CI receipt | Local PostgreSQL/Docker is unavailable in this worktree; `.github/workflows/ci.yml` runs database preparation, the full API suite, and `tests/integration-tests.sh` on the pushed candidate. |
-| Historical integration suite              |                       Passed | **38 passed, 0 failed, 0 skipped** against disposable PostgreSQL and deterministic local API on the earlier recorded candidate.                                                              |
-| DOCX/PDF signatures                       |                       Passed | DOCX `PK` signature and PDF `%PDF` signature verified.                                                                                                                                       |
-| Citation appendix smoke test              |                       Passed | A real source-linked claim appeared in a downloaded Markdown export.                                                                                                                         |
-| Ownership and auth                        |               Passed locally | Authenticated routes and owner checks were exercised against isolated data.                                                                                                                  |
-| Responsive UI proof                       |               Passed locally | Desktop, laptop, tablet, and mobile screenshots are stored under `docs/evidence/ui/`.                                                                                                        |
-| Accessibility automated gate              |             Not yet complete | axe-core is evaluated but not yet integrated into this repository’s CI. Manual review remains required.                                                                                      |
-| Production deployment parity              |                 Not verified | No claim is made about a deployed production SHA or live environment.                                                                                                                        |
-
-## Visual and product assessment
-
-The product’s current controlled-test UI is cohesive and credible. The dashboard is a clear command center; the Create flow is approachable; the editor exposes meaningful status and approval controls; the responsive icon rail prevents the mobile layout from becoming a desktop sidebar squeezed into a narrow viewport; and the export workflow now explains evidence retention.
-
-| Dimension                                |      Score |
-| ---------------------------------------- | ---------: |
-| Positioning clarity                      |     86/100 |
-| Beginner guidance                        |     84/100 |
-| Evidence and trust model                 |     82/100 |
-| Editor usability                         |     84/100 |
-| Responsive presentation                  |     84/100 |
-| Accessibility readiness                  |     76/100 |
-| Export integrity                         |     88/100 |
-| Security posture in verified local paths |     86/100 |
-| Production readiness                     |     58/100 |
-| **Overall current product score**        | **82/100** |
-
-The production-readiness score is intentionally lower than the product score because local correctness and production readiness are different claims.
-
-## Release decision and remaining gates
-
-### Decision: NO-GO for production launch
-
-The product is ready for continued controlled development, stakeholder review, and a production-candidate hardening cycle. It is not ready for an honest production-launch declaration until the following owner-controlled gates are completed.
-
-| Gate                  | Required evidence                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deployment parity     | Deployed SHA equals the reviewed final branch SHA and the built artifact is traceable to that commit.                                                         |
-| Database              | Production PostgreSQL migrations apply cleanly, backups are configured, and rollback behavior is tested.                                                      |
-| Storage               | PDF/image/video objects use durable production storage with retention, access control, and orphan cleanup.                                                    |
-| Secrets and providers | Production session secret, AI provider keys, admin controls, and rate limits are configured in a secret manager; no test/demo provider is active.             |
-| Tenant isolation      | Deployed authenticated E2E proves one user cannot read, mutate, download, or export another user’s project, source, claim, media, or export.                  |
-| Accessibility         | axe-core CI plus manual keyboard, focus, zoom, and screen-reader review pass on the core workflow.                                                            |
-| Source trust          | Redirect policy, robots/terms posture, extraction limits, snapshot/hash retention, and citation-style policy are reviewed.                                    |
-| Operations            | Health checks, structured logs, alerting, job timeouts, provider failure handling, and rollback procedure are tested.                                         |
-| Product acceptance    | A non-technical user completes Question → Brief → Source → Claim → Draft → Review → Export without coaching, and a reviewer can reproduce the evidence trail. |
-
-## Near-term implementation plan
-
-**P0 — Make the evidence chain production-grade.** Add source snapshots and hashes, explicit extraction provenance, claim-to-section links, stale-source handling, and citation coverage in publication readiness. Integrate axe-core into browser CI and add tests for the new source URL policy.
-
-**P1 — Improve ingestion breadth safely.** Introduce a queued ingestion adapter interface. Start with the existing PDF path, then evaluate Docling in an isolated worker for DOCX, PPTX, XLSX, image, and complex-PDF parsing. Enforce size, CPU, memory, timeout, and file-type budgets.
-
-**P1 — Improve beginner guidance.** Add stage-specific empty states and one recommended next action on Research, Sources, Claims, Quality, and Export. Keep advanced controls available, but explain why they matter in plain language.
-
-**P2 — Add deterministic citations.** Normalize DOI/BibTeX/Wikidata and manually entered sources into CSL-JSON, select one reviewed CSL processor, support at least APA and Chicago-style output, and preserve a human-review override for ambiguous metadata.
-
-**P2 — Production readiness.** Execute the deployment, migration, storage, security, accessibility, observability, rollback, and tenant-isolation gates against the real target environment. Only then change the decision from NO-GO to GO.
-
-## References
-
-[1]: https://www.jasper.ai/pricing "Jasper pricing and product capabilities"
-[2]: https://www.copy.ai/platform/building-workflows "Copy.ai workflow builder"
-[3]: https://www.notion.com/product/ai "Notion AI product page"
-[4]: https://github.com/ueberdosis/tiptap "Tiptap GitHub repository"
-[5]: https://github.com/docling-project/docling "Docling GitHub repository"
-[6]: https://github.com/dequelabs/axe-core "axe-core GitHub repository"
-[7]: https://citation.js.org/ "Citation.js official site"
-[8]: https://github.com/Juris-M/citeproc-js "citeproc-js GitHub repository"
-[9]: https://github.com/citation-style-language/styles "Citation Style Language styles repository"
+Earlier status, planning and recovery records are kept under [`docs/history/`](history/) and [`docs/recovery/`](recovery/) and are labelled as superseded. Merged closeout work: PR #11 (canonical closeout), PR #13 (CI test-lane hardening), PR #15 (release hygiene, security CI), PR #16 (this closeout). PR #9 and PR #10 were superseded implementation lanes and are closed.

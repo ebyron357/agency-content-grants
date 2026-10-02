@@ -14,7 +14,7 @@ In the project owner's own words:
 
 1. **Define the real user problem first.** Write down, in plain language, what a Content Machine user is trying to accomplish and why the current product doesn't get them there. No solution path is chosen before this is explicit.
 2. **Check existing Content Machine capability.** Search this repo's schema, routes, libs, and UI for something that already solves it or is close. Extending an existing capability beats adding a parallel one.
-3. **Check shared portfolio capability.** Check whether a sibling Replit project/artifact/shared library already solves this problem (auth, object storage, AI provider routing, etc.) before rebuilding it inside Content Machine.
+3. **Check shared portfolio capability.** Check whether a sibling project or shared library in the owner's portfolio already solves this problem (auth, object storage, AI provider routing, etc.) before rebuilding it inside Content Machine.
 4. **Evaluate vetted open source for commodity functionality.** If the problem is commodity infrastructure (crawling, document parsing, scheduling/queues, webhook delivery, calendar UI, SERP/keyword data, LLM observability, workflow automation), identify real candidates and evaluate them — do not default to building from scratch because it "seems simple."
 5. **Compare API/service options.** Where a hosted API/service exists (search, SERP data, publishing aggregation, analytics), compare at least two on cost, reliability, and terms before committing.
 6. **Build custom only where needed or strategically justified.** Custom build is justified when: (a) nothing vetted fits the actual requirement, (b) the capability is core to Content Machine's competitive differentiation (see "Owned product layer"), or (c) integrating an external option would cost more in engineering/ops than a narrow, purpose-built version.
@@ -71,7 +71,7 @@ No feature — custom-built or integration-based — is "done" until:
 ## Where to record decisions
 
 - Build-vs-integrate reasoning for a specific feature: a short "Decision" note in the relevant task/PR description, referencing this document's evaluation criteria explicitly.
-- Standing architectural choices future work should stay consistent with: `replit.md` → "Architecture decisions".
+- Standing architectural choices future work should stay consistent with: `docs/decisions/` (one file per decision) and the Architecture section of `README.md`.
 - This document itself changes only when the standard changes, not per-feature.
 
 ## Current first-pass candidate set (for future evaluation only — not adopted, not installed)

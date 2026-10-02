@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the Replit agent memory file from the recovered workspace; it is not maintained and its commands/ports may be wrong. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](docs/DOCUMENT_OWNERSHIP_MAP.md).
+
 # [Project name]
 
 _Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
