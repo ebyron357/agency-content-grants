@@ -91,10 +91,10 @@ export function PublishDialog({ open, onOpenChange, brandId, sourceType, documen
           <div className="space-y-1.5">
             <p id="publish-when" className="text-xs font-medium text-muted-foreground">When</p>
             <div role="group" aria-labelledby="publish-when" className="flex gap-2">
-              <Button type="button" size="sm" variant={mode === 'now' ? 'default' : 'outline'} className={mode === 'now' ? 'bg-primary hover:bg-primary/90 text-white' : ''} onClick={() => setMode('now')}>
+              <Button type="button" size="sm" variant={mode === 'now' ? 'default' : 'outline'} className={mode === 'now' ? 'bg-primary hover:bg-primary/90 text-white' : ''} aria-pressed={mode === 'now'} onClick={() => setMode('now')}>
                 <Send className="w-3.5 h-3.5 mr-1.5" /> Publish now
               </Button>
-              <Button type="button" size="sm" variant={mode === 'schedule' ? 'default' : 'outline'} className={mode === 'schedule' ? 'bg-primary hover:bg-primary/90 text-white' : ''} onClick={() => setMode('schedule')}>
+              <Button type="button" size="sm" variant={mode === 'schedule' ? 'default' : 'outline'} className={mode === 'schedule' ? 'bg-primary hover:bg-primary/90 text-white' : ''} aria-pressed={mode === 'schedule'} onClick={() => setMode('schedule')}>
                 <CalendarClock className="w-3.5 h-3.5 mr-1.5" /> Schedule
               </Button>
             </div>

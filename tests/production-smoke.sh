@@ -2,7 +2,8 @@
 # Content Machine production smoke test.
 #
 # Verifies a deployed environment end to end and leaves no business records
-# behind: every record it creates is prefixed "[SMOKE]" and deleted at the end.
+# behind: every record it creates is prefixed "[SMOKE]" and deleted at the end,
+# and deleting the project also removes its uploaded image and export files.
 #
 # Usage:
 #   BASE_URL=https://<service>.onrender.com \
@@ -63,6 +64,8 @@ cleanup() {
   log ""
   log "RESULT: $PASS passed, $FAIL failed  ($BASE_URL, $STAMP)"
   log "Evidence written to $EVIDENCE"
+  # Exit status covers every check, including the cleanup checks above.
+  if [[ "$FAIL" -eq 0 ]]; then exit 0; else exit 1; fi
 }
 trap cleanup EXIT
 
@@ -151,9 +154,16 @@ IMG_URL="$(jq -r '.url // empty' <<<"$IMG")"
 check "Uploaded image renders for its owner" "200" "$(code acurl "$BASE_URL$IMG_URL")"
 check "Uploaded image is hidden from anonymous users" "401" "$(code ncurl "$BASE_URL$IMG_URL")"
 check "Image metadata persisted with alt text" "Smoke test pixel" "$(acurl "$API/document-sections/$SECTION_ID/media/images" | jq -r '.[0].altText // empty')"
-check "Supported YouTube embed is accepted" "201" "$(code json acurl -X POST "$API/document-sections/$SECTION_ID/media/videos" --data '{"url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","caption":"[SMOKE] video"}')"
+VIDEO="$(json acurl -X POST "$API/document-sections/$SECTION_ID/media/videos" --data '{"url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","caption":"[SMOKE] video"}')"
+EMBED_URL="$(jq -r '.embedUrl // empty' <<<"$VIDEO")"
+[[ -n "$EMBED_URL" ]] && pass "Supported YouTube embed is accepted" || fail "Supported YouTube embed is accepted" "$(head -c 200 <<<"$VIDEO")"
 check "Unsafe video URL is rejected" "400" "$(code json acurl -X POST "$API/document-sections/$SECTION_ID/media/videos" --data '{"url":"javascript:alert(1)"}')"
 check "Video embed persisted" "youtube" "$(acurl "$API/document-sections/$SECTION_ID/media/videos" | jq -r '.[0].provider // empty')"
+# Place both in the section body exactly as the editor does, then reload.
+MEDIA_HTML="$RICH<p><img src=\"$IMG_URL\" alt=\"Smoke test pixel\" title=\"Smoke caption\"></p><div data-video-embed=\"true\"><iframe src=\"$EMBED_URL\" title=\"Smoke video\"></iframe></div>"
+check "Save section with inline image and video" "200" "$(code json acurl -X PATCH "$API/document-sections/$SECTION_ID" --data "$(jq -cn --arg c "$MEDIA_HTML" '{content: $c, contentFormat: "html"}')")"
+SAVED="$(acurl "$API/document-sections/$SECTION_ID" | jq -r '.content')"
+if grep -q "$IMG_URL" <<<"$SAVED" && grep -q 'youtube-nocookie.com/embed/aqz-KE-bpKQ' <<<"$SAVED"; then pass "Inline image and video survive reload"; else fail "Inline image and video survive reload" "$(head -c 300 <<<"$SAVED")"; fi
 
 section "6. Ownership and isolation probes"
 check "Unknown project id is 404" "404" "$(code acurl "$API/projects/$RANDOM_ID")"
@@ -174,9 +184,18 @@ for fmt in docx pdf html md txt; do
   if [[ -z "$FILE_URL" ]]; then fail "Export $fmt completes" "$(head -c 200 <<<"$STATE")"; continue; fi
   check "Download $fmt export" "200" "$(acurl "$BASE_URL$FILE_URL" -o "$WORK/export.$fmt" -w "%{http_code}")"
   case "$fmt" in
-    docx) [[ "$(head -c 2 "$WORK/export.$fmt")" == "PK" ]] && pass "DOCX has a ZIP signature" || fail "DOCX has a ZIP signature" "bad header" ;;
-    pdf) [[ "$(head -c 4 "$WORK/export.$fmt")" == "%PDF" ]] && pass "PDF has a %PDF signature" || fail "PDF has a %PDF signature" "bad header" ;;
-    *) grep -q "Smoke heading" "$WORK/export.$fmt" && pass "$fmt export contains the saved section" || fail "$fmt export contains the saved section" "content missing" ;;
+    docx)
+      [[ "$(head -c 2 "$WORK/export.$fmt")" == "PK" ]] && pass "DOCX has a ZIP signature" || fail "DOCX has a ZIP signature" "bad header"
+      grep -aq "word/media/" "$WORK/export.$fmt" && pass "DOCX embeds the inline image" || fail "DOCX embeds the inline image" "no word/media entry" ;;
+    pdf)
+      [[ "$(head -c 4 "$WORK/export.$fmt")" == "%PDF" ]] && pass "PDF has a %PDF signature" || fail "PDF has a %PDF signature" "bad header"
+      grep -aq "/Subtype /Image" "$WORK/export.$fmt" && pass "PDF embeds the inline image" || fail "PDF embeds the inline image" "no image XObject" ;;
+    html)
+      grep -q "Smoke heading" "$WORK/export.$fmt" && pass "html export contains the saved section" || fail "html export contains the saved section" "content missing"
+      grep -q "data:image/png;base64," "$WORK/export.$fmt" && pass "html export embeds the image" || fail "html export embeds the image" "no data URL" ;;
+    *)
+      grep -q "Smoke heading" "$WORK/export.$fmt" && pass "$fmt export contains the saved section" || fail "$fmt export contains the saved section" "content missing"
+      grep -q "\[Image: Smoke test pixel" "$WORK/export.$fmt" && grep -q "watch?v=aqz-KE-bpKQ" "$WORK/export.$fmt" && pass "$fmt export labels the image and links the video" || fail "$fmt export labels the image and links the video" "media missing" ;;
   esac
   check "Anonymous download of $fmt export is 401" "401" "$(code ncurl "$BASE_URL$FILE_URL")"
 done
@@ -184,5 +203,3 @@ done
 section "8. Logout ends the session"
 check "Logout" "200" "$(code acurl -X POST "$API/auth/logout")"
 check "Data routes reject the logged-out session" "401" "$(code acurl "$API/projects")"
-
-[[ "$FAIL" -eq 0 ]]
