@@ -16,3 +16,4 @@ export * from "./repurposing";
 export * from "./publishing";
 export * from "./performance";
 export * from "./automation";
+export * from "./businessOutcomes";
