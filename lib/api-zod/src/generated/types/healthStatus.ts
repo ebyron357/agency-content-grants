@@ -8,4 +8,6 @@
 
 export interface HealthStatus {
   status: string;
+  /** Git commit SHA of the running build (RENDER_GIT_COMMIT or GIT_COMMIT), for deployment parity checks. */
+  commit?: string | null;
 }

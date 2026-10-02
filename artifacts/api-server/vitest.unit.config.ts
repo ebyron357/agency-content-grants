@@ -13,6 +13,7 @@ export default defineConfig({
       "src/__tests__/admin-access.test.ts",
       "src/__tests__/auth.test.ts",
       "src/__tests__/exporter-html-content.test.ts",
+      "src/__tests__/health-commit.test.ts",
       "src/__tests__/image-validator.test.ts",
       "src/__tests__/ownership.test.ts",
       "src/__tests__/patch-hardening.test.ts",

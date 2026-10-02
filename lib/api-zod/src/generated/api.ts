@@ -12,7 +12,8 @@ import * as zod from 'zod';
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
-  "status": zod.string()
+  "status": zod.string(),
+  "commit": zod.string().nullish().describe('Git commit SHA of the running build (RENDER_GIT_COMMIT or GIT_COMMIT), for deployment parity checks.')
 })
 
 
