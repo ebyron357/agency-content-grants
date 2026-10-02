@@ -1,7 +1,8 @@
 Production-mode boot on a fresh PostgreSQL 16 database (NODE_ENV=production, durable directories, TLS-terminating proxy)
-healthz: {"status":"ok","commit":"2857cada58043e3acf2c5f8688bcb0a2867a5077"}
+healthz: {"status":"ok","commit":"3537357888e98b6a519e4665a019c1df863fd6e6"}
 readyz (no provider key): {"status":"not_ready","checks":{"configuration":"failed","database":"ok","storage":"ok"}}
 [migrate] Applying pending migrations from /home/user/agency-content-grants/artifacts/api-server/dist/drizzle
 [migrate] Migrations complete
 smoke exit=0
+files left on disk after smoke cleanup: 0
 readyz (provider key set): {"status":"ready","checks":{"configuration":"ok","database":"ok","storage":"ok"}}

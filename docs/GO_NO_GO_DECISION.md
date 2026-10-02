@@ -6,7 +6,7 @@
 
 | Scope | Decision |
 |---|---|
-| Release candidate on `main` (reviewed code SHA `2857cada58043e3acf2c5f8688bcb0a2867a5077`, merged via PR #16) | **GO — VERIFIED COMPLETE** |
+| Release candidate on `main` (reviewed code SHA `3537357888e98b6a519e4665a019c1df863fd6e6`, merged via PR #16) | **GO — VERIFIED COMPLETE** |
 | Production | **NO-GO — one owner-only blocker: the Render production environment has not been created** |
 | Closure state (per [`PROJECT_COMPLETION_STANDARD.md`](PROJECT_COMPLETION_STANDARD.md) §44) | **BLOCKED — OWNER ACTION REQUIRED** |
 

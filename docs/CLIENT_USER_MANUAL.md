@@ -72,6 +72,8 @@ Everything is saved to the server; reopening the document, signing in elsewhere 
 
 **Export** tab → pick **DOCX**, **PDF**, **HTML**, **Markdown** or **plain text** → **Export** → **Download** when it completes. When the project has sources or claims, the export ends with an evidence register listing each source, its retrieval status and the claims it supports. Previous exports stay listed for download.
 
+Images and videos stay in place in every format. HTML embeds each image and keeps video players. DOCX embeds PNG, JPEG and GIF images; PDF embeds PNG and JPEG. Where a format cannot hold an image (Markdown, plain text, or an image type that DOCX or PDF does not support, such as WebP), a labelled placeholder such as `[Image: alt text — caption]` takes its place. Outside HTML, videos become links to the YouTube or Vimeo page. The export's validation notes say how many images were embedded or replaced.
+
 ## 8. Distribution and performance
 
 - **Distribution → Connect** adds a destination for the selected brand. `demo` destinations are simulated and labelled **demo · simulated**; nothing is posted externally. Real social publishing uses Typefully once the owner has configured it.

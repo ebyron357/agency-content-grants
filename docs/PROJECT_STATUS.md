@@ -17,8 +17,8 @@
 |---|---|
 | Repository | [`ebyron357/agency-content-grants`](https://github.com/ebyron357/agency-content-grants) |
 | Canonical branch | `main` |
-| Reviewed release-candidate SHA | **`2857cada58043e3acf2c5f8688bcb0a2867a5077`** — last commit that changes application code, tests, build, CI or deployment config |
-| Commits after the candidate | Documentation and evidence only. Verify: `git diff --stat 2857cad origin/main -- . ':(exclude)docs' ':(exclude)*.md' ':(exclude).cursor' ':(exclude).env.example'` prints nothing |
+| Reviewed release-candidate SHA | **`3537357888e98b6a519e4665a019c1df863fd6e6`** — last commit that changes application code, tests, build, CI or deployment config |
+| Commits after the candidate | Documentation and evidence only. Verify: `git diff --stat 3537357 origin/main -- . ':(exclude)docs' ':(exclude)*.md' ':(exclude).cursor' ':(exclude).env.example'` prints nothing |
 | Release commit to deploy | The `main` commit created by merging PR #16 (recorded in the Issue #8 closing evidence comment and ClickUp `86e2tjzyc`) |
 | Production deployment SHA | **None — no deployment exists** |
 | Deployment provider | Render, from [`render.yaml`](../render.yaml): web service + managed PostgreSQL + 10 GB persistent disk at `/var/data`, `autoDeployTrigger: off`, health check `/api/readyz` |
@@ -37,9 +37,9 @@ Levels: **Impl** implemented · **Local** verified locally · **CI** verified in
 | 3 | Formatting (configured Prettier scope) | PASS | Local · CI | `pnpm run format:check` |
 | 4 | Lint | NOT APPLICABLE | — | No linter is configured in this repository; the Prettier check is the configured style gate |
 | 5 | Repository typecheck | PASS | Local · CI | `pnpm run typecheck` |
-| 6 | API unit tests (hermetic) | PASS — 116/116 | Local · CI | `pnpm --filter @workspace/api-server test:unit` |
+| 6 | API unit tests (hermetic) | PASS — 131/131 | Local · CI | `pnpm --filter @workspace/api-server test:unit` |
 | 7 | Disposable database preparation / migrations | PASS | Local · CI · Rehearsal | `test:db:prepare` (guarded: `NODE_ENV=test`, `ALLOW_TEST_DATABASE_RESET`, `_test` database); fresh production database migrated at startup |
-| 8 | API tests (database-backed) | PASS — 292/292 | Local · CI | `pnpm --filter @workspace/api-server test` |
+| 8 | API tests (database-backed) | PASS — 307/307 | Local · CI | `pnpm --filter @workspace/api-server test` |
 | 9 | Frontend tests | PASS — 21/21 | Local · CI | `pnpm --filter @workspace/content-os test` |
 | 10 | Integration suite | PASS — 40 passed, 0 failed, 0 skipped | Local · CI | `bash tests/integration-tests.sh` |
 | 11 | Accessibility (Playwright + axe, WCAG 2.0/2.1 A/AA, serious/critical) | PASS — login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, 404, all 9 project tabs, 390px navigation, no horizontal overflow | Browser · CI | `artifacts/content-os/e2e/accessibility.spec.ts` |
@@ -50,18 +50,20 @@ Levels: **Impl** implemented · **Local** verified locally · **CI** verified in
 | 16 | Authentication and session | PASS | CI · Rehearsal | Wrong password 401; login 200; `sid` cookie `HttpOnly` + `Secure` behind TLS; `/api/auth/me` reports session and admin elevation; logout ends access |
 | 17 | Unauthorised access rejected | PASS | CI · Rehearsal | Anonymous requests to projects, brands, dashboard, media, exports, API keys → 401 |
 | 18 | Tenant / ownership isolation | PASS | CI · Rehearsal | Cross-user ownership tests in the API suite; unknown and unowned IDs → 404; export path traversal → 400. Production runs one operator account (see limitations) |
-| 19 | Persistence | PASS | Rehearsal | Project, rich HTML and image survived a full service restart (image SHA-256 identical) |
+| 19 | Persistence | PASS | Rehearsal | Project, rich HTML and image survived a full service restart (image SHA-256 identical); the signed-in session survived too |
 | 20 | Rich editor formatting | PASS | Browser · Rehearsal | Headings, emphasis, lists, links survive reload; `<script>` stripped server-side |
 | 21 | Images | PASS | Browser · Rehearsal | Upload with required alt text, owner-only serving, metadata persisted, renders after reload |
 | 22 | Video | PASS | Browser · Rehearsal | YouTube/Vimeo HTTPS accepted and persisted; unsafe URLs rejected |
-| 23 | Export | PASS | CI · Rehearsal | DOCX (`PK`), PDF (`%PDF`), HTML, Markdown, TXT generated, downloaded, owner-only |
+| 23 | Export (media-aware) | PASS | Unit · Rehearsal | DOCX (`PK`) and PDF (`%PDF`) embed inline images; Markdown and TXT carry labelled image placeholders; every non-HTML format links videos; HTML embeds images and keeps players; downloads owner-only; validation notes report media handling |
 | 24 | Liveness / readiness | PASS | Rehearsal | `/api/healthz` → `{status:"ok", commit}`; `/api/readyz` → `ready` with database, storage and a provider key; `not_ready` without a provider key in production (by design) |
 | 25 | SHA / deployment parity mechanism | PASS | Rehearsal | `/api/healthz` reports `RENDER_GIT_COMMIT`; smoke script compares it to `EXPECTED_SHA` |
 | 26 | Rollback procedure | PASS (rehearsed) | Rehearsal | Previous `main` build `fac3cb9` started on the same database and disk, served the same data, then rolled forward. No schema change between the two |
-| 27 | Production smoke script | PASS (rehearsed) | Rehearsal | [`tests/production-smoke.sh`](../tests/production-smoke.sh): 56 passed, 0 failed; negative provider check fails loudly and still cleans up |
+| 27 | Production smoke script | PASS (rehearsed) | Rehearsal | [`tests/production-smoke.sh`](../tests/production-smoke.sh): 63 passed, 0 failed, no records or files left behind; with an invalid provider key it fails loudly (43 passed, 21 failed, exit 1) and still cleans up |
 | 28 | Production deployment at reviewed SHA | **BLOCKED — owner** | — | No Render service; see Blocker |
 | 29 | Production smoke, runtime-error review, production rollback | **BLOCKED — owner** | — | Runs immediately after gate 28 |
 | 30 | Operator / client handoff documentation | PASS | Impl | See Documentation |
+| 31 | Project deletion removes the project's files (images, source PDFs, exports) | PASS | Unit · Rehearsal | `lib/projectFiles.ts`; smoke rehearsal leaves no files on disk |
+| 32 | PR #16 automated reviews | PASS | CI | Copilot findings fixed (media dropped from non-HTML exports, export files left on disk, smoke exit status, toggle state, dialog radius); Cursor Security Agent passed; Cursor Bugbot did not run (Cursor usage limit) |
 
 Evidence files: [`evidence/release/2026-10-02/`](evidence/release/2026-10-02/) (local gate log, production-mode smoke logs, rehearsal record).
 

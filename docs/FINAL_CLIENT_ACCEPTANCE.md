@@ -1,6 +1,6 @@
 # Final Acceptance Checklist
 
-Status as of **2 October 2026** for release candidate `2857cada58043e3acf2c5f8688bcb0a2867a5077`. Evidence references point to [`PROJECT_STATUS.md`](PROJECT_STATUS.md) gate numbers. Items marked **PENDING — production** can only be completed after the owner creates the Render environment.
+Status as of **2 October 2026** for release candidate `3537357888e98b6a519e4665a019c1df863fd6e6`. Evidence references point to [`PROJECT_STATUS.md`](PROJECT_STATUS.md) gate numbers. Items marked **PENDING — production** can only be completed after the owner creates the Render environment.
 
 ## A. Agent-verified before production
 

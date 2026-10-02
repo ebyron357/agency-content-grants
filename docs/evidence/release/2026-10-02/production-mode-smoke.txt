@@ -1,10 +1,10 @@
-Content Machine production smoke — 20261002T061034Z UTC
+Content Machine production smoke — 20261002T063351Z UTC
 Target: https://localhost:8443
 
 == 1. Liveness, readiness and SHA parity
   PASS  GET /api/healthz returns 200
-  running commit: 2857cada58043e3acf2c5f8688bcb0a2867a5077
-  PASS  Deployed commit matches EXPECTED_SHA 2857cada58043e3acf2c5f8688bcb0a2867a5077
+  running commit: 3537357888e98b6a519e4665a019c1df863fd6e6
+  PASS  Deployed commit matches EXPECTED_SHA 3537357888e98b6a519e4665a019c1df863fd6e6
   readyz: {"status":"not_ready","checks":{"configuration":"failed","database":"ok","storage":"ok"}}
   (SMOKE_REQUIRE_READY=0: readiness recorded, not enforced)
   PASS  GET / serves the Content OS app shell
@@ -45,6 +45,8 @@ Target: https://localhost:8443
   PASS  Supported YouTube embed is accepted
   PASS  Unsafe video URL is rejected
   PASS  Video embed persisted
+  PASS  Save section with inline image and video
+  PASS  Inline image and video survive reload
 
 == 6. Ownership and isolation probes
   PASS  Unknown project id is 404
@@ -55,18 +57,23 @@ Target: https://localhost:8443
 == 7. Export generation and download
   PASS  Download docx export
   PASS  DOCX has a ZIP signature
+  PASS  DOCX embeds the inline image
   PASS  Anonymous download of docx export is 401
   PASS  Download pdf export
   PASS  PDF has a %PDF signature
+  PASS  PDF embeds the inline image
   PASS  Anonymous download of pdf export is 401
   PASS  Download html export
   PASS  html export contains the saved section
+  PASS  html export embeds the image
   PASS  Anonymous download of html export is 401
   PASS  Download md export
   PASS  md export contains the saved section
+  PASS  md export labels the image and links the video
   PASS  Anonymous download of md export is 401
   PASS  Download txt export
   PASS  txt export contains the saved section
+  PASS  txt export labels the image and links the video
   PASS  Anonymous download of txt export is 401
 
 == 8. Logout ends the session
@@ -78,5 +85,5 @@ Target: https://localhost:8443
   PASS  DELETE smoke brand
   PASS  Deleted project is gone
 
-RESULT: 56 passed, 0 failed  (https://localhost:8443, 20261002T061034Z)
+RESULT: 63 passed, 0 failed  (https://localhost:8443, 20261002T063351Z)
 Evidence written to /tmp/claude-0/rehearsal/smoke-final.txt

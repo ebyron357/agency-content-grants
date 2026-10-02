@@ -53,7 +53,7 @@ Project and brand IDs are in the browser address bar (`/projects/<id>`, `/brands
 | Outline section, brand fact, knowledge entry | Delete button in the UI | That record |
 | An image | `DELETE /api/media/images/<id>` | Database record and file on disk |
 | A source | `DELETE /api/sources/<id>` (or **Reject** in the UI to exclude it without deleting) | Source record and stored PDF |
-| A document project | `DELETE /api/projects/<id>` | Project and everything under it in the database (document, sections, revisions, outline, research plan, sources, claims, export records) and its image files. Export files already on disk are no longer referenced; remove them from `/var/data/exports` with the service shell if required |
+| A document project | `DELETE /api/projects/<id>` | Project and everything under it in the database (document, sections, revisions, outline, research plan, sources, claims, export records) and its files on disk: inline images, uploaded source PDFs and generated exports |
 | A brand | `DELETE /api/brands/<id>` after its projects are deleted (the database refuses while projects reference it) | Brand, audience profiles, facts and knowledge |
 | An API key / webhook | Settings → Automation → Revoke / Delete | Key or subscription |
 | The whole workspace | Decommission (runbook §11): delete the Render service, disk and database after taking any required final backup | All data. Render PITR and disk snapshots expire on Render's retention schedule; logical backups held outside Render must be deleted separately |
