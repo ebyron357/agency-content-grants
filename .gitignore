@@ -48,6 +48,10 @@ pnpm-debug.log
 testem.log
 /typings
 
+# test run output (Playwright)
+test-results/
+playwright-report/
+
 # framework and build caches
 .next/
 .turbo/
