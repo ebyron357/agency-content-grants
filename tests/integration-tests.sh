@@ -46,9 +46,23 @@ LOGIN_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/auth/login"
   -H "Content-Type: application/json" -d "{\"password\":\"$TEST_ADMIN_PASSWORD\"}")
 assert_status "Authenticate isolated integration-test session" "200" "$LOGIN_STATUS"
 
+ME_BEFORE=$(api_curl "$API/auth/me")
+if [[ "$(jq_get "$ME_BEFORE" '.authenticated')" == "true" && "$(jq_get "$ME_BEFORE" '.isAdmin')" == "false" ]]; then
+  pass "GET /api/auth/me reports an authenticated, non-admin session after login"
+else
+  fail "GET /api/auth/me reports an authenticated, non-admin session after login" "$ME_BEFORE"
+fi
+
 UNLOCK_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/auth/admin-unlock" \
   -H "Content-Type: application/json" -d "{\"password\":\"$TEST_ADMIN_PASSWORD\"}")
 assert_status "Unlock isolated integration-test admin session" "200" "$UNLOCK_STATUS"
+
+ME_AFTER=$(api_curl "$API/auth/me")
+if [[ "$(jq_get "$ME_AFTER" '.isAdmin')" == "true" ]]; then
+  pass "GET /api/auth/me reflects admin elevation for the session"
+else
+  fail "GET /api/auth/me reflects admin elevation for the session" "$ME_AFTER"
+fi
 
 SEED_STATUS=$(api_curl -o /dev/null -w "%{http_code}" -X POST "$API/seed")
 if [[ "$SEED_STATUS" == "200" ]]; then

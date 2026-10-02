@@ -136,10 +136,14 @@ router.post("/auth/admin-lock", (req, res): void => {
 
 /**
  * GET /api/auth/me
- * Returns { authenticated: true/false } for the current session.
+ * Returns { authenticated, isAdmin } for the current session so the UI can
+ * reflect an admin elevation that survives a page reload.
  */
 router.get("/auth/me", (req, res) => {
-  res.json({ authenticated: req.session.authenticated === true });
+  res.json({
+    authenticated: req.session.authenticated === true,
+    isAdmin: req.session.authenticated === true && req.session.isAdmin === true,
+  });
 });
 
 export default router;
