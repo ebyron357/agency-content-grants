@@ -1,27 +1,38 @@
 # Content Machine (Content OS)
 
-An evidence-first, multi-tenant workspace for agency long-form content: guided projects (brief → sources → claims → outline → draft → review), a TipTap rich editor with image and video embeds, AI-assisted drafting and repurposing, and export to TXT, Markdown, DOCX, PDF and HTML with an evidence register.
+An evidence-first workspace for long-form content. A user describes what they want to write; Content Machine builds a brief, research plan, sources and claims ledger, outline and draft, then supports editing, quality review, repurposing, distribution and export. Output types: blog posts, articles, guides, manuals, SOPs, reports, white papers, e-books and newsletters.
 
-Grant/proposal-intelligence capability described in early planning documents is **not implemented** and is deferred future scope. Nothing in this repository should be read as a production-ready grant feature.
+Delivered capabilities:
 
-## Release state
+- Guided workflow: brief → research plan → sources (URL and PDF) → claims → outline → AI drafting → quality evaluation → repurposing → export.
+- TipTap rich editor with headings, lists, links, section lock/approve, AI re-draft and targeted edits, image upload (alt text required) and YouTube/Vimeo embeds.
+- Export to DOCX, PDF, HTML, Markdown and TXT with an evidence register of sources and claims.
+- Brands with voice, audiences, facts and knowledge; distribution scheduling (simulated demo provider, Typefully); performance from provider-reported metrics only.
+- Automation API with scoped keys and signed webhooks (`docs/automation-api.md`).
+- One dark command-center design system across every screen (`docs/DESIGN_SYSTEM.md`), accessibility-gated in CI.
 
-**NO-GO for production launch; GO for continued controlled development and review.** The code is a release candidate that passes CI (install, format, typecheck, migrations, API/frontend/integration tests, authenticated accessibility gate, build). It has not been deployed. Remaining gates require owner-controlled resources: production PostgreSQL and durable disk, secrets, a real AI provider key, deployed smoke/isolation evidence and a rollback exercise.
+Grant/proposal intelligence from early planning is **not implemented** and remains deferred by owner decision.
 
-Authoritative status lives in `docs/PROJECT_STATUS.md` (master checklist) and `docs/GO_NO_GO_DECISION.md`; working rules are in `AGENTS.md`. Stage 0 planning, recovery and early-audit documents (`docs/PROGRAM_CHARTER.md`, `docs/STAGE_0_EXECUTION_PLAN.md`, `docs/recovery/`, `PROJECT_CLOSEOUT.md`, `RECOVERY_PROVENANCE.md`) are **historical evidence, superseded** by those files; the Payload/Temporal/LangGraph/n8n architecture they discuss was never adopted.
+## Status
+
+**Release candidate verified complete; production not yet deployed.** All repository, CI, browser, accessibility, security and production-mode rehearsal gates pass. The single remaining step is owner-only: creating the Render environment from `render.yaml` (paid resources and owner-held secrets). The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
+
+- Production URL: not provisioned (expected `https://agency-content-grants.onrender.com` once created; sign-in at `/`).
+- Access model: one workspace account protected by the `ADMIN_PASSWORD` secret; no self-registration ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)).
 
 ## Architecture
 
-pnpm workspace, TypeScript.
+pnpm workspace, TypeScript, Node 24.
 
 | Path | Role |
 |---|---|
-| `artifacts/content-os` | Frontend: React, Vite, Tailwind v4, Radix UI, TanStack Query, wouter, TipTap. Playwright/axe accessibility suite in `e2e/`. |
-| `artifacts/api-server` | Express 5 API: sessions/auth, ownership-scoped CRUD, media and source upload, AI providers, exports, `/api/healthz` (liveness) and `/api/readyz` (DB, migrations, writable storage, production config). Serves the built frontend same-origin. |
-| `lib/db` | Drizzle schema + SQL migrations (PostgreSQL 16). |
-| `lib/api-client-react`, `lib/api-zod`, `lib/api-spec` | Generated API client/schemas. |
-| `artifacts/mockup-sandbox` | Design sandbox, not shipped. |
-| `tests/integration-tests.sh` | Black-box API integration suite. |
+| `artifacts/content-os` | Frontend: React 19, Vite 7, Tailwind v4, Radix UI, TanStack Query, wouter, TipTap. Playwright + axe accessibility gate in `e2e/` |
+| `artifacts/api-server` | Express 5 API: sessions, ownership-scoped CRUD, media and source upload, AI providers, exports, publishing, automation, `/api/healthz` (liveness + running commit) and `/api/readyz` (database, migrations, writable storage, production config). Serves the built frontend same-origin. Applies migrations at startup |
+| `lib/db` | Drizzle schema and SQL migrations (PostgreSQL 16) |
+| `lib/api-spec`, `lib/api-zod`, `lib/api-client-react` | OpenAPI spec and generated schemas/client (`pnpm --filter @workspace/api-spec run codegen`) |
+| `artifacts/mockup-sandbox` | Design sandbox, not shipped |
+| `tests/integration-tests.sh` | Black-box API integration suite |
+| `tests/production-smoke.sh` | Self-cleaning smoke test for a deployed environment |
 
 ## Run locally
 
@@ -29,45 +40,55 @@ Node 24.15.0, pnpm 11.16.0, PostgreSQL 16.
 
 ```bash
 pnpm install --frozen-lockfile
-cp .env.example .env            # set DATABASE_URL, SESSION_SECRET, ADMIN_PASSWORD
+cp .env.example .env            # set DATABASE_URL, SESSION_SECRET, ADMIN_PASSWORD, PORT
 pnpm --filter @workspace/db push
 pnpm --filter @workspace/api-server dev      # API on :8080
 pnpm --filter @workspace/content-os dev      # Vite dev server, proxies /api
 ```
+
+Without an AI provider key, generation returns clearly labelled demo output.
 
 ### Environment variables
 
 | Variable | Required | Purpose |
 |---|---|---|
 | `DATABASE_URL` | yes | PostgreSQL connection string |
-| `SESSION_SECRET` | yes | Session signing secret (server refuses to start in production without it) |
-| `ADMIN_PASSWORD` | production | Unlocks admin-only mutations |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | one for real generation | AI providers; without one, demo generation is used |
-| `UPLOAD_DIR`, `SOURCE_UPLOAD_DIR`, `EXPORT_DIR` | production | Must point at durable storage; checked by `/api/readyz` |
-| `ALLOWED_ORIGINS` | optional | CORS allowlist beyond localhost |
-| `AI_PROVIDER_TIMEOUT_MS`, `LOG_LEVEL`, `PORT`, `FRONTEND_DIST_PATH` | optional | Tuning |
+| `SESSION_SECRET` | yes | Session signing secret; the server refuses to start without it |
+| `ADMIN_PASSWORD` | yes | Workspace sign-in password and admin elevation |
+| `PORT` | yes | HTTP port (Render sets it) |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | one required in production | AI providers; production readiness fails without one |
+| `UPLOAD_DIR`, `SOURCE_UPLOAD_DIR`, `EXPORT_DIR` | production | Durable storage paths, checked by `/api/readyz` |
+| `TYPEFULLY_API_KEY` | optional | Real social publishing |
+| `RENDER_GIT_COMMIT` / `GIT_COMMIT` | automatic / optional | Commit reported by `/api/healthz` |
+| `ALLOWED_ORIGINS`, `AI_PROVIDER_TIMEOUT_MS`, `LOG_LEVEL`, `FRONTEND_DIST_PATH` | optional | Tuning |
 
 ## Test
 
 ```bash
 pnpm run format:check && pnpm run typecheck
 pnpm --filter @workspace/api-server test:unit        # hermetic
-pnpm --filter @workspace/api-server test:db:prepare  # disposable DB only
+pnpm --filter @workspace/api-server test:db:prepare  # disposable *_test database only
 pnpm --filter @workspace/api-server test             # DB-backed
 pnpm --filter @workspace/content-os test
 bash tests/integration-tests.sh                      # needs a running API
-pnpm --filter @workspace/content-os test:a11y        # Playwright + axe
+pnpm --filter @workspace/content-os test:a11y        # Playwright + axe; needs a running API serving the built frontend
 pnpm audit --audit-level=high
 pnpm run build
 ```
 
-`.github/workflows/ci.yml` is the canonical gate for pull requests to `main` (validation job with a Postgres 16 service, plus a `security` job: gitleaks, `pnpm audit`, CycloneDX SBOM). `recovery-baseline-validation.yml` is historical.
+`.github/workflows/ci.yml` is the required gate for PRs to `main` ([`docs/CI.md`](docs/CI.md)).
 
-## Production deployment
+## Deploy
 
-`render.yaml` is a Render blueprint (web service + managed PostgreSQL + a persistent disk at `/var/data` used for uploads, sources and exports; auto-deploy is off). Any host works if it provides PostgreSQL 16 and a durable, writable filesystem path for the three storage variables. Media is stored on that filesystem, not in object storage; moving to S3-compatible storage would be a separate change. Production is not deployed.
+Render blueprint [`render.yaml`](render.yaml): web service + managed PostgreSQL + 10 GB persistent disk at `/var/data`; manual deploys only. First deployment, verification, release, rollback, backup and restore: [`docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md).
 
-## Known limitations
+## Operating limits
 
-- Rate limiting is in-process (`express-rate-limit`, memory store); it does not share state across multiple instances. Run a single instance or add a shared store before scaling out.
-- Browser automation currently covers accessibility of authenticated screens; full multi-user authoring/tenant-isolation browser journeys are covered by API/integration tests rather than Playwright.
+- Single instance (persistent disk; in-process schedulers). Deploys have a short restart window.
+- Media, source PDFs and exports are stored on the Render disk, not object storage.
+- One shared workspace account; no per-user accounts, invitations or e-mail password reset.
+- Projects, brands, sources and images are deleted through the API, not the UI ([`docs/DATA_LIFECYCLE_AND_OFFBOARDING.md`](docs/DATA_LIFECYCLE_AND_OFFBOARDING.md)).
+
+## Documentation
+
+Start at [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). User manual: [`docs/CLIENT_USER_MANUAL.md`](docs/CLIENT_USER_MANUAL.md). Operators: [`docs/ADMIN_OPERATIONS_MANUAL.md`](docs/ADMIN_OPERATIONS_MANUAL.md). Agent rules: [`AGENTS.md`](AGENTS.md). Which documents are current and which are historical: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](docs/DOCUMENT_OWNERSHIP_MAP.md).

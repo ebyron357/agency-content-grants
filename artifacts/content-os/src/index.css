@@ -39,6 +39,10 @@
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-destructive-border: var(--destructive-border);
 
+  --color-brand: hsl(var(--brand));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
   --color-chart-3: hsl(var(--chart-3));
@@ -66,84 +70,74 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* LIGHT MODE */
+/*
+ * Content OS design system — premium dark editorial command center.
+ * One theme for every authenticated route (see docs/DESIGN_SYSTEM.md).
+ * Values are HSL components consumed as hsl(var(--token)).
+ */
 :root {
-  --button-outline: rgba(0, 0, 0, 0.1);
-  --badge-outline: rgba(0, 0, 0, 0.05);
+  --button-outline: rgba(255, 255, 255, 0.1);
+  --badge-outline: rgba(255, 255, 255, 0.06);
 
   /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -8; /* In terms of percentages */
+  --opaque-button-border-intensity: 9; /* In terms of percentages */
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(0, 0, 0, 0.03);
-  --elevate-2: rgba(0, 0, 0, 0.08);
+  --elevate-1: rgba(255, 255, 255, 0.04);
+  --elevate-2: rgba(255, 255, 255, 0.09);
 
-  --background: 220 20% 97%;
+  /* Shell and layered charcoal surfaces */
+  --background: 223 30% 4.5%; /* #080a0f */
+  --foreground: 220 14% 96%; /* #f3f4f6 */
+  --card: 222 24% 8.2%; /* #10131a */
+  --card-foreground: 220 14% 96%;
+  --card-border: 223 20% 17.3%;
+  --popover: 223 26% 10.6%; /* #141822 */
+  --popover-foreground: 220 14% 96%;
+  --popover-border: 223 20% 20%;
+  --secondary: 221 23% 13.7%; /* raised controls #1b202b */
+  --secondary-foreground: 220 14% 96%;
+  --muted: 223 25% 11%; /* inset wells #151923 */
+  --muted-foreground: 218 10% 64%; /* #9aa1ad, >= 6.5:1 on every surface */
+  --accent: 221 24% 13.3%; /* hover surface */
+  --accent-foreground: 220 14% 96%;
+  --border: 223 20% 17.3%; /* soft low-contrast border */
+  --input: 222 18% 22%;
 
-  --foreground: 222 32% 14%;
-
-  --border: 220 16% 88%;
-
-  --card: 0 0% 100%;
-
-  --card-foreground: 222 32% 14%;
-
-  --card-border: 220 16% 90%;
-
-  --sidebar: 222 38% 13%;
-
-  --sidebar-foreground: 220 20% 92%;
-
-  --sidebar-border: 222 28% 23%;
-
-  --sidebar-primary: 164 72% 43%;
-
-  --sidebar-primary-foreground: 222 38% 13%;
-
-  --sidebar-accent: 222 30% 19%;
-
-  --sidebar-accent-foreground: 220 20% 96%;
-
-  --sidebar-ring: 164 72% 52%;
-
-  --popover: 0 0% 100%;
-
-  --popover-foreground: 222 32% 14%;
-
-  --popover-border: 220 16% 88%;
-
-  --primary: 222 38% 18%;
-
+  /* Warm red/coral brand: --primary fills actions (white text 4.8:1),
+     --brand is the coral used for accent text and indicators (7:1+). */
+  --primary: 358 65% 52.2%; /* #d4363c */
   --primary-foreground: 0 0% 100%;
+  --brand: 0 100% 73.7%; /* #ff7979 */
+  --ring: 0 100% 73.7%;
 
-  --secondary: 220 18% 93%;
-
-  --secondary-foreground: 222 32% 18%;
-
-  --muted: 220 18% 94%;
-
-  --muted-foreground: 220 12% 43%;
-
-  --accent: 164 72% 43%;
-
-  --accent-foreground: 222 38% 13%;
-
-  --destructive: 0 72% 52%;
-
+  /* Status colours: green = verified success, amber = caution,
+     destructive = errors / irreversible actions (deeper than brand). */
+  --success: 158 64% 52%;
+  --warning: 43 96% 56%;
+  --destructive: 0 72% 50.6%; /* #dc2626 */
   --destructive-foreground: 0 0% 100%;
 
-  --input: 220 16% 82%;
-  --ring: 164 72% 43%;
-  --chart-1: 164 72% 43%;
-  --chart-2: 222 70% 56%;
-  --chart-3: 35 88% 55%;
-  --chart-4: 280 60% 60%;
-  --chart-5: 8 78% 58%;
+  /* Navigation rail */
+  --sidebar: 225 27% 5.9%; /* #0b0d13 */
+  --sidebar-foreground: 220 14% 90%;
+  --sidebar-border: 223 20% 14%;
+  --sidebar-primary: 358 65% 52.2%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 221 24% 12%;
+  --sidebar-accent-foreground: 220 14% 96%;
+  --sidebar-ring: 0 100% 73.7%;
+
+  --chart-1: 0 100% 73.7%;
+  --chart-2: 210 80% 66%;
+  --chart-3: 43 96% 56%;
+  --chart-4: 158 64% 52%;
+  --chart-5: 265 70% 72%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
-  --radius: 0.5rem; /* 8px */
+  --radius: 0.75rem; /* 12px: controls rounded-xl, panels rounded-2xl */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-sm:
@@ -215,99 +209,6 @@
     from hsl(var(--destructive)) h s
       calc(l + var(--opaque-button-border-intensity)) / alpha
   );
-}
-
-.dark {
-  --button-outline: rgba(255, 255, 255, 0.1);
-  --badge-outline: rgba(255, 255, 255, 0.05);
-
-  --opaque-button-border-intensity: 9; /* In terms of percentages */
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(255, 255, 255, 0.04);
-  --elevate-2: rgba(255, 255, 255, 0.09);
-
-  --background: 222 38% 10%;
-
-  --foreground: 220 20% 94%;
-
-  --border: 222 25% 24%;
-
-  --card: 222 32% 14%;
-
-  --card-foreground: 220 20% 94%;
-
-  --card-border: 222 25% 24%;
-
-  --sidebar: 222 42% 8%;
-
-  --sidebar-foreground: 220 20% 92%;
-
-  --sidebar-border: 222 25% 20%;
-
-  --sidebar-primary: 164 72% 50%;
-
-  --sidebar-primary-foreground: 222 42% 8%;
-
-  --sidebar-accent: 222 30% 16%;
-
-  --sidebar-accent-foreground: 220 20% 96%;
-
-  --sidebar-ring: 164 72% 52%;
-
-  --popover: 222 32% 14%;
-
-  --popover-foreground: 220 20% 94%;
-
-  --popover-border: 222 25% 24%;
-
-  --primary: 164 72% 50%;
-
-  --primary-foreground: 222 42% 8%;
-
-  --secondary: 222 27% 20%;
-
-  --secondary-foreground: 220 20% 94%;
-
-  --muted: 222 27% 19%;
-
-  --muted-foreground: 220 12% 68%;
-
-  --accent: 164 72% 50%;
-
-  --accent-foreground: 222 42% 8%;
-
-  --destructive: 0 62% 48%;
-
-  --destructive-foreground: 0 0% 100%;
-
-  /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
-  --input: 222 25% 31%;
-  --ring: 164 72% 50%;
-  --chart-1: 164 72% 50%;
-  --chart-2: 222 70% 64%;
-  --chart-3: 35 88% 62%;
-  --chart-4: 280 60% 70%;
-  --chart-5: 8 78% 66%;
-
-  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
-  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
-  --shadow-sm:
-    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
-    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
-  --shadow:
-    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
-    0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0);
-  --shadow-md:
-    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
-    0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0);
-  --shadow-lg:
-    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
-    0px 4px 6px -1px hsl(202.8169 89.1213% 53.1373% / 0);
-  --shadow-xl:
-    0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0),
-    0px 8px 10px -1px hsl(202.8169 89.1213% 53.1373% / 0);
-  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
 }
 
 @layer base {
@@ -435,10 +336,6 @@
 
 @layer base {
   :root {
-    color-scheme: light;
-  }
-
-  .dark {
     color-scheme: dark;
   }
 
@@ -448,11 +345,11 @@
 
   body {
     min-width: 320px;
-    background-image: radial-gradient(circle at 85% -10%, hsl(var(--accent) / 0.08), transparent 32rem);
+    background-image: radial-gradient(circle at 85% -10%, hsl(var(--brand) / 0.05), transparent 32rem);
   }
 
   ::selection {
-    background: hsl(var(--accent) / 0.24);
+    background: hsl(var(--brand) / 0.28);
     color: hsl(var(--foreground));
   }
 

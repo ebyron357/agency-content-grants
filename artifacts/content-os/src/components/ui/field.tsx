@@ -54,7 +54,7 @@ function FieldGroup({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 const fieldVariants = cva(
-  'group/field data-[invalid=true]:text-destructive flex w-full gap-3',
+  'group/field data-[invalid=true]:text-red-300 flex w-full gap-3',
   {
     variants: {
       orientation: {
@@ -144,7 +144,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
       className={cn(
         'text-muted-foreground text-sm font-normal leading-normal group-has-[[data-orientation=horizontal]]/field:text-balance',
         'nth-last-2:-mt-1 last:mt-0 [[data-variant=legend]+&]:-mt-1.5',
-        '[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4',
+        '[&>a:hover]:text-brand [&>a]:underline [&>a]:underline-offset-4',
         className,
       )}
       {...props}
@@ -221,7 +221,7 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn('text-destructive text-sm font-normal', className)}
+      className={cn('text-red-300 text-sm font-normal', className)}
       {...props}
     >
       {content}

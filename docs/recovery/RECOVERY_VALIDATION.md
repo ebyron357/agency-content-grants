@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the recovery validation of 12 August 2026 (test counts are from that date). It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](../PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](../GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](../DOCUMENT_OWNERSHIP_MAP.md).
+
 # Recovery Validation
 
 Validation date: 2026-08-12

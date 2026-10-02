@@ -6,6 +6,7 @@ import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Login from "@/pages/Login";
 import { useAuth } from "@/hooks/use-auth";
+import { LoadingState } from "@/components/layout/Page";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const BrandsList = lazy(() => import("@/pages/BrandsList"));
@@ -23,18 +24,7 @@ const queryClient = new QueryClient({
 });
 
 function RouteLoading() {
-  return (
-    <div className="flex min-h-full items-center justify-center p-8">
-      <div
-        className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-5 py-4 text-sm text-muted-foreground shadow-sm"
-        role="status"
-        aria-live="polite"
-      >
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
-        Loading workspace…
-      </div>
-    </div>
-  );
+  return <LoadingState />;
 }
 
 function AppLayout() {
@@ -42,7 +32,7 @@ function AppLayout() {
     <div className="flex h-screen overflow-hidden bg-background">
       <a
         href="#main-content"
-        className="sr-only z-50 rounded bg-background px-4 py-2 text-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+        className="sr-only z-50 rounded-xl border border-border bg-card px-4 py-2 text-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
       >
         Skip to main content
       </a>
@@ -82,7 +72,7 @@ function AuthGate() {
         role="status"
         aria-live="polite"
       >
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand/25 border-t-brand" />
       </div>
     );
   }

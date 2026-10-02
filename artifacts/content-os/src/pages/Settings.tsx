@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { apiGet, apiPost } from '@/lib/api';
 import AutomationTab from './AutomationTab';
+import { PageHeader, PageShell } from '@/components/layout/Page';
 
 /** True when an error came back as an admin-gate 403 */
 function isAdminRequired(e: unknown): boolean {
@@ -59,10 +60,10 @@ function AdminAccessCard() {
   if (isAdmin === null) return null;
 
   return (
-    <div className="mb-6 bg-white border border-stone-200 rounded-lg px-5 py-4">
+    <div className="rounded-2xl border border-amber-400/20 bg-card px-5 py-4">
       {isAdmin ? (
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-green-700">
+          <div className="flex items-center gap-2 text-sm text-emerald-300">
             <ShieldCheck className="w-4 h-4" />
             <span>Admin access active — you can change global provider and model settings.</span>
           </div>
@@ -70,8 +71,8 @@ function AdminAccessCard() {
         </div>
       ) : (
         <form onSubmit={handleUnlock} className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-sm text-stone-600">
-            <Lock className="w-4 h-4 text-stone-400" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Lock className="w-4 h-4 text-muted-foreground" />
             <span>Global settings changes require admin access.</span>
           </div>
           <Input
@@ -79,12 +80,14 @@ function AdminAccessCard() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="Admin password"
-            className="w-48 h-8 text-sm"
+            aria-label="Admin password"
+            autoComplete="current-password"
+            className="h-9 w-48 text-sm"
           />
           <Button type="submit" size="sm" variant="outline" disabled={busy || !password}>
             {busy ? 'Unlocking…' : 'Unlock admin access'}
           </Button>
-          {error && <span className="text-xs text-red-600">{error}</span>}
+          {error && <span className="text-xs text-red-300">{error}</span>}
         </form>
       )}
     </div>
@@ -130,13 +133,14 @@ function ProvidersTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-stone-500">
-        API keys are read from Replit Secrets. To add a key, open the Secrets panel in Replit and add the environment variable shown below.
-        Content generation falls back to demo mode if no provider is configured.
+      <p className="text-sm text-muted-foreground">
+        Provider keys are server environment variables managed by the operator in the hosting platform's secret store
+        (on Render: service → Environment). They are never entered or stored in the browser. Without a key, generation runs in
+        clearly labelled demo mode.
       </p>
 
       {!providers?.length && (
-        <div className="bg-white border border-stone-200 rounded-lg p-8 text-center text-stone-400 text-sm">
+        <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
           No providers configured.
         </div>
       )}
@@ -146,30 +150,30 @@ function ProvidersTab() {
         const testResult = testResults[provider.name];
 
         return (
-          <div key={provider.name} className="bg-white border border-stone-200 rounded-lg p-5">
+          <div key={provider.name} className="bg-card border border-border rounded-2xl p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-semibold text-stone-800">{provider.displayName}</p>
+                  <p className="font-semibold text-foreground">{provider.displayName}</p>
                   {provider.isConfigured ? (
-                    <Badge variant="outline" className="text-green-600 border-green-200 text-xs">Configured</Badge>
+                    <Badge variant="outline" className="text-emerald-300 border-emerald-400/25 text-xs">Configured</Badge>
                   ) : (
-                    <Badge variant="outline" className="text-stone-400 border-stone-200 text-xs">Not configured</Badge>
+                    <Badge variant="outline" className="text-amber-300 border-amber-400/25 text-xs">Missing key</Badge>
                   )}
                 </div>
-                <p className="text-xs text-stone-400 mb-2">{provider.description}</p>
+                <p className="text-xs text-muted-foreground mb-2">{provider.description}</p>
                 {meta.key && (
                   <div className="flex items-center gap-2">
-                    <code className="text-xs bg-stone-100 text-stone-600 px-2 py-1 rounded font-mono">{meta.key}</code>
+                    <code className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded font-mono">{meta.key}</code>
                     {meta.docs && (
-                      <a href={meta.docs} target="_blank" rel="noopener noreferrer" className="text-xs text-[#C8102E] hover:underline">
+                      <a href={meta.docs} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline">
                         Get API key →
                       </a>
                     )}
                   </div>
                 )}
                 {provider.isConfigured && provider.availableModels && (
-                  <p className="text-xs text-stone-400 mt-2">Models: {provider.availableModels.slice(0, 4).join(', ')}{provider.availableModels.length > 4 ? '…' : ''}</p>
+                  <p className="text-xs text-muted-foreground mt-2">Models: {provider.availableModels.slice(0, 4).join(', ')}{provider.availableModels.length > 4 ? '…' : ''}</p>
                 )}
               </div>
               {provider.isConfigured && (
@@ -180,7 +184,7 @@ function ProvidersTab() {
             </div>
 
             {testResult && (
-              <div className={`mt-3 flex items-start gap-2 p-3 rounded text-xs ${testResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              <div className={`mt-3 flex items-start gap-2 p-3 rounded text-xs ${testResult.success ? 'bg-emerald-400/10 text-emerald-300' : 'bg-red-500/10 text-red-300'}`}>
                 {testResult.success ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
                 <span>{testResult.message}{testResult.latencyMs > 0 ? ` (${testResult.latencyMs}ms)` : ''}</span>
               </div>
@@ -190,9 +194,9 @@ function ProvidersTab() {
       })}
 
       {/* Demo mode notice */}
-      <div className="bg-stone-50 border border-stone-100 rounded-lg p-4">
-        <p className="text-xs font-semibold text-stone-600 mb-1">Demo Mode</p>
-        <p className="text-xs text-stone-400">
+      <div className="bg-muted/50 border border-border rounded-lg p-4">
+        <p className="text-xs font-semibold text-muted-foreground mb-1">Demo Mode</p>
+        <p className="text-xs text-muted-foreground">
           When no provider is configured, Content OS runs in demo mode — clearly labeled placeholder output is returned for all AI operations.
           No content is sent to any external service. Add an API key to enable real generation.
         </p>
@@ -239,32 +243,32 @@ function ModelConfigTab() {
     }
   }
 
-  if (isLoading) return <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />;
+  if (isLoading) return <div className="h-32 bg-muted animate-pulse rounded-lg" />;
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="font-semibold text-stone-800">Pipeline Model Assignment</h3>
-          <p className="text-xs text-stone-400 mt-0.5">Assign specific models to each pipeline stage. Leave blank to use the best available provider automatically.</p>
+          <h3 className="font-semibold text-foreground">Pipeline Model Assignment</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Assign specific models to each pipeline stage. Leave blank to use the best available provider automatically.</p>
         </div>
         {!editing && <Button variant="outline" onClick={startEdit}>Edit Config</Button>}
       </div>
 
-      <div className="bg-white border border-stone-200 rounded-lg divide-y divide-stone-100">
+      <div className="bg-card border border-border rounded-2xl divide-y divide-border">
         {PIPELINE_STAGES.map(stage => {
           const val = editing ? (form[stage.key] ?? '') : ((config as any)?.[stage.key] ?? '');
           return (
             <div key={stage.key} className="px-5 py-3.5 flex items-center gap-4">
               <div className="w-32 flex-shrink-0">
-                <p className="text-sm font-medium text-stone-700">{stage.label}</p>
-                <p className="text-xs text-stone-400 leading-snug">{stage.description}</p>
+                <p className="text-sm font-medium text-foreground/85">{stage.label}</p>
+                <p className="text-xs text-muted-foreground leading-snug">{stage.description}</p>
               </div>
               {editing ? (
-                <select
+                <select aria-label={`${stage.label} model`}
                   value={val}
                   onChange={e => setForm(f => ({ ...f, [stage.key]: e.target.value }))}
-                  className="flex-1 border border-stone-200 rounded px-3 py-1.5 text-sm"
+                  className="flex-1 border border-border rounded px-3 py-1.5 text-sm"
                 >
                   <option value="">Auto (best available)</option>
                   {allModels.map(m => (
@@ -272,7 +276,7 @@ function ModelConfigTab() {
                   ))}
                 </select>
               ) : (
-                <span className="flex-1 text-sm text-stone-600 font-mono">{val || <span className="text-stone-300 font-sans not-italic">Auto</span>}</span>
+                <span className="flex-1 text-sm text-muted-foreground font-mono">{val || <span className="text-muted-foreground font-sans not-italic">Auto</span>}</span>
               )}
             </div>
           );
@@ -281,9 +285,9 @@ function ModelConfigTab() {
 
       {editing && (
         <div className="flex gap-2 items-center flex-wrap">
-          <Button onClick={handleSave} disabled={update.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">{update.isPending ? 'Saving…' : 'Save Config'}</Button>
+          <Button onClick={handleSave} disabled={update.isPending} className="bg-primary hover:bg-primary/90 text-white">{update.isPending ? 'Saving…' : 'Save Config'}</Button>
           <Button variant="outline" onClick={() => { setEditing(false); setSaveError(null); }}>Cancel</Button>
-          {saveError && <span className="text-xs text-red-600">{saveError}</span>}
+          {saveError && <span className="text-xs text-red-300">{saveError}</span>}
         </div>
       )}
     </div>
@@ -300,17 +304,17 @@ function DependenciesTab() {
   const filtered = dependencies?.filter(d => filter === 'all' || d.category === filter) ?? [];
 
   const statusColors: Record<string, string> = {
-    installed: 'bg-green-50 text-green-700',
-    not_installed: 'bg-stone-100 text-stone-500',
-    optional: 'bg-blue-50 text-blue-600',
-    deprecated: 'bg-red-50 text-red-500',
+    installed: 'bg-emerald-400/10 text-emerald-300',
+    not_installed: 'bg-muted text-muted-foreground',
+    optional: 'bg-sky-400/10 text-sky-300',
+    deprecated: 'bg-red-500/10 text-red-300',
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="font-semibold text-stone-800 mb-1">Dependency Registry</h3>
-        <p className="text-xs text-stone-400">All planned and optional dependencies for the content pipeline. Each entry tracks its install status, purpose, and decision rationale.</p>
+        <h3 className="font-semibold text-foreground mb-1">Dependency Registry</h3>
+        <p className="text-xs text-muted-foreground">All planned and optional dependencies for the content pipeline. Each entry tracks its install status, purpose, and decision rationale.</p>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -318,7 +322,7 @@ function DependenciesTab() {
           <button
             key={cat}
             onClick={() => setFilter(cat)}
-            className={`text-xs px-3 py-1 rounded-full border transition-colors ${filter === cat ? 'bg-[#C8102E] text-white border-[#C8102E]' : 'border-stone-200 text-stone-500 hover:border-stone-300'}`}
+            className={`text-xs px-3 py-1 rounded-full border transition-colors ${filter === cat ? 'bg-primary text-white border-brand' : 'border-border text-muted-foreground hover:border-foreground/25'}`}
           >
             {cat === 'all' ? 'All' : cat}
           </button>
@@ -327,32 +331,32 @@ function DependenciesTab() {
 
       <div className="space-y-2">
         {!filtered.length && (
-          <div className="bg-white border border-stone-200 rounded-lg p-8 text-center text-stone-400 text-sm">
+          <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
             No dependency results found.
           </div>
         )}
         {filtered.map(dep => (
-          <div key={dep.id} className="bg-white border border-stone-200 rounded-lg overflow-hidden">
+          <div key={dep.id} className="bg-card border border-border rounded-2xl overflow-hidden">
             <button
               onClick={() => setExpandedId(expandedId === dep.id ? null : dep.id)}
-              className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-stone-50 transition-colors"
+              className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/60 transition-colors"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-stone-700">{dep.componentName}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${statusColors[dep.installStatus ?? ''] ?? 'bg-stone-100 text-stone-500'}`}>{dep.installStatus}</span>
+                  <span className="text-sm font-medium text-foreground/85">{dep.componentName}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${statusColors[dep.installStatus ?? ''] ?? 'bg-muted text-muted-foreground'}`}>{dep.installStatus}</span>
                 </div>
-                <p className="text-xs text-stone-400 mt-0.5 line-clamp-1">{dep.purpose}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{dep.purpose}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-stone-300">{dep.category}</span>
-                {expandedId === dep.id ? <ChevronDown className="w-3.5 h-3.5 text-stone-300" /> : <ChevronRight className="w-3.5 h-3.5 text-stone-300" />}
+                <span className="text-xs text-muted-foreground">{dep.category}</span>
+                {expandedId === dep.id ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
               </div>
             </button>
             {expandedId === dep.id && (
-              <div className="px-4 pb-4 border-t border-stone-50 pt-3 space-y-2">
-                {dep.repositorySlug && <p className="text-xs text-stone-400">Repository: <a href={`https://github.com/${dep.repositorySlug}`} target="_blank" rel="noopener noreferrer" className="text-[#C8102E] hover:underline">{dep.repositorySlug}</a></p>}
-                {dep.decisionReason && <p className="text-xs text-stone-500">{dep.decisionReason}</p>}
+              <div className="px-4 pb-4 border-t border-border pt-3 space-y-2">
+                {dep.repositorySlug && <p className="text-xs text-muted-foreground">Repository: <a href={`https://github.com/${dep.repositorySlug}`} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">{dep.repositorySlug}</a></p>}
+                {dep.decisionReason && <p className="text-xs text-muted-foreground">{dep.decisionReason}</p>}
               </div>
             )}
           </div>
@@ -366,20 +370,33 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<Tab>('AI Providers');
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#111] font-serif">Settings</h1>
-        <p className="text-stone-500 mt-1 text-sm">Configure AI providers, model assignments, and system dependencies</p>
-      </div>
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Settings"
+        title="Settings"
+        description="Provider status, model assignments, system dependencies and automation access for this workspace."
+      />
 
-      <div className="border-b border-stone-200 mb-6">
-        <div className="flex gap-0">
+      <section aria-labelledby="security-heading" className="mb-8">
+        <h2 id="security-heading" className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Security
+        </h2>
+        <AdminAccessCard />
+      </section>
+
+      <div className="mb-6 overflow-x-auto rounded-2xl border border-border bg-card p-1.5">
+        <div role="tablist" aria-label="Settings sections" className="flex min-w-max gap-1">
           {TABS.map(tab => (
             <button
               key={tab}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab ? 'border-[#C8102E] text-[#C8102E]' : 'border-transparent text-stone-500 hover:text-stone-800'
+              className={`whitespace-nowrap rounded-xl px-3.5 py-2.5 text-xs font-medium transition ${
+                activeTab === tab
+                  ? 'bg-secondary text-foreground shadow-[inset_0_-2px_0_0_hsl(var(--brand))]'
+                  : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
               }`}
             >
               {tab}
@@ -388,12 +405,10 @@ export default function Settings() {
         </div>
       </div>
 
-      <AdminAccessCard />
-
       {activeTab === 'AI Providers' && <ProvidersTab />}
       {activeTab === 'Model Configuration' && <ModelConfigTab />}
       {activeTab === 'Dependencies' && <DependenciesTab />}
       {activeTab === 'Automation' && <AutomationTab />}
-    </div>
+    </PageShell>
   );
 }

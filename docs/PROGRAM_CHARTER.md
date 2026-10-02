@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the Stage 0 program charter (July 2026); implementation has since been authorised and completed. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](DOCUMENT_OWNERSHIP_MAP.md).
+
 # Program Charter
 
 ## Program

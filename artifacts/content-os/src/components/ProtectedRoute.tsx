@@ -15,7 +15,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-gray-300 border-t-red-600 rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-input border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }

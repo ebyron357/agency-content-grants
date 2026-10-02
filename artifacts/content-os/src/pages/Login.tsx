@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Newspaper } from 'lucide-react';
+import { PenLine } from 'lucide-react';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -24,6 +24,8 @@ export default function Login({ onSuccess }: LoginProps) {
       });
       if (res.ok) {
         onSuccess();
+      } else if (res.status === 429) {
+        setError('Too many sign-in attempts. Wait 15 minutes, then try again.');
       } else {
         setError('Incorrect password. Please try again.');
       }
@@ -39,20 +41,18 @@ export default function Login({ onSuccess }: LoginProps) {
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex items-center justify-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
-            <Newspaper className="w-5 h-5 text-white" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand/30 bg-primary/15 text-brand">
+            <PenLine className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-foreground">
-              Content OS
-            </p>
-            <p className="mt-1 text-xs leading-none text-muted-foreground">Editorial Suite</p>
+            <p className="text-sm font-semibold tracking-tight text-foreground">Content OS</p>
+            <p className="mt-1 text-xs leading-none text-muted-foreground">Editorial command center</p>
           </div>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-border/70 bg-card p-7 shadow-xl shadow-foreground/5 sm:p-9">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">Welcome back</p>
+        <div className="rounded-2xl border border-border bg-card p-7 shadow-2xl shadow-black/40 sm:p-9">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Welcome back</p>
           <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">Sign in to Content OS</h1>
           <p className="mb-7 text-sm leading-relaxed text-muted-foreground">Enter your team password to continue building.</p>
 
@@ -77,12 +77,12 @@ export default function Login({ onSuccess }: LoginProps) {
               />
             </div>
 
-            {error && <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+            {error && <p role="alert" className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
 
             <button
               type="submit"
               disabled={loading || !password}
-              className="h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </button>

@@ -1,0 +1,107 @@
+Content Machine production smoke — 20261002T063358Z UTC
+Target: https://localhost:8443
+
+== 1. Liveness, readiness and SHA parity
+  PASS  GET /api/healthz returns 200
+  running commit: 3537357888e98b6a519e4665a019c1df863fd6e6
+  PASS  Deployed commit matches EXPECTED_SHA 3537357888e98b6a519e4665a019c1df863fd6e6
+  readyz: {"status":"ready","checks":{"configuration":"ok","database":"ok","storage":"ok"}}
+  PASS  GET /api/readyz returns 200 (database, storage, configuration ok)
+  PASS  GET / serves the Content OS app shell
+  PASS  App shell contains the React root
+
+== 2. Unauthenticated access is rejected
+  PASS  Anonymous GET /api/projects is 401
+  PASS  Anonymous GET /api/brands is 401
+  PASS  Anonymous GET /api/dashboard/stats is 401
+  PASS  Anonymous GET /api/projects/00000000-0000-4000-8000-000000000000 is 401
+  PASS  Anonymous GET /api/media/images/00000000-0000-4000-8000-000000000000 is 401
+  PASS  Anonymous GET /api/exports/download/missing.pdf is 401
+  PASS  Anonymous GET /api/api-keys is 401
+  PASS  Anonymous POST /api/projects is 401
+  PASS  Wrong password is rejected
+
+== 3. Authentication and session
+  PASS  Login with the admin password
+  PASS  Session cookie is HttpOnly and Secure
+  PASS  GET /api/auth/me reports an authenticated session
+
+== 4. Project and document persistence
+  PASS  Create [SMOKE] brand
+  PASS  Create [SMOKE] guide project
+  PASS  Project is readable after creation
+  FAIL  AI provider generated an outline :: {"error":"OpenAI API error (403)"}
+  FAIL  Approve outline :: expected 200, got 404
+  FAIL  Create document with outline sections :: {"id":"21062c7f-613c-4f08-a9b6-d90ca4be36d5","projectId":"5a4978e4-ecec-4874-a2a3-da43c1732a7f","title":"[SMOKE] Operator guide 20261002T063358Z","status":"draft","wordCount":0,"isPublicationReady":false,"createdAt":"2026-10-02T06:33:58.848Z","updatedAt":"2026-10-02T06:33:58.848Z","sections":[]}
+  FAIL  Save rich HTML section content :: expected 200, got 404
+  FAIL  Rich formatting survives reload :: 
+  PASS  Server-side sanitizer strips <script>
+
+== 5. Media persistence
+  FAIL  Upload image with alt text :: <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot POST /api/document-sections//media/images</pre>
+</body>
+</html>
+  PASS  Uploaded image renders for its owner
+  FAIL  Uploaded image is hidden from anonymous users :: expected 401, got 200
+  FAIL  Image metadata persisted with alt text :: expected Smoke test pixel, got 
+  FAIL  Supported YouTube embed is accepted :: <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot POST /api/document-sections//media/videos</pre>
+</body>
+</html>
+  FAIL  Unsafe video URL is rejected :: expected 400, got 404
+  FAIL  Video embed persisted :: expected youtube, got 
+  FAIL  Save section with inline image and video :: expected 200, got 404
+  FAIL  Inline image and video survive reload :: 
+
+== 6. Ownership and isolation probes
+  PASS  Unknown project id is 404
+  PASS  Unknown section media is 404
+  PASS  Unowned export file is not served
+  PASS  Path traversal in export download is rejected
+
+== 7. Export generation and download
+  PASS  Download docx export
+  PASS  DOCX has a ZIP signature
+  FAIL  DOCX embeds the inline image :: no word/media entry
+  PASS  Anonymous download of docx export is 401
+  PASS  Download pdf export
+  PASS  PDF has a %PDF signature
+  FAIL  PDF embeds the inline image :: no image XObject
+  PASS  Anonymous download of pdf export is 401
+  PASS  Download html export
+  FAIL  html export contains the saved section :: content missing
+  FAIL  html export embeds the image :: no data URL
+  PASS  Anonymous download of html export is 401
+  PASS  Download md export
+  FAIL  md export contains the saved section :: content missing
+  FAIL  md export labels the image and links the video :: media missing
+  PASS  Anonymous download of md export is 401
+  PASS  Download txt export
+  FAIL  txt export contains the saved section :: content missing
+  FAIL  txt export labels the image and links the video :: media missing
+  PASS  Anonymous download of txt export is 401
+
+== 8. Logout ends the session
+  PASS  Logout
+  PASS  Data routes reject the logged-out session
+
+== Cleanup of [SMOKE] records
+  PASS  DELETE smoke project
+  PASS  DELETE smoke brand
+  PASS  Deleted project is gone
+
+RESULT: 43 passed, 21 failed  (https://localhost:8443, 20261002T063358Z)
+Evidence written to /tmp/claude-0/rehearsal/smoke-negative.txt

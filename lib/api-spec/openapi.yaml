@@ -2324,6 +2324,10 @@ components:
       properties:
         status:
           type: string
+        commit:
+          type: string
+          nullable: true
+          description: Git commit SHA of the running build (RENDER_GIT_COMMIT or GIT_COMMIT), for deployment parity checks.
 
     # ─── Dashboard ──────────────────────────────────────────────────────────────
     DashboardStats:

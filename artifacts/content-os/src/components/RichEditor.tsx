@@ -89,20 +89,20 @@ export const VideoEmbed = Node.create({
               src,
               title: caption?.trim() || "Embedded video",
               class:
-                "w-full aspect-video rounded-2xl border border-white/10 shadow-xl shadow-black/30",
+                "w-full aspect-video rounded-2xl border border-border shadow-xl shadow-black/30",
               frameborder: "0",
               allowfullscreen: "true",
               allow: "encrypted-media",
               loading: "lazy",
             },
           ]
-        : ["p", { class: "text-red-500" }, "⚠ Unsupported video source"],
+        : ["p", { class: "text-red-300" }, "⚠ Unsupported video source"],
       caption
         ? [
             "p",
             {
               "data-video-caption": "true",
-              class: "mt-2 text-center text-xs text-white/35",
+              class: "mt-2 text-center text-xs text-muted-foreground",
             },
             caption,
           ]
@@ -135,8 +135,8 @@ function ToolBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/[0.08] hover:text-white",
-        active && "bg-[#e5484d]/15 text-[#ff9b9b]",
+        "inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-white",
+        active && "bg-primary/15 text-brand",
         disabled && "cursor-not-allowed opacity-25",
       )}
     >
@@ -277,7 +277,7 @@ function Toolbar({
       <div
         role="toolbar"
         aria-label="Rich text formatting"
-        className="flex items-center gap-1 overflow-x-auto border-b border-white/[0.08] bg-[#10131a] px-4 py-3 sm:px-7"
+        className="flex items-center gap-1 overflow-x-auto border-b border-border bg-card px-4 py-3 sm:px-7"
       >
         <ToolBtn
           onClick={() =>
@@ -306,7 +306,7 @@ function Toolbar({
         >
           <Heading3 className="w-4 h-4" />
         </ToolBtn>
-        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
+        <div className="mx-1 h-5 w-px bg-secondary" />
         <ToolBtn
           onClick={() => editor.chain().focus().toggleBold().run()}
           active={editor.isActive("bold")}
@@ -328,7 +328,7 @@ function Toolbar({
         >
           <Code className="w-4 h-4" />
         </ToolBtn>
-        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
+        <div className="mx-1 h-5 w-px bg-secondary" />
         <ToolBtn
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           active={editor.isActive("bulletList")}
@@ -343,7 +343,7 @@ function Toolbar({
         >
           <ListOrdered className="w-4 h-4" />
         </ToolBtn>
-        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
+        <div className="mx-1 h-5 w-px bg-secondary" />
         <ToolBtn
           onClick={handleLink}
           active={editor.isActive("link")}
@@ -357,7 +357,7 @@ function Toolbar({
         <ToolBtn onClick={() => setVideoOpen(true)} title="Insert video embed">
           <Video className="w-4 h-4" />
         </ToolBtn>
-        <div className="mx-1 h-5 w-px bg-white/[0.1]" />
+        <div className="mx-1 h-5 w-px bg-secondary" />
         <ToolBtn
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
@@ -376,19 +376,19 @@ function Toolbar({
 
       {/* Link dialog */}
       <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
-        <DialogContent className="max-w-sm border-white/[0.1] bg-[#151922] text-white shadow-2xl shadow-black/50">
+        <DialogContent className="max-w-sm border-border bg-muted text-white shadow-2xl shadow-black/50">
           <DialogHeader>
             <DialogTitle>Insert link</DialogTitle>
           </DialogHeader>
           <label
             htmlFor="rich-editor-link-url"
-            className="text-xs font-medium text-white/55"
+            className="text-xs font-medium text-muted-foreground"
           >
             Link URL
           </label>
           <input
             id="rich-editor-link-url"
-            className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
+            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-white placeholder:text-muted-foreground/70 focus:border-brand/60 focus:outline-none"
             placeholder="https://example.com"
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
@@ -406,7 +406,7 @@ function Toolbar({
             <Button
               size="sm"
               onClick={applyLink}
-              className="bg-[#C8102E] hover:bg-[#a80d25] text-white"
+              className="bg-primary hover:bg-primary/90 text-white"
             >
               Apply
             </Button>
@@ -416,7 +416,7 @@ function Toolbar({
 
       {/* Image upload dialog */}
       <Dialog open={imageOpen} onOpenChange={setImageOpen}>
-        <DialogContent className="max-w-md border-white/[0.1] bg-[#151922] text-white shadow-2xl shadow-black/50">
+        <DialogContent className="max-w-md border-border bg-muted text-white shadow-2xl shadow-black/50">
           <DialogHeader>
             <DialogTitle>Insert image</DialogTitle>
           </DialogHeader>
@@ -424,7 +424,7 @@ function Toolbar({
             <div>
               <label
                 htmlFor="rich-editor-image-file"
-                className="mb-1 block text-xs font-medium text-white/55"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
               >
                 Image file (JPEG, PNG, GIF, or WebP — max 10 MB)
               </label>
@@ -433,7 +433,7 @@ function Toolbar({
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
-                className="rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 py-2 text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/[0.08] file:px-3 file:py-1.5 file:text-xs file:text-white/70"
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:text-foreground/80"
                 onChange={(e) => {
                   setImageFile(e.target.files?.[0] ?? null);
                   setImageError("");
@@ -443,13 +443,13 @@ function Toolbar({
             <div>
               <label
                 htmlFor="rich-editor-image-alt"
-                className="mb-1 block text-xs font-medium text-white/55"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
               >
                 Alt text (required for accessibility)
               </label>
               <input
                 id="rich-editor-image-alt"
-                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-white placeholder:text-muted-foreground/70 focus:border-brand/60 focus:outline-none"
                 placeholder="Describe the image…"
                 value={imageAlt}
                 onChange={(e) => setImageAlt(e.target.value)}
@@ -458,19 +458,19 @@ function Toolbar({
             <div>
               <label
                 htmlFor="rich-editor-image-caption"
-                className="mb-1 block text-xs font-medium text-white/55"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
               >
                 Caption (optional)
               </label>
               <input
                 id="rich-editor-image-caption"
-                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-white placeholder:text-muted-foreground/70 focus:border-brand/60 focus:outline-none"
                 placeholder="Image caption…"
                 value={imageCaption}
                 onChange={(e) => setImageCaption(e.target.value)}
               />
             </div>
-            {imageError && <p className="text-xs text-red-600">{imageError}</p>}
+            {imageError && <p className="text-xs text-red-300">{imageError}</p>}
           </div>
           <DialogFooter>
             <Button
@@ -486,7 +486,7 @@ function Toolbar({
               disabled={
                 imageUploading || !imageFile || !hasRequiredAltText(imageAlt)
               }
-              className="bg-[#C8102E] hover:bg-[#a80d25] text-white"
+              className="bg-primary hover:bg-primary/90 text-white"
             >
               {imageUploading ? "Uploading…" : "Insert"}
             </Button>
@@ -496,7 +496,7 @@ function Toolbar({
 
       {/* Video URL dialog */}
       <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
-        <DialogContent className="max-w-md border-white/[0.1] bg-[#151922] text-white shadow-2xl shadow-black/50">
+        <DialogContent className="max-w-md border-border bg-muted text-white shadow-2xl shadow-black/50">
           <DialogHeader>
             <DialogTitle>Insert video embed</DialogTitle>
           </DialogHeader>
@@ -504,13 +504,13 @@ function Toolbar({
             <div>
               <label
                 htmlFor="rich-editor-video-url"
-                className="mb-1 block text-xs font-medium text-white/55"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
               >
                 YouTube or Vimeo URL
               </label>
               <input
                 id="rich-editor-video-url"
-                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-white placeholder:text-muted-foreground/70 focus:border-brand/60 focus:outline-none"
                 placeholder="https://www.youtube.com/watch?v=…"
                 value={videoUrl}
                 onChange={(e) => {
@@ -519,26 +519,26 @@ function Toolbar({
                 }}
                 autoFocus
               />
-              <p className="mt-1 text-xs text-white/35">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Only YouTube and Vimeo HTTPS links are accepted.
               </p>
             </div>
             <div>
               <label
                 htmlFor="rich-editor-video-caption"
-                className="mb-1 block text-xs font-medium text-white/55"
+                className="mb-1 block text-xs font-medium text-muted-foreground"
               >
                 Caption (optional)
               </label>
               <input
                 id="rich-editor-video-caption"
-                className="h-10 w-full rounded-xl border border-white/[0.1] bg-[#0b0e14] px-3 text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/60 focus:outline-none"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-white placeholder:text-muted-foreground/70 focus:border-brand/60 focus:outline-none"
                 placeholder="Video caption…"
                 value={videoCaption}
                 onChange={(e) => setVideoCaption(e.target.value)}
               />
             </div>
-            {videoError && <p className="text-xs text-red-600">{videoError}</p>}
+            {videoError && <p className="text-xs text-red-300">{videoError}</p>}
           </div>
           <DialogFooter>
             <Button
@@ -552,7 +552,7 @@ function Toolbar({
               size="sm"
               onClick={handleVideoInsert}
               disabled={videoSaving || !videoUrl.trim()}
-              className="bg-[#C8102E] hover:bg-[#a80d25] text-white"
+              className="bg-primary hover:bg-primary/90 text-white"
             >
               {videoSaving ? "Inserting…" : "Insert"}
             </Button>
@@ -630,7 +630,7 @@ export function RichEditor({
   if (!editor) return null;
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#0b0e14]">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
       {!readOnly && (
         <Toolbar
           editor={editor}
@@ -641,15 +641,15 @@ export function RichEditor({
       <EditorContent
         editor={editor}
         className={cn(
-          "flex-1 overflow-y-auto px-5 py-8 text-[15px] leading-8 text-white/75 focus-within:outline-none sm:px-12 sm:py-10",
-          "prose prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-white prose-p:text-white/75 prose-strong:text-white prose-a:text-[#ff9b9b] prose-li:text-white/70",
+          "flex-1 overflow-y-auto px-5 py-8 text-[15px] leading-8 text-foreground/80 focus-within:outline-none sm:px-12 sm:py-10",
+          "prose prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-p:text-foreground/85 prose-strong:text-foreground prose-a:text-brand prose-li:text-foreground/85",
           "[&_.ProseMirror]:mx-auto [&_.ProseMirror]:min-h-full [&_.ProseMirror]:max-w-3xl [&_.ProseMirror]:outline-none",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
-          "[&_.ProseMirror_p.is-editor-empty:first-child::before]:text-white/25",
+          "[&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left",
           "[&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0",
-          readOnly && "bg-[#0b0e14] cursor-default",
+          readOnly && "bg-background cursor-default",
         )}
       />
     </div>

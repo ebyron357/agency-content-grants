@@ -1,40 +1,33 @@
 # Branch and Pull Request Policy
 
-## Protected workflow
+Current policy (2 October 2026). Merge and production gates are defined in `AGENTS.md`; this file covers the mechanics.
+
+## Workflow
 
 1. Begin from current `main`.
-2. Use one focused branch per work package.
-3. Never commit autonomous work directly to `main`.
-4. Open a pull request with evidence, acceptance results, risks, and next action.
-5. Do not merge automatically.
-6. Human approval is required for governance decisions, material architecture decisions, residual high risks, budget, pilot scope, and Stage 0 GO/NO-GO.
+2. Use one focused branch per work package. Never commit directly to `main`.
+3. Open a pull request with evidence, acceptance results, risks and the next action.
+4. Keep the required **CI** check green (`docs/CI.md`); fix failures at the cause.
+5. Merge only when the `AGENTS.md` merge gate passes, using a merge commit (no force-push or bypass).
+6. Production deploys are separate, manual Render deploys of a reviewed `main` commit (`docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`).
+7. Human approval is required for governance decisions, material architecture or cost changes, accepted residual high risks, and production GO.
 
 ## Branch naming
 
-- `agent/wpXX-description` for autonomous Stage 0 work
-- `docs/description` for human-authored documentation
-- `poc/description` for disposable security or architecture proofs
-- `feat/description` only after implementation is approved
+- `feat/<description>`, `fix/<description>`, `docs/<description>`, `ci/<description>` for human work
+- Agent-created branches may use the agent's naming (for example `claude/<name>`), one branch per PR
 
 ## Pull-request requirements
 
 Every PR must identify:
 
-- Work package and scope
+- Scope and linked issue
 - Files changed
-- Evidence reviewed
-- Decisions and assumptions
-- Tests or validation actually run
+- Tests and validation actually run, with results
 - Acceptance criteria passed or failed
-- Unresolved questions
-- Security, licensing, cost, and tenant-isolation implications
-- Exact next authorized action
-
-## Required CI for pull requests targeting `main`
-
-The canonical GitHub Actions workflow is `.github/workflows/ci.yml` (workflow name: **CI**). See `docs/CI.md`.
-
-`.github/workflows/recovery-baseline-validation.yml` is historical recovery evidence and is not the required `main` pull-request gate.
+- Security, data, cost and tenant-isolation implications
+- Documentation updated (`docs/PROJECT_STATUS.md` when operational state changes)
+- Exact next action
 
 ## Merge standard
 

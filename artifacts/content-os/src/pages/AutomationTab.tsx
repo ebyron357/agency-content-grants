@@ -30,10 +30,10 @@ const SCOPES = ['read', 'projects:write', 'repurposing:write', 'publishing:write
 function CopyableSecret({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
-      <p className="text-xs font-semibold text-amber-800 mb-1">{label} — shown once, save it now</p>
+    <div className="bg-amber-400/10 border border-amber-400/25 rounded-lg p-3 mt-2">
+      <p className="text-xs font-semibold text-amber-200 mb-1">{label} — shown once, save it now</p>
       <div className="flex items-center gap-2">
-        <code className="flex-1 text-xs bg-white border border-amber-200 rounded px-2 py-1.5 font-mono break-all">{value}</code>
+        <code className="flex-1 text-xs bg-card border border-amber-400/25 rounded px-2 py-1.5 font-mono break-all">{value}</code>
         <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
           <Copy className="w-3.5 h-3.5 mr-1" /> {copied ? 'Copied' : 'Copy'}
         </Button>
@@ -72,8 +72,8 @@ function ApiKeysSection() {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-stone-800 flex items-center gap-2"><Key className="w-4 h-4" /> API Keys</h3>
-          <p className="text-xs text-stone-400 mt-0.5">Bearer tokens for external tools (e.g. n8n) to call <code className="font-mono">/api/automation/*</code> instead of a session cookie.</p>
+          <h3 className="font-semibold text-foreground flex items-center gap-2"><Key className="w-4 h-4" /> API Keys</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Bearer tokens for external tools (e.g. n8n) to call <code className="font-mono">/api/automation/*</code> instead of a session cookie.</p>
         </div>
         {!creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="w-3.5 h-3.5 mr-1" /> New key</Button>}
       </div>
@@ -81,21 +81,23 @@ function ApiKeysSection() {
       {newKey && <CopyableSecret label="New API key" value={newKey} />}
 
       {creating && (
-        <div className="bg-white border border-stone-200 rounded-lg p-4 space-y-3">
-          <Input placeholder="Key name (e.g. 'n8n production')" value={name} onChange={e => setName(e.target.value)} className="text-sm" />
-          <div className="flex flex-wrap gap-2">
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <Input aria-label="API key name" placeholder="Key name (e.g. 'n8n production')" value={name} onChange={e => setName(e.target.value)} className="text-sm" />
+          <div role="group" aria-label="API key scopes" className="flex flex-wrap gap-2">
             {SCOPES.map(s => (
               <button
                 key={s}
+                type="button"
+                aria-pressed={scopes.includes(s)}
                 onClick={() => setScopes(cur => cur.includes(s) ? cur.filter(x => x !== s) : [...cur, s])}
-                className={`text-xs px-2.5 py-1 rounded-full border ${scopes.includes(s) ? 'bg-[#C8102E] text-white border-[#C8102E]' : 'border-stone-200 text-stone-500'}`}
+                className={`text-xs px-2.5 py-1 rounded-full border ${scopes.includes(s) ? 'bg-primary text-white border-brand' : 'border-border text-muted-foreground'}`}
               >
                 {s}
               </button>
             ))}
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreate} disabled={busy || !name.trim() || scopes.length === 0} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">
+            <Button size="sm" onClick={handleCreate} disabled={busy || !name.trim() || scopes.length === 0} className="bg-primary hover:bg-primary/90 text-white">
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Create'}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setCreating(false)}>Cancel</Button>
@@ -103,17 +105,17 @@ function ApiKeysSection() {
         </div>
       )}
 
-      {isLoading && <div className="h-16 bg-stone-100 animate-pulse rounded-lg" />}
-      {keys?.length === 0 && <div className="bg-white border border-stone-200 rounded-lg p-6 text-center text-stone-400 text-sm">No API keys yet.</div>}
+      {isLoading && <div className="h-16 bg-muted animate-pulse rounded-lg" />}
+      {keys?.length === 0 && <div className="bg-card border border-border rounded-2xl p-6 text-center text-muted-foreground text-sm">No API keys yet.</div>}
       {keys?.map(key => (
-        <div key={key.id} className="bg-white border border-stone-200 rounded-lg p-4 flex items-center justify-between">
+        <div key={key.id} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-stone-700">{key.name}</p>
-              {key.revokedAt ? <Badge variant="outline" className="text-red-500 border-red-200 text-xs">Revoked</Badge> : <Badge variant="outline" className="text-green-600 border-green-200 text-xs">Active</Badge>}
+              <p className="text-sm font-medium text-foreground/85">{key.name}</p>
+              {key.revokedAt ? <Badge variant="outline" className="text-red-300 border-red-400/25 text-xs">Revoked</Badge> : <Badge variant="outline" className="text-emerald-300 border-emerald-400/25 text-xs">Active</Badge>}
             </div>
-            <p className="text-xs text-stone-400 font-mono mt-0.5">{key.keyPrefix}…</p>
-            <p className="text-xs text-stone-400 mt-0.5">Scopes: {(key.scopes ?? []).join(', ')}{key.lastUsedAt ? ` · last used ${new Date(key.lastUsedAt).toLocaleString()}` : ' · never used'}</p>
+            <p className="text-xs text-muted-foreground font-mono mt-0.5">{key.keyPrefix}…</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Scopes: {(key.scopes ?? []).join(', ')}{key.lastUsedAt ? ` · last used ${new Date(key.lastUsedAt).toLocaleString()}` : ' · never used'}</p>
           </div>
           {!key.revokedAt && (
             <Button size="sm" variant="outline" onClick={() => handleRevoke(key.id)}><Trash2 className="w-3.5 h-3.5 mr-1" /> Revoke</Button>
@@ -137,22 +139,22 @@ function DeliveriesList({ subscriptionId }: { subscriptionId: string }) {
   }
 
   const statusColor: Record<string, string> = {
-    delivered: 'bg-green-50 text-green-700', pending: 'bg-amber-50 text-amber-700',
-    delivering: 'bg-blue-50 text-blue-700', failed: 'bg-red-50 text-red-600',
+    delivered: 'bg-emerald-400/10 text-emerald-300', pending: 'bg-amber-400/10 text-amber-300',
+    delivering: 'bg-sky-400/10 text-sky-300', failed: 'bg-red-500/10 text-red-300',
   };
 
-  if (isLoading) return <div className="h-10 bg-stone-50 animate-pulse rounded" />;
-  if (!deliveries?.length) return <p className="text-xs text-stone-400 px-1 py-2">No deliveries yet — they appear here once a matching event fires.</p>;
+  if (isLoading) return <div className="h-10 bg-muted/50 animate-pulse rounded" />;
+  if (!deliveries?.length) return <p className="text-xs text-muted-foreground px-1 py-2">No deliveries yet — they appear here once a matching event fires.</p>;
 
   return (
-    <div className="divide-y divide-stone-100">
+    <div className="divide-y divide-border">
       {deliveries.map(d => (
         <div key={d.id} className="py-2 px-1 flex items-center justify-between gap-2 text-xs">
           <div className="min-w-0">
-            <span className="font-mono text-stone-600">{d.eventType}</span>
-            <span className={`ml-2 px-1.5 py-0.5 rounded font-medium ${statusColor[d.status] ?? 'bg-stone-100 text-stone-500'}`}>{d.status}</span>
-            <span className="ml-2 text-stone-400">attempt {d.attemptCount}{d.lastResponseStatus ? ` · HTTP ${d.lastResponseStatus}` : ''}</span>
-            {d.lastError && <p className="text-red-500 mt-0.5 truncate">{d.lastError}</p>}
+            <span className="font-mono text-muted-foreground">{d.eventType}</span>
+            <span className={`ml-2 px-1.5 py-0.5 rounded font-medium ${statusColor[d.status] ?? 'bg-muted text-muted-foreground'}`}>{d.status}</span>
+            <span className="ml-2 text-muted-foreground">attempt {d.attemptCount}{d.lastResponseStatus ? ` · HTTP ${d.lastResponseStatus}` : ''}</span>
+            {d.lastError && <p className="text-red-300 mt-0.5 truncate">{d.lastError}</p>}
           </div>
           {d.status === 'failed' && (
             <Button size="sm" variant="outline" onClick={() => handleRedeliver(d.id)}><RotateCw className="w-3 h-3 mr-1" /> Redeliver</Button>
@@ -207,8 +209,8 @@ function WebhooksSection() {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-stone-800 flex items-center gap-2"><Webhook className="w-4 h-4" /> Webhook Subscriptions</h3>
-          <p className="text-xs text-stone-400 mt-0.5">HMAC-signed (Standard Webhooks) deliveries for lifecycle events. See <code className="font-mono">docs/automation-api.md</code> for verification code.</p>
+          <h3 className="font-semibold text-foreground flex items-center gap-2"><Webhook className="w-4 h-4" /> Webhook Subscriptions</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">HMAC-signed (Standard Webhooks) deliveries for lifecycle events. See <code className="font-mono">docs/automation-api.md</code> for verification code.</p>
         </div>
         {!creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="w-3.5 h-3.5 mr-1" /> New subscription</Button>}
       </div>
@@ -216,21 +218,23 @@ function WebhooksSection() {
       {newSecret && <CopyableSecret label="Signing secret" value={newSecret} />}
 
       {creating && (
-        <div className="bg-white border border-stone-200 rounded-lg p-4 space-y-3">
-          <Input placeholder="https://your-n8n-instance.example.com/webhook/..." value={url} onChange={e => setUrl(e.target.value)} className="text-sm" />
-          <div className="flex flex-wrap gap-2">
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <Input aria-label="Webhook endpoint URL" placeholder="https://your-n8n-instance.example.com/webhook/..." value={url} onChange={e => setUrl(e.target.value)} className="text-sm" />
+          <div role="group" aria-label="Webhook event types" className="flex flex-wrap gap-2">
             {eventTypes.map(t => (
               <button
                 key={t}
+                type="button"
+                aria-pressed={selectedTypes.includes(t)}
                 onClick={() => setSelectedTypes(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t])}
-                className={`text-xs px-2.5 py-1 rounded-full border font-mono ${selectedTypes.includes(t) ? 'bg-[#C8102E] text-white border-[#C8102E]' : 'border-stone-200 text-stone-500'}`}
+                className={`text-xs px-2.5 py-1 rounded-full border font-mono ${selectedTypes.includes(t) ? 'bg-primary text-white border-brand' : 'border-border text-muted-foreground'}`}
               >
                 {t}
               </button>
             ))}
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleCreate} disabled={busy || !url.trim() || selectedTypes.length === 0} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">
+            <Button size="sm" onClick={handleCreate} disabled={busy || !url.trim() || selectedTypes.length === 0} className="bg-primary hover:bg-primary/90 text-white">
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Create'}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setCreating(false)}>Cancel</Button>
@@ -238,27 +242,27 @@ function WebhooksSection() {
         </div>
       )}
 
-      {isLoading && <div className="h-16 bg-stone-100 animate-pulse rounded-lg" />}
-      {subs?.length === 0 && <div className="bg-white border border-stone-200 rounded-lg p-6 text-center text-stone-400 text-sm">No webhook subscriptions yet.</div>}
+      {isLoading && <div className="h-16 bg-muted animate-pulse rounded-lg" />}
+      {subs?.length === 0 && <div className="bg-card border border-border rounded-2xl p-6 text-center text-muted-foreground text-sm">No webhook subscriptions yet.</div>}
       {subs?.map(sub => (
-        <div key={sub.id} className="bg-white border border-stone-200 rounded-lg overflow-hidden">
+        <div key={sub.id} className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-stone-700 truncate">{sub.url}</p>
-                <Badge variant="outline" className={`text-xs ${sub.isActive ? 'text-green-600 border-green-200' : 'text-stone-400 border-stone-200'}`}>{sub.isActive ? 'Active' : 'Paused'}</Badge>
+                <p className="text-sm font-medium text-foreground/85 truncate">{sub.url}</p>
+                <Badge variant="outline" className={`text-xs ${sub.isActive ? 'text-emerald-300 border-emerald-400/25' : 'text-muted-foreground border-border'}`}>{sub.isActive ? 'Active' : 'Paused'}</Badge>
               </div>
-              <p className="text-xs text-stone-400 font-mono mt-0.5">{(sub.eventTypes ?? []).join(', ')}</p>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">{(sub.eventTypes ?? []).join(', ')}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Button size="sm" variant="outline" onClick={() => setExpanded(expanded === sub.id ? null : sub.id)}>Deliveries</Button>
-              <Button size="sm" variant="outline" onClick={() => handleRotateSecret(sub.id)}><RotateCw className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" aria-label="Rotate signing secret" title="Rotate signing secret" onClick={() => handleRotateSecret(sub.id)}><RotateCw className="w-3.5 h-3.5" aria-hidden="true" /></Button>
               <Button size="sm" variant="outline" onClick={() => handleToggleActive(sub)}>{sub.isActive ? 'Pause' : 'Resume'}</Button>
-              <Button size="sm" variant="outline" onClick={() => handleDelete(sub.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+              <Button size="sm" variant="outline" aria-label="Delete subscription" title="Delete subscription" onClick={() => handleDelete(sub.id)}><Trash2 className="w-3.5 h-3.5" aria-hidden="true" /></Button>
             </div>
           </div>
           {expanded === sub.id && (
-            <div className="border-t border-stone-100 px-4 pb-2">
+            <div className="border-t border-border px-4 pb-2">
               <DeliveriesList subscriptionId={sub.id} />
             </div>
           )}
@@ -272,7 +276,7 @@ export default function AutomationTab() {
   return (
     <div className="space-y-8">
       <ApiKeysSection />
-      <div className="border-t border-stone-100 pt-6">
+      <div className="border-t border-border pt-6">
         <WebhooksSection />
       </div>
     </div>

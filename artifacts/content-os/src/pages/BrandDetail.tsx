@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageHeader, PageShell, StateMessage } from '@/components/layout/Page';
 import { useRoute, Link } from 'wouter';
 import {
   useGetBrand, useUpdateBrand, useListAudienceProfiles, useCreateAudienceProfile,
@@ -83,36 +84,44 @@ export default function BrandDetail() {
   }
 
   if (isLoading) return (
-    <div className="max-w-5xl mx-auto px-8 py-8">
-      <div className="mb-6 space-y-3">
-        <div className="h-3 w-24 bg-stone-100 animate-pulse rounded" />
-        <div className="h-8 w-64 bg-stone-100 animate-pulse rounded" />
-        <div className="h-4 w-40 bg-stone-100 animate-pulse rounded" />
+    <PageShell width="default">
+      <div role="status" aria-label="Loading brand" className="space-y-6">
+        <div className="space-y-3">
+          <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+          <div className="h-9 w-64 animate-pulse rounded-lg bg-muted" />
+          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="h-12 animate-pulse rounded-2xl border border-border bg-card" />
+        <div className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
       </div>
-      <div className="h-10 bg-stone-100 animate-pulse rounded mb-6" />
-      <div className="h-64 bg-stone-100 animate-pulse rounded-lg" />
-    </div>
+    </PageShell>
   );
-  if (!brand) return <div className="px-8 py-8 text-stone-400 text-sm">Brand not found</div>;
+  if (!brand) return (
+    <PageShell width="narrow">
+      <StateMessage
+        tone="error"
+        title="This brand could not be found."
+        description="It may have been deleted, or the link may be out of date."
+        action={<Link href="/brands" className="inline-flex h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Back to Brands</Link>}
+      />
+    </PageShell>
+  );
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-8">
-      <div className="mb-6">
-        <Link href="/brands" className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 mb-3"><ChevronLeft className="w-3 h-3" /> All Brands</Link>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-[#111] font-serif">{brand.name}</h1>
-            {brand.industry && <p className="text-stone-400 text-sm mt-1">{brand.industry}</p>}
-          </div>
-          {!editing && <Button variant="outline" size="sm" onClick={startEdit}>Edit Brand</Button>}
-        </div>
-      </div>
+    <PageShell width="default">
+      <Link href="/brands" className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ChevronLeft className="h-3.5 w-3.5" /> All brands</Link>
+      <PageHeader
+        eyebrow="Brand"
+        title={brand.name}
+        description={brand.industry || undefined}
+        actions={!editing ? <Button variant="outline" onClick={startEdit}>Edit brand</Button> : undefined}
+      />
 
-      <div className="border-b border-stone-200 mb-6">
-        <div className="flex gap-0">
+      <div className="mb-6 overflow-x-auto rounded-2xl border border-border bg-card p-1.5">
+        <div role="tablist" aria-label="Brand sections" className="flex min-w-max gap-1">
           {TABS.map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab ? 'border-[#C8102E] text-[#C8102E]' : 'border-transparent text-stone-500 hover:text-stone-800'}`}>
+            <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}
+              className={`whitespace-nowrap rounded-xl px-3.5 py-2.5 text-xs font-medium transition ${activeTab === tab ? 'bg-secondary text-foreground shadow-[inset_0_-2px_0_0_hsl(var(--brand))]' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'}`}>
               {tab}
             </button>
           ))}
@@ -121,7 +130,7 @@ export default function BrandDetail() {
 
       {/* Identity */}
       {activeTab === 'Identity' && (
-        <div className="bg-white border border-stone-200 rounded-lg p-6 space-y-5">
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
           {editing ? (
             <>
               {([
@@ -132,14 +141,14 @@ export default function BrandDetail() {
                 ['geographicFocus', 'Geographic Focus', false], ['complianceNotes', 'Compliance Notes', true],
               ] as [string, string, boolean][]).map(([key, label, multi]) => (
                 <div key={key}>
-                  <label className="block text-xs font-medium text-stone-600 mb-1.5">{label}</label>
+                  <label htmlFor={`brand-${key}`} className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</label>
                   {multi
-                    ? <Textarea value={form[key] ?? ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} rows={3} />
-                    : <Input value={form[key] ?? ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} />}
+                    ? <Textarea id={`brand-${key}`} value={form[key] ?? ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} rows={3} />
+                    : <Input id={`brand-${key}`} value={form[key] ?? ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} />}
                 </div>
               ))}
               <div className="flex gap-2 pt-2">
-                <Button onClick={async () => { await updateBrand.mutateAsync({ id, data: form }); qc.invalidateQueries({ queryKey: getGetBrandQueryKey(id) }); setEditing(false); }} disabled={updateBrand.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">
+                <Button onClick={async () => { await updateBrand.mutateAsync({ id, data: form }); qc.invalidateQueries({ queryKey: getGetBrandQueryKey(id) }); setEditing(false); }} disabled={updateBrand.isPending} className="bg-primary hover:bg-primary/90 text-white">
                   {updateBrand.isPending ? 'Saving…' : 'Save Changes'}
                 </Button>
                 <Button variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
@@ -154,8 +163,8 @@ export default function BrandDetail() {
                 ['Prohibited Vocabulary', brand.prohibitedVocabulary], ['Compliance Notes', brand.complianceNotes],
               ].map(([label, val]) => val ? (
                 <div key={label as string} className="col-span-2">
-                  <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-1">{label}</p>
-                  <p className="text-sm text-stone-700 leading-relaxed">{val}</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+                  <p className="text-sm text-foreground/85 leading-relaxed">{val}</p>
                 </div>
               ) : null)}
             </div>
@@ -167,31 +176,31 @@ export default function BrandDetail() {
       {activeTab === 'Audience' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <Button onClick={() => setAddingProfile(true)} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"><Plus className="w-4 h-4" /> Add Audience</Button>
+            <Button onClick={() => setAddingProfile(true)} className="bg-primary hover:bg-primary/90 text-white gap-2"><Plus className="w-4 h-4" /> Add Audience</Button>
           </div>
           {addingProfile && (
-            <form onSubmit={async e => { e.preventDefault(); await createProfile.mutateAsync({ id, data: newProfile as any }); qc.invalidateQueries({ queryKey: getListAudienceProfilesQueryKey(id) }); setAddingProfile(false); setNewProfile({ name: '', description: '', ageRange: '' }); }} className="bg-white border border-stone-200 rounded-lg p-5 space-y-3">
-              <div><label className="text-xs font-medium text-stone-500 mb-1 block">Name *</label><Input value={newProfile.name} onChange={e => setNewProfile(p => ({ ...p, name: e.target.value }))} required /></div>
-              <div><label className="text-xs font-medium text-stone-500 mb-1 block">Age Range</label><Input value={newProfile.ageRange} onChange={e => setNewProfile(p => ({ ...p, ageRange: e.target.value }))} placeholder="e.g. 25-40" /></div>
-              <div><label className="text-xs font-medium text-stone-500 mb-1 block">Description</label><Textarea value={newProfile.description} onChange={e => setNewProfile(p => ({ ...p, description: e.target.value }))} rows={2} /></div>
-              <div className="flex gap-2"><Button type="submit" disabled={createProfile.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">{createProfile.isPending ? 'Adding…' : 'Add'}</Button><Button type="button" variant="outline" onClick={() => setAddingProfile(false)}>Cancel</Button></div>
+            <form onSubmit={async e => { e.preventDefault(); await createProfile.mutateAsync({ id, data: newProfile as any }); qc.invalidateQueries({ queryKey: getListAudienceProfilesQueryKey(id) }); setAddingProfile(false); setNewProfile({ name: '', description: '', ageRange: '' }); }} className="bg-card border border-border rounded-2xl p-5 space-y-3">
+              <div><label htmlFor="branddetail-name" className="text-xs font-medium text-muted-foreground mb-1 block">Name *</label><Input id="branddetail-name" value={newProfile.name} onChange={e => setNewProfile(p => ({ ...p, name: e.target.value }))} required /></div>
+              <div><label htmlFor="branddetail-age-range" className="text-xs font-medium text-muted-foreground mb-1 block">Age Range</label><Input id="branddetail-age-range" value={newProfile.ageRange} onChange={e => setNewProfile(p => ({ ...p, ageRange: e.target.value }))} placeholder="e.g. 25-40" /></div>
+              <div><label htmlFor="branddetail-description" className="text-xs font-medium text-muted-foreground mb-1 block">Description</label><Textarea id="branddetail-description" value={newProfile.description} onChange={e => setNewProfile(p => ({ ...p, description: e.target.value }))} rows={2} /></div>
+              <div className="flex gap-2"><Button type="submit" disabled={createProfile.isPending} className="bg-primary hover:bg-primary/90 text-white">{createProfile.isPending ? 'Adding…' : 'Add'}</Button><Button type="button" variant="outline" onClick={() => setAddingProfile(false)}>Cancel</Button></div>
             </form>
           )}
           {profilesLoading && (
             <div className="space-y-3">
-              {[1, 2].map(i => <div key={i} className="h-20 bg-stone-100 animate-pulse rounded-lg" />)}
+              {[1, 2].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />)}
             </div>
           )}
           {!profilesLoading && !profiles?.length && !addingProfile && (
-            <div className="bg-white border border-stone-200 rounded-lg p-8 text-center text-stone-400 text-sm">
+            <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
               No audience profiles yet. Add one to define your reader personas.
-              <p className="mt-1 text-stone-500">Use the <span className="font-medium text-[#C8102E]">Add Audience</span> button above to create your first persona.</p>
+              <p className="mt-1 text-muted-foreground">Use the <span className="font-medium text-brand">Add Audience</span> button above to create your first persona.</p>
             </div>
           )}
           {profiles?.map(profile => (
-            <div key={profile.id} className="bg-white border border-stone-200 rounded-lg p-5">
-              <p className="font-semibold text-stone-800">{profile.name}</p>
-              {profile.demographics && <p className="text-sm text-stone-500 mt-1">{profile.demographics}</p>}
+            <div key={profile.id} className="bg-card border border-border rounded-2xl p-5">
+              <p className="font-semibold text-foreground">{profile.name}</p>
+              {profile.demographics && <p className="text-sm text-muted-foreground mt-1">{profile.demographics}</p>}
             </div>
           ))}
         </div>
@@ -201,24 +210,24 @@ export default function BrandDetail() {
       {activeTab === 'Brand Facts' && (
         <div className="space-y-4">
           <form onSubmit={async e => { e.preventDefault(); if (!newFactClaim.trim()) return; await createFact.mutateAsync({ claim: newFactClaim, isVerified: false }); qc.invalidateQueries({ queryKey: getListBrandFactsQueryKey(id) }); setNewFactClaim(''); }} className="flex gap-2">
-            <Input value={newFactClaim} onChange={e => setNewFactClaim(e.target.value)} placeholder="Add a verified brand fact (e.g. 'Founded in 2010 in Austin, TX')" className="flex-1" />
-            <Button type="submit" disabled={createFact.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Fact</Button>
+            <Input aria-label="New brand fact" value={newFactClaim} onChange={e => setNewFactClaim(e.target.value)} placeholder="Add a verified brand fact (e.g. 'Founded in 2010 in Austin, TX')" className="flex-1" />
+            <Button type="submit" disabled={createFact.isPending} className="bg-primary hover:bg-primary/90 text-white gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Fact</Button>
           </form>
           <div className="space-y-2">
-            {factsLoading && [1, 2, 3].map(i => <div key={i} className="h-12 bg-stone-100 animate-pulse rounded-lg" />)}
-            {!factsLoading && !facts?.length && <p className="text-sm text-stone-400 py-4 text-center">No brand facts yet. Add facts that AI should always know about this brand.</p>}
+            {factsLoading && [1, 2, 3].map(i => <div key={i} className="h-12 bg-muted animate-pulse rounded-lg" />)}
+            {!factsLoading && !facts?.length && <p className="text-sm text-muted-foreground py-4 text-center">No brand facts yet. Add facts that AI should always know about this brand.</p>}
             {facts?.map(fact => (
-              <div key={fact.id} className="flex items-start gap-3 bg-white border border-stone-200 rounded-lg px-4 py-3">
-                <p className="flex-1 text-sm text-stone-700">{fact.claim}</p>
-                {fact.status === 'verified' && <Badge variant="outline" className="text-green-600 border-green-200 text-xs">Verified</Badge>}
+              <div key={fact.id} className="flex items-start gap-3 bg-card border border-border rounded-2xl px-4 py-3">
+                <p className="flex-1 text-sm text-foreground/85">{fact.claim}</p>
+                {fact.status === 'verified' && <Badge variant="outline" className="text-emerald-300 border-emerald-400/25 text-xs">Verified</Badge>}
                 <ConfirmDialog
                   title="Delete brand fact?"
                   description="This brand fact will be permanently removed. This action cannot be undone."
                   disabled={deleteFact.isPending}
                   onConfirm={async () => { await deleteFact.mutateAsync(fact.id); qc.invalidateQueries({ queryKey: getListBrandFactsQueryKey(id) }); }}
                   trigger={
-                    <button className="text-stone-300 hover:text-red-400 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
+                    <button type="button" aria-label="Delete brand fact" className="text-muted-foreground hover:text-red-300 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                   }
                 />
@@ -231,20 +240,20 @@ export default function BrandDetail() {
       {/* Brand Brain */}
       {activeTab === 'Brand Brain' && (
         <div className="space-y-6">
-          <div className="bg-white border border-stone-200 rounded-lg p-5">
-            <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-1">Content Validator</p>
-            <p className="text-xs text-stone-500 mb-3">Paste any draft to check it against this brand's rules — banned phrases, preferred terminology, required claims, and compliance.</p>
-            <Textarea value={validateText} onChange={e => setValidateText(e.target.value)} rows={4} placeholder="Paste content to validate against this brand's rules…" />
+          <div className="bg-card border border-border rounded-2xl p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Content Validator</p>
+            <p className="text-xs text-muted-foreground mb-3">Paste any draft to check it against this brand's rules — banned phrases, preferred terminology, required claims, and compliance.</p>
+            <Textarea aria-label="Content to validate against brand facts" value={validateText} onChange={e => setValidateText(e.target.value)} rows={4} placeholder="Paste content to validate against this brand's rules…" />
             <div className="flex items-center gap-3 mt-2">
-              <Button size="sm" disabled={!validateText.trim() || validateContent.isPending} onClick={() => validateContent.mutate(validateText)} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">
+              <Button size="sm" disabled={!validateText.trim() || validateContent.isPending} onClick={() => validateContent.mutate(validateText)} className="bg-primary hover:bg-primary/90 text-white">
                 {validateContent.isPending ? 'Checking…' : 'Check Against Brand Brain'}
               </Button>
-              {validateContent.data && <span className="text-sm font-semibold text-stone-700">Overall score: {validateContent.data.overallScore}/100</span>}
+              {validateContent.data && <span className="text-sm font-semibold text-foreground/85">Overall score: {validateContent.data.overallScore}/100</span>}
             </div>
             {validateContent.data && (
               <div className="mt-3 space-y-2">
                 {validateContent.data.checks.map(c => (
-                  <div key={c.type} className={`text-xs rounded-lg px-3 py-2 border ${c.passed ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                  <div key={c.type} className={`text-xs rounded-lg px-3 py-2 border ${c.passed ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-amber-400/25 bg-amber-400/10 text-amber-300'}`}>
                     <span className="font-medium">{c.label} ({c.score}/100):</span> {c.detail}
                     {c.violations.length > 0 && <span className="block mt-0.5 opacity-80">{c.violations.slice(0, 5).join('; ')}</span>}
                   </div>
@@ -254,43 +263,43 @@ export default function BrandDetail() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={() => setAddingEntry(true)} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"><Plus className="w-4 h-4" /> Add Knowledge</Button>
+            <Button onClick={() => setAddingEntry(true)} className="bg-primary hover:bg-primary/90 text-white gap-2"><Plus className="w-4 h-4" /> Add Knowledge</Button>
           </div>
           {addingEntry && brain && (
-            <form onSubmit={async e => { e.preventDefault(); if (!newEntry.label.trim() || !newEntry.content.trim()) return; await createEntry.mutateAsync(newEntry); setAddingEntry(false); setNewEntry({ category: 'positioning', label: '', content: '' }); }} className="bg-white border border-stone-200 rounded-lg p-5 space-y-3">
+            <form onSubmit={async e => { e.preventDefault(); if (!newEntry.label.trim() || !newEntry.content.trim()) return; await createEntry.mutateAsync(newEntry); setAddingEntry(false); setNewEntry({ category: 'positioning', label: '', content: '' }); }} className="bg-card border border-border rounded-2xl p-5 space-y-3">
               <div>
-                <label className="text-xs font-medium text-stone-500 mb-1 block">Category</label>
-                <select value={newEntry.category} onChange={e => setNewEntry(f => ({ ...f, category: e.target.value }))} className="w-full border border-stone-200 rounded-md px-3 py-2 text-sm">
+                <label htmlFor="branddetail-category" className="text-xs font-medium text-muted-foreground mb-1 block">Category</label>
+                <select id="branddetail-category" value={newEntry.category} onChange={e => setNewEntry(f => ({ ...f, category: e.target.value }))} className="w-full border border-border rounded-md px-3 py-2 text-sm">
                   {Object.entries(brain.categories).map(([key, meta]) => <option key={key} value={key}>{meta.label}{meta.rule ? ' (rule)' : ''}</option>)}
                 </select>
               </div>
-              <div><label className="text-xs font-medium text-stone-500 mb-1 block">Label *</label><Input value={newEntry.label} onChange={e => setNewEntry(f => ({ ...f, label: e.target.value }))} required /></div>
-              <div><label className="text-xs font-medium text-stone-500 mb-1 block">Content *</label><Textarea value={newEntry.content} onChange={e => setNewEntry(f => ({ ...f, content: e.target.value }))} rows={3} required /></div>
-              <div className="flex gap-2"><Button type="submit" disabled={createEntry.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">{createEntry.isPending ? 'Adding…' : 'Add'}</Button><Button type="button" variant="outline" onClick={() => setAddingEntry(false)}>Cancel</Button></div>
+              <div><label htmlFor="branddetail-label" className="text-xs font-medium text-muted-foreground mb-1 block">Label *</label><Input id="branddetail-label" value={newEntry.label} onChange={e => setNewEntry(f => ({ ...f, label: e.target.value }))} required /></div>
+              <div><label htmlFor="branddetail-content" className="text-xs font-medium text-muted-foreground mb-1 block">Content *</label><Textarea id="branddetail-content" value={newEntry.content} onChange={e => setNewEntry(f => ({ ...f, content: e.target.value }))} rows={3} required /></div>
+              <div className="flex gap-2"><Button type="submit" disabled={createEntry.isPending} className="bg-primary hover:bg-primary/90 text-white">{createEntry.isPending ? 'Adding…' : 'Add'}</Button><Button type="button" variant="outline" onClick={() => setAddingEntry(false)}>Cancel</Button></div>
             </form>
           )}
 
-          {brainLoading && [1, 2, 3].map(i => <div key={i} className="h-14 bg-stone-100 animate-pulse rounded-lg" />)}
+          {brainLoading && [1, 2, 3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}
           {!brainLoading && !brain?.entries.length && !addingEntry && (
-            <div className="bg-white border border-stone-200 rounded-lg p-8 text-center text-stone-400 text-sm">
+            <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
               No brand knowledge entries yet. Add positioning, competitors, terminology, CTAs, and other standing knowledge that should guide generation for this brand.
             </div>
           )}
           {brain?.entries.length ? (
             <div className="space-y-2">
               {brain.entries.map(entry => (
-                <div key={entry.id} className={`flex items-start gap-3 bg-white border rounded-lg px-4 py-3 ${entry.enabled ? 'border-stone-200' : 'border-stone-100 opacity-50'}`}>
+                <div key={entry.id} className={`flex items-start gap-3 bg-card border rounded-lg px-4 py-3 ${entry.enabled ? 'border-border' : 'border-border opacity-50'}`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="text-xs">{brain.categories[entry.category]?.label ?? entry.category}</Badge>
-                      {brain.categories[entry.category]?.rule && <Badge variant="outline" className="text-xs text-blue-600 border-blue-200">Rule</Badge>}
-                      {entry.provenance === 'imported' && <Badge variant="outline" className="text-xs text-stone-400">Imported</Badge>}
-                      <p className="text-sm font-medium text-stone-800">{entry.label}</p>
+                      {brain.categories[entry.category]?.rule && <Badge variant="outline" className="text-xs text-sky-300 border-sky-400/25">Rule</Badge>}
+                      {entry.provenance === 'imported' && <Badge variant="outline" className="text-xs text-muted-foreground">Imported</Badge>}
+                      <p className="text-sm font-medium text-foreground">{entry.label}</p>
                     </div>
-                    <p className="text-sm text-stone-500 mt-1">{entry.content}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{entry.content}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => toggleEntry.mutate({ entryId: entry.id, enabled: !entry.enabled })} className="text-xs text-stone-400 hover:text-stone-700">
+                    <button onClick={() => toggleEntry.mutate({ entryId: entry.id, enabled: !entry.enabled })} className="text-xs text-muted-foreground hover:text-foreground">
                       {entry.enabled ? 'Disable' : 'Enable'}
                     </button>
                     <ConfirmDialog
@@ -298,7 +307,7 @@ export default function BrandDetail() {
                       description="This brand knowledge entry will be permanently removed."
                       disabled={deleteEntry.isPending}
                       onConfirm={() => deleteEntry.mutate(entry.id)}
-                      trigger={<button className="text-stone-300 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>}
+                      trigger={<button type="button" aria-label="Delete knowledge entry" className="text-muted-foreground hover:text-red-300 transition-colors"><Trash2 className="w-3.5 h-3.5" aria-hidden="true" /></button>}
                     />
                   </div>
                 </div>
@@ -311,23 +320,23 @@ export default function BrandDetail() {
       {/* Projects */}
       {activeTab === 'Projects' && (
         <div className="space-y-3">
-          {projectsLoading && [1, 2, 3].map(i => <div key={i} className="h-14 bg-stone-100 animate-pulse rounded-lg" />)}
+          {projectsLoading && [1, 2, 3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}
           {!projectsLoading && !projects?.length && (
-            <div className="bg-white border border-stone-200 rounded-lg p-8 text-center text-stone-400 text-sm">
+            <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
               No projects for this brand yet.{' '}
-              <Link href="/projects" className="text-[#C8102E] underline">Create a project</Link>
+              <Link href="/projects" className="text-brand underline">Create a project</Link>
             </div>
           )}
           {projects?.map(project => (
-            <Link key={project.id} href={`/projects/${project.id}`} className="flex items-center gap-3 bg-white border border-stone-200 hover:border-stone-300 rounded-lg px-5 py-3.5 transition-colors">
-              <FolderKanban className="w-4 h-4 text-stone-300" />
-              <span className="flex-1 text-sm font-medium text-stone-700">{project.title}</span>
-              <span className="text-xs text-stone-400 capitalize">{project.contentType}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${project.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-stone-100 text-stone-400'}`}>{project.status}</span>
+            <Link key={project.id} href={`/projects/${project.id}`} className="flex items-center gap-3 bg-card border border-border hover:border-foreground/25 rounded-2xl px-5 py-3.5 transition-colors">
+              <FolderKanban className="w-4 h-4 text-muted-foreground" />
+              <span className="flex-1 text-sm font-medium text-foreground/85">{project.title}</span>
+              <span className="text-xs text-muted-foreground capitalize">{project.contentType}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${project.status === 'active' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-muted text-muted-foreground'}`}>{project.status}</span>
             </Link>
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

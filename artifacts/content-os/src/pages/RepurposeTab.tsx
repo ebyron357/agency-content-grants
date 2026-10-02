@@ -25,31 +25,31 @@ import { Badge } from '@/components/ui/badge';
 import { PublishDialog } from '@/components/publishing/PublishDialog';
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-stone-100 text-stone-500',
-  approved: 'bg-green-50 text-green-700',
-  rejected: 'bg-red-50 text-red-600',
+  draft: 'bg-muted text-muted-foreground',
+  approved: 'bg-emerald-400/10 text-emerald-300',
+  rejected: 'bg-red-500/10 text-red-300',
 };
 
 const BATCH_STATUS_STYLES: Record<string, string> = {
-  processing: 'text-amber-600',
-  completed: 'text-green-600',
-  partial: 'text-amber-600',
-  failed: 'text-red-500',
+  processing: 'text-amber-300',
+  completed: 'text-emerald-300',
+  partial: 'text-amber-300',
+  failed: 'text-red-300',
 };
 
 function RevisionHistory({ assetId }: { assetId: string }) {
   const { data: revisions, isLoading } = useListRepurposedAssetRevisions(assetId);
-  if (isLoading) return <p className="text-xs text-stone-400 py-2">Loading revisions…</p>;
-  if (!revisions?.length) return <p className="text-xs text-stone-400 py-2">No prior versions yet.</p>;
+  if (isLoading) return <p className="text-xs text-muted-foreground py-2">Loading revisions…</p>;
+  if (!revisions?.length) return <p className="text-xs text-muted-foreground py-2">No prior versions yet.</p>;
   return (
     <div className="space-y-2 py-2">
       {revisions.map((rev) => (
-        <div key={rev.id} className="border border-stone-100 rounded p-2 bg-stone-50">
+        <div key={rev.id} className="border border-border rounded p-2 bg-muted/50">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-stone-600">v{rev.versionNumber} · {rev.editType === 'manual_edit' ? 'Manual edit' : 'Regenerated'}</span>
-            {rev.wasApproved && <span className="text-[10px] text-green-600 font-medium">was approved</span>}
+            <span className="text-xs font-medium text-muted-foreground">v{rev.versionNumber} · {rev.editType === 'manual_edit' ? 'Manual edit' : 'Regenerated'}</span>
+            {rev.wasApproved && <span className="text-[10px] text-emerald-300 font-medium">was approved</span>}
           </div>
-          <p className="text-xs text-stone-500 line-clamp-3 whitespace-pre-wrap">{rev.content}</p>
+          <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">{rev.content}</p>
         </div>
       ))}
     </div>
@@ -72,12 +72,12 @@ function AssetCard({ asset, channelLabel, projectId, batchId, brandId }: { asset
 
   if (asset.errorMessage && !asset.content) {
     return (
-      <div className="bg-white border border-red-100 rounded-lg p-4">
+      <div className="bg-card border border-red-400/25 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-stone-800">{channelLabel}</span>
-          <Badge className="bg-red-50 text-red-600">failed</Badge>
+          <span className="text-sm font-semibold text-foreground">{channelLabel}</span>
+          <Badge className="bg-red-500/10 text-red-300">failed</Badge>
         </div>
-        <p className="text-xs text-red-500 mb-3">{asset.errorMessage}</p>
+        <p className="text-xs text-red-300 mb-3">{asset.errorMessage}</p>
         <Button size="sm" variant="outline" onClick={async () => { await regenerate.mutateAsync({ id: asset.id }); refresh(); }} disabled={busy} className="gap-1.5 text-xs h-7">
           {regenerate.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Try again
         </Button>
@@ -86,17 +86,17 @@ function AssetCard({ asset, channelLabel, projectId, batchId, brandId }: { asset
   }
 
   return (
-    <div className="bg-white border border-stone-200 rounded-lg overflow-hidden">
-      <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between gap-2">
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-stone-800">{channelLabel}</span>
-          <Badge className={STATUS_STYLES[asset.status] ?? 'bg-stone-100 text-stone-500'}>{asset.status}</Badge>
+          <span className="text-sm font-semibold text-foreground">{channelLabel}</span>
+          <Badge className={STATUS_STYLES[asset.status] ?? 'bg-muted text-muted-foreground'}>{asset.status}</Badge>
           {asset.brandCheckScore != null && (
-            <span className={`text-[11px] font-medium ${asset.brandCheckPassed === false ? 'text-amber-600' : 'text-stone-400'}`} title="Brand Brain consistency check">
+            <span className={`text-[11px] font-medium ${asset.brandCheckPassed === false ? 'text-amber-300' : 'text-muted-foreground'}`} title="Brand Brain consistency check">
               Brand check: {Math.round(asset.brandCheckScore)}
             </span>
           )}
-          <span className="text-[11px] text-stone-300">v{asset.versionNumber}</span>
+          <span className="text-[11px] text-muted-foreground">v{asset.versionNumber}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={() => setShowHistory((s) => !s)}>
@@ -106,24 +106,24 @@ function AssetCard({ asset, channelLabel, projectId, batchId, brandId }: { asset
             {regenerate.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Regenerate
           </Button>
           {asset.status !== 'approved' && (
-            <Button size="sm" className="h-7 px-2 text-xs bg-green-600 hover:bg-green-700 text-white gap-1" onClick={async () => { await approve.mutateAsync({ id: asset.id }); refresh(); }} disabled={busy}>
+            <Button size="sm" className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white gap-1" onClick={async () => { await approve.mutateAsync({ id: asset.id }); refresh(); }} disabled={busy}>
               <CheckCircle className="w-3 h-3" /> Approve
             </Button>
           )}
           {asset.status !== 'rejected' && (
-            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 text-stone-500" onClick={async () => { await reject.mutateAsync({ id: asset.id }); refresh(); }} disabled={busy}>
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 text-muted-foreground" onClick={async () => { await reject.mutateAsync({ id: asset.id }); refresh(); }} disabled={busy}>
               <XCircle className="w-3 h-3" /> Reject
             </Button>
           )}
           {asset.status === 'approved' && brandId && (
-            <Button size="sm" className="h-7 px-2 text-xs bg-[#C8102E] hover:bg-[#a80d25] text-white gap-1" onClick={() => setPublishOpen(true)}>
+            <Button size="sm" className="h-7 px-2 text-xs bg-primary hover:bg-primary/90 text-white gap-1" onClick={() => setPublishOpen(true)}>
               <Send className="w-3 h-3" /> Publish
             </Button>
           )}
         </div>
       </div>
       <div className="p-4 space-y-2">
-        <Textarea
+        <Textarea aria-label={`${asset.channel} asset content`}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={asset.channel === 'twitter_thread' || asset.channel === 'short_video_script' ? 8 : 5}
@@ -131,7 +131,7 @@ function AssetCard({ asset, channelLabel, projectId, batchId, brandId }: { asset
         />
         {dirty && (
           <div className="flex justify-end">
-            <Button size="sm" onClick={async () => { await update.mutateAsync({ id: asset.id, data: { content } }); refresh(); }} disabled={busy} className="h-7 text-xs bg-[#C8102E] hover:bg-[#a80d25] text-white">
+            <Button size="sm" onClick={async () => { await update.mutateAsync({ id: asset.id, data: { content } }); refresh(); }} disabled={busy} className="h-7 text-xs bg-primary hover:bg-primary/90 text-white">
               {update.isPending ? 'Saving…' : 'Save edit'}
             </Button>
           </div>
@@ -238,9 +238,9 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
 
   if (!hasContent) {
     return (
-      <div className="bg-white border border-dashed border-stone-200 rounded-lg p-10 text-center text-stone-400">
+      <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center text-muted-foreground">
         <Share2 className="w-8 h-8 mx-auto mb-3 opacity-30" />
-        <p className="text-sm font-medium text-stone-500">Nothing to repurpose yet</p>
+        <p className="text-sm font-medium text-muted-foreground">Nothing to repurpose yet</p>
         <p className="text-xs mt-1">Draft at least one section in the Editor tab before generating derivative assets.</p>
       </div>
     );
@@ -248,12 +248,12 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
 
   return (
     <div className="space-y-5">
-      <div className="bg-white border border-stone-200 rounded-lg p-5 space-y-4">
-        <h3 className="font-semibold text-stone-800">Generate Derivative Assets</h3>
+      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+        <h3 className="font-semibold text-foreground">Generate Derivative Assets</h3>
 
         <div>
-          <label className="text-xs font-medium text-stone-500 block mb-1.5">Source</label>
-          <select value={documentSectionId} onChange={(e) => setDocumentSectionId(e.target.value)} className="w-full border border-stone-200 rounded-md px-3 py-2 text-sm">
+          <label htmlFor="repurpose-source" className="text-xs font-medium text-muted-foreground block mb-1.5">Source</label>
+          <select id="repurpose-source" value={documentSectionId} onChange={(e) => setDocumentSectionId(e.target.value)} className="w-full border border-border rounded-md px-3 py-2 text-sm">
             <option value="">Whole document</option>
             {sections.filter((s: any) => s.content).map((s: any) => (
               <option key={s.id} value={s.id}>{s.title}</option>
@@ -262,14 +262,14 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
         </div>
 
         <div>
-          <label className="text-xs font-medium text-stone-500 block mb-1.5">Channels</label>
-          <div className="flex flex-wrap gap-2">
+          <p id="repurpose-channels" className="text-xs font-medium text-muted-foreground block mb-1.5">Channels</p>
+          <div role="group" aria-labelledby="repurpose-channels" className="flex flex-wrap gap-2">
             {(channels ?? []).map((c) => (
               <button
                 key={c.key}
                 type="button"
                 onClick={() => toggleChannel(c.key)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${selectedChannels.includes(c.key) ? 'bg-[#C8102E] border-[#C8102E] text-white' : 'border-stone-200 text-stone-600 hover:border-stone-300'}`}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${selectedChannels.includes(c.key) ? 'bg-primary border-brand text-white' : 'border-border text-muted-foreground hover:border-foreground/25'}`}
               >
                 {c.label}
               </button>
@@ -279,12 +279,13 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
 
         {brandId && (
           <div>
-            <label className="text-xs font-medium text-stone-500 block mb-1.5">Preset</label>
+            <label htmlFor="repurpose-preset" className="text-xs font-medium text-muted-foreground block mb-1.5">Preset</label>
             <div className="flex items-center gap-2">
               <select
+                id="repurpose-preset"
                 value={selectedPresetId}
                 onChange={(e) => applyPreset(e.target.value)}
-                className="flex-1 border border-stone-200 rounded-md px-3 py-2 text-sm"
+                className="flex-1 border border-border rounded-md px-3 py-2 text-sm"
               >
                 <option value="">No preset — enter values manually</option>
                 {(presets ?? []).map((p) => (
@@ -296,7 +297,7 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 px-2 text-stone-400 hover:text-red-600"
+                  className="h-9 px-2 text-muted-foreground hover:text-red-300"
                   title="Delete this preset"
                   onClick={() => handleDeletePreset(selectedPresetId)}
                   disabled={deletePreset.isPending}
@@ -309,30 +310,30 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Campaign name (optional)" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
-          <Input placeholder="Tone override (optional)" value={tone} onChange={(e) => setTone(e.target.value)} />
-          <Input placeholder="Audience override (optional)" value={audience} onChange={(e) => setAudience(e.target.value)} />
-          <Input placeholder="Call to action (optional)" value={cta} onChange={(e) => setCta(e.target.value)} />
-          <Input placeholder="Target length (optional)" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} />
+          <Input aria-label="Campaign name" placeholder="Campaign name (optional)" value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
+          <Input aria-label="Tone override" placeholder="Tone override (optional)" value={tone} onChange={(e) => setTone(e.target.value)} />
+          <Input aria-label="Audience override" placeholder="Audience override (optional)" value={audience} onChange={(e) => setAudience(e.target.value)} />
+          <Input aria-label="Call to action" placeholder="Call to action (optional)" value={cta} onChange={(e) => setCta(e.target.value)} />
+          <Input aria-label="Target length" placeholder="Target length (optional)" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} />
         </div>
-        <Textarea placeholder="Additional instructions (optional)" value={additionalInstructions} onChange={(e) => setAdditionalInstructions(e.target.value)} rows={2} />
+        <Textarea aria-label="Additional instructions" placeholder="Additional instructions (optional)" value={additionalInstructions} onChange={(e) => setAdditionalInstructions(e.target.value)} rows={2} />
 
         {brandId && hasPresetValues && (
-          <div className="border-t border-stone-100 pt-3">
+          <div className="border-t border-border pt-3">
             {!savingPreset ? (
               <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => setSavingPreset(true)}>
                 <Bookmark className="w-3 h-3" /> Save as preset
               </Button>
             ) : (
               <div className="flex items-center gap-2">
-                <Input
+                <Input aria-label="Preset name"
                   autoFocus
                   placeholder={'Preset name (e.g. "LinkedIn launch CTA")'}
                   value={presetName}
                   onChange={(e) => setPresetName(e.target.value)}
                   className="h-8 text-xs flex-1"
                 />
-                <Button size="sm" className="h-8 text-xs bg-[#C8102E] hover:bg-[#a80d25] text-white" onClick={handleSavePreset} disabled={!presetName.trim() || createPreset.isPending}>
+                <Button size="sm" className="h-8 text-xs bg-primary hover:bg-primary/90 text-white" onClick={handleSavePreset} disabled={!presetName.trim() || createPreset.isPending}>
                   {createPreset.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
                 </Button>
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setSavingPreset(false); setPresetName(''); }}>
@@ -347,7 +348,7 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
           <Button
             onClick={handleGenerate}
             disabled={selectedChannels.length === 0 || createBatch.isPending}
-            className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+            className="bg-primary hover:bg-primary/90 text-white gap-2"
           >
             {createBatch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Generate {selectedChannels.length > 0 ? `(${selectedChannels.length})` : ''}
@@ -356,25 +357,25 @@ export function RepurposeTab({ projectId, brandId }: { projectId: string; brandI
       </div>
 
       <div className="space-y-4">
-        {isLoading && <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />}
+        {isLoading && <div className="h-32 bg-muted animate-pulse rounded-lg" />}
         {!isLoading && !batches?.length && (
-          <div className="bg-white border border-dashed border-stone-200 rounded-lg p-10 text-center text-stone-400">
+          <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center text-muted-foreground">
             <Share2 className="w-8 h-8 mx-auto mb-3 opacity-30" />
-            <p className="text-sm font-medium text-stone-500">No repurposing batches yet</p>
+            <p className="text-sm font-medium text-muted-foreground">No repurposing batches yet</p>
             <p className="text-xs mt-1">Pick channels above and generate your first batch of derivative assets.</p>
           </div>
         )}
         {batches?.map((batch) => (
           <div key={batch.id} className="space-y-3">
             <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {batch.campaignName || new Date(batch.createdAt as string).toLocaleString()}
               </p>
-              <span className={`text-xs font-medium ${BATCH_STATUS_STYLES[batch.status] ?? 'text-stone-400'}`}>
+              <span className={`text-xs font-medium ${BATCH_STATUS_STYLES[batch.status] ?? 'text-muted-foreground'}`}>
                 {batch.status === 'processing' && <Loader2 className="w-3 h-3 inline animate-spin mr-1" />}
                 {batch.status}
               </span>
-              {batch.errorMessage && <span className="text-xs text-red-500">{batch.errorMessage}</span>}
+              {batch.errorMessage && <span className="text-xs text-red-300">{batch.errorMessage}</span>}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {((batch as any).assets ?? []).map((asset: any) => (

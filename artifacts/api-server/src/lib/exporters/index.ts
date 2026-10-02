@@ -21,12 +21,55 @@ import {
   TextRun,
   HeadingLevel,
   AlignmentType,
+  ImageRun,
+  ExternalHyperlink,
 } from "docx";
 import PDFDocument from "pdfkit";
-import { sanitizeRichHtml, sectionText, stripHtml } from "../richText";
+import { sanitizeRichHtml, stripHtml } from "../richText";
 import { resolveMediaPath } from "../mediaStorage";
 import { embedImagesForExport } from "../exportHtml";
 import { getExportRoot } from "../readiness";
+import {
+  blocksToText,
+  describeMedia,
+  fitWidth,
+  imageDimensions,
+  imagePlaceholder,
+  sectionBlocks,
+  type ExportImage,
+  type MediaSummary,
+} from "../exportMedia";
+
+type ExportSection = {
+  title: string;
+  content: string | null;
+  contentFormat?: string | null;
+};
+
+const DOCX_IMAGE_TYPES: Record<string, "png" | "jpg" | "gif"> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+};
+const PDF_IMAGE_TYPES = new Set(["image/png", "image/jpeg"]);
+
+function newMediaSummary(): MediaSummary {
+  return { embedded: 0, placeholders: 0, videos: 0 };
+}
+
+/** Markdown/TXT body for a section; images become labelled placeholders, videos links. */
+function sectionTextForExport(
+  section: ExportSection,
+  style: "markdown" | "plain",
+  summary: MediaSummary,
+): string {
+  const blocks = sectionBlocks(section);
+  for (const block of blocks) {
+    if (block.kind === "image") summary.placeholders++;
+    if (block.kind === "video") summary.videos++;
+  }
+  return blocksToText(blocks, style);
+}
 
 // Persistent export directory — survives server restarts (workspace filesystem, not /tmp)
 async function ensureExportDir() {
@@ -156,12 +199,10 @@ function evidenceHtml(evidence: EvidenceRecord[]): string {
 function buildDocxChildren(
   title: string,
   brand: string,
-  sections: Array<{
-    title: string;
-    content: string | null;
-    contentFormat?: string | null;
-  }>,
+  sections: ExportSection[],
   evidence: EvidenceRecord[] = [],
+  images: Map<string, ExportImage> = new Map(),
+  summary: MediaSummary = newMediaSummary(),
 ): Paragraph[] {
   const paragraphs: Paragraph[] = [];
 
@@ -195,17 +236,73 @@ function buildDocxChildren(
       }),
     );
 
-    const body = sectionText(section) || "[No content drafted yet]";
-    for (const chunk of body.split(/\n\n+/)) {
-      const trimmed = chunk.trim();
-      if (!trimmed) continue;
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: trimmed })],
-          spacing: { after: 160 },
-          alignment: AlignmentType.JUSTIFIED,
-        }),
-      );
+    const blocks = sectionBlocks(section);
+    if (!blocks.length) blocks.push({ kind: "text", text: "[No content drafted yet]" });
+    for (const block of blocks) {
+      if (block.kind === "text") {
+        for (const chunk of block.text.split(/\n\n+/)) {
+          const trimmed = chunk.trim();
+          if (!trimmed) continue;
+          paragraphs.push(
+            new Paragraph({
+              children: [new TextRun({ text: trimmed })],
+              spacing: { after: 160 },
+              alignment: AlignmentType.JUSTIFIED,
+            }),
+          );
+        }
+      } else if (block.kind === "image") {
+        const image = block.id ? images.get(block.id) : undefined;
+        const type = image ? DOCX_IMAGE_TYPES[image.mimeType] : undefined;
+        const size = image && type ? imageDimensions(image.data, image.mimeType) : null;
+        if (image && type && size) {
+          summary.embedded++;
+          paragraphs.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: block.caption ? 60 : 160 },
+              children: [
+                new ImageRun({
+                  type,
+                  data: image.data,
+                  transformation: fitWidth(size, 600),
+                  altText: { name: block.alt || "Image", description: block.alt },
+                }),
+              ],
+            }),
+          );
+          if (block.caption)
+            paragraphs.push(
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 160 },
+                children: [new TextRun({ text: block.caption, italics: true, color: "555555" })],
+              }),
+            );
+        } else {
+          summary.placeholders++;
+          paragraphs.push(
+            new Paragraph({
+              spacing: { after: 160 },
+              children: [new TextRun({ text: imagePlaceholder(block), italics: true })],
+            }),
+          );
+        }
+      } else {
+        summary.videos++;
+        paragraphs.push(
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [
+              new TextRun({ text: `Video: ${block.title} — `, italics: true }),
+              new ExternalHyperlink({
+                link: block.url,
+                children: [new TextRun({ text: block.url, style: "Hyperlink" })],
+              }),
+            ],
+          }),
+        );
+      }
     }
   }
 
@@ -258,12 +355,10 @@ function buildDocxChildren(
 async function generateDocx(
   title: string,
   brand: string,
-  sections: Array<{
-    title: string;
-    content: string | null;
-    contentFormat?: string | null;
-  }>,
+  sections: ExportSection[],
   evidence: EvidenceRecord[] = [],
+  images: Map<string, ExportImage> = new Map(),
+  summary: MediaSummary = newMediaSummary(),
 ): Promise<Buffer> {
   const doc = new Document({
     creator: "Content OS",
@@ -283,7 +378,14 @@ async function generateDocx(
             margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 },
           },
         },
-        children: buildDocxChildren(title, brand, sections, evidence),
+        children: buildDocxChildren(
+          title,
+          brand,
+          sections,
+          evidence,
+          images,
+          summary,
+        ),
       },
     ],
   });
@@ -296,12 +398,10 @@ async function generateDocx(
 async function generatePdf(
   title: string,
   brand: string,
-  sections: Array<{
-    title: string;
-    content: string | null;
-    contentFormat?: string | null;
-  }>,
+  sections: ExportSection[],
   evidence: EvidenceRecord[] = [],
+  images: Map<string, ExportImage> = new Map(),
+  summary: MediaSummary = newMediaSummary(),
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -346,12 +446,60 @@ async function generatePdf(
         .text(section.title, { continued: false })
         .moveDown(0.4);
 
-      const body = sectionText(section) || "[No content drafted yet]";
-      doc
-        .font("Helvetica")
-        .fontSize(11)
-        .text(body, { align: "justify", lineGap: 2 })
-        .moveDown(1.2);
+      const blocks = sectionBlocks(section);
+      if (!blocks.length) blocks.push({ kind: "text", text: "[No content drafted yet]" });
+      const contentWidth =
+        doc.page.width - doc.page.margins.left - doc.page.margins.right;
+      for (const block of blocks) {
+        if (block.kind === "text") {
+          doc
+            .font("Helvetica")
+            .fontSize(11)
+            .text(block.text, { align: "justify", lineGap: 2 })
+            .moveDown(0.6);
+        } else if (block.kind === "image") {
+          const image = block.id ? images.get(block.id) : undefined;
+          if (image && PDF_IMAGE_TYPES.has(image.mimeType)) {
+            try {
+              if (doc.y > doc.page.height - doc.page.margins.bottom - 240) doc.addPage();
+              doc.image(image.data, doc.page.margins.left, doc.y, {
+                fit: [contentWidth, 300],
+                align: "center",
+              });
+              doc.moveDown(0.4);
+              if (block.caption)
+                doc
+                  .font("Helvetica-Oblique")
+                  .fontSize(9)
+                  .fillColor("#555555")
+                  .text(block.caption, { align: "center" })
+                  .fillColor("#000000");
+              doc.moveDown(0.6);
+              summary.embedded++;
+              continue;
+            } catch {
+              // fall back to a labelled placeholder below
+            }
+          }
+          summary.placeholders++;
+          doc
+            .font("Helvetica-Oblique")
+            .fontSize(10)
+            .text(imagePlaceholder(block))
+            .moveDown(0.6);
+        } else {
+          summary.videos++;
+          doc
+            .font("Helvetica-Oblique")
+            .fontSize(10)
+            .text(`Video: ${block.title} — `, { continued: true })
+            .fillColor("#1a56db")
+            .text(block.url, { link: block.url, underline: true })
+            .fillColor("#000000")
+            .moveDown(0.6);
+        }
+      }
+      doc.moveDown(0.6);
     }
 
     if (evidence.length) {
@@ -399,16 +547,13 @@ async function generatePdf(
 function generateMarkdown(
   title: string,
   brand: string,
-  sections: Array<{
-    title: string;
-    content: string | null;
-    contentFormat?: string | null;
-  }>,
+  sections: ExportSection[],
   evidence: EvidenceRecord[] = [],
+  summary: MediaSummary = newMediaSummary(),
 ): string {
   const lines = [`# ${title}`, "", brand ? `*${brand}*` : "", ""];
   for (const section of sections) {
-    const text = sectionText(section);
+    const text = sectionTextForExport(section, "markdown", summary);
     lines.push(
       `## ${section.title}`,
       "",
@@ -470,16 +615,13 @@ function generateHTML(
 
 function generatePlainText(
   title: string,
-  sections: Array<{
-    title: string;
-    content: string | null;
-    contentFormat?: string | null;
-  }>,
+  sections: ExportSection[],
   evidence: EvidenceRecord[] = [],
+  summary: MediaSummary = newMediaSummary(),
 ): string {
   const lines = [title, "=".repeat(title.length), ""];
   for (const section of sections) {
-    const text = sectionText(section) || "[No content]";
+    const text = sectionTextForExport(section, "plain", summary) || "[No content]";
     lines.push(section.title, "-".repeat(section.title.length), text, "");
   }
   return `${lines.join("\n")}\n${evidencePlainText(evidence)}`;
@@ -558,6 +700,8 @@ export async function exportDocument(
   let fileSizeBytes: number;
   let validationNotes = "";
   const issues: string[] = [];
+  const images = new Map(inlineImages.map((image) => [image.id, image]));
+  const media = newMediaSummary();
 
   const hasSectionContent = sorted.some((s) => s.content);
   if (!hasSectionContent) issues.push("No section content in document");
@@ -570,6 +714,8 @@ export async function exportDocument(
         brand?.name ?? "",
         sorted,
         evidence,
+        images,
+        media,
       );
       await writeFile(filePath, buffer);
       fileSizeBytes = buffer.length;
@@ -588,6 +734,8 @@ export async function exportDocument(
         brand?.name ?? "",
         sorted,
         evidence,
+        images,
+        media,
       );
       await writeFile(filePath, buffer);
       fileSizeBytes = buffer.length;
@@ -606,6 +754,7 @@ export async function exportDocument(
         brand?.name ?? "",
         sorted,
         evidence,
+        media,
       );
       filePath = join(getExportRoot(), `${filename}.md`);
       await writeFile(filePath, content, "utf-8");
@@ -636,7 +785,12 @@ export async function exportDocument(
 
     case "txt":
     default: {
-      const content = generatePlainText(document.title, sorted, evidence);
+      const content = generatePlainText(
+        document.title,
+        sorted,
+        evidence,
+        media,
+      );
       filePath = join(getExportRoot(), `${filename}.txt`);
       await writeFile(filePath, content, "utf-8");
       fileSizeBytes = Buffer.byteLength(content, "utf-8");
@@ -648,9 +802,12 @@ export async function exportDocument(
   }
 
   const validationPassed = issues.length === 0;
-  validationNotes = validationPassed
-    ? "All validation checks passed"
-    : issues.join("; ");
+  validationNotes = [
+    validationPassed ? "All validation checks passed" : issues.join("; "),
+    describeMedia(media),
+  ]
+    .filter(Boolean)
+    .join(". ");
 
   return { fileUrl, fileSizeBytes, validationPassed, validationNotes };
 }

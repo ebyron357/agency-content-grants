@@ -8,13 +8,15 @@ import {
   contentImagesTable,
   documentsTable,
   documentSectionsTable,
+  exportsTable,
+  sourcesTable,
 } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getProjectOwned, getBrandOwned } from "../middleware/ownershipHelpers";
 import { emitEvent } from "../lib/webhooks/events";
 import { unlink } from "fs/promises";
-import { resolveMediaPath } from "../lib/mediaStorage";
+import { projectFilePaths } from "../lib/projectFiles";
 
 const router: IRouter = Router();
 
@@ -217,30 +219,43 @@ router.delete("/projects/:id", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const project = await getProjectOwned(id, req.session.userId!, res);
   if (!project) return;
-  const storedImages = await db
-    .select({ storageKey: contentImagesTable.storageKey })
-    .from(contentImagesTable)
-    .innerJoin(
-      documentSectionsTable,
-      eq(contentImagesTable.documentSectionId, documentSectionsTable.id),
-    )
-    .innerJoin(
-      documentsTable,
-      eq(documentSectionsTable.documentId, documentsTable.id),
-    )
-    .where(eq(documentsTable.projectId, id));
+  const [storedImages, storedSources, storedExports] = await Promise.all([
+    db
+      .select({ storageKey: contentImagesTable.storageKey })
+      .from(contentImagesTable)
+      .innerJoin(
+        documentSectionsTable,
+        eq(contentImagesTable.documentSectionId, documentSectionsTable.id),
+      )
+      .innerJoin(
+        documentsTable,
+        eq(documentSectionsTable.documentId, documentsTable.id),
+      )
+      .where(eq(documentsTable.projectId, id)),
+    db
+      .select({ key: sourcesTable.fileObjectPath })
+      .from(sourcesTable)
+      .where(eq(sourcesTable.projectId, id)),
+    db
+      .select({ fileUrl: exportsTable.fileUrl })
+      .from(exportsTable)
+      .where(eq(exportsTable.projectId, id)),
+  ]);
   await db.delete(projectsTable).where(eq(projectsTable.id, id));
+  // Rows are gone; remove the project's images, source PDFs and exports from disk.
+  const paths = projectFilePaths({
+    imageKeys: storedImages.map((row) => row.storageKey),
+    sourceKeys: storedSources.map((row) => row.key),
+    exportUrls: storedExports.map((row) => row.fileUrl),
+  });
   await Promise.all(
-    storedImages.map(async ({ storageKey }) => {
+    paths.map(async (path) => {
       try {
-        await unlink(resolveMediaPath(storageKey));
+        await unlink(path);
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
         if (code !== "ENOENT")
-          req.log?.warn(
-            { err: error, storageKey },
-            "project media cleanup failed",
-          );
+          req.log?.warn({ err: error, path }, "project file cleanup failed");
       }
     }),
   );

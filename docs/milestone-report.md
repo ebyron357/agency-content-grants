@@ -1,3 +1,6 @@
+> **Historical record — superseded.** This is the milestone report of 3 August 2026. It is kept as evidence and does not describe the current product, release or deployment state.
+> Current authority: [`docs/PROJECT_STATUS.md`](PROJECT_STATUS.md) and [`docs/GO_NO_GO_DECISION.md`](GO_NO_GO_DECISION.md); index of current vs historical documents: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](DOCUMENT_OWNERSHIP_MAP.md).
+
 # Content OS — Topic-to-Finished-Content Milestone Report
 **Date:** 2026-08-03  
 **Project:** d200d1e1-8815-49dd-83fc-cfc9ed2fd6cd (E2E verification run)  

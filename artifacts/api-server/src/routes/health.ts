@@ -4,8 +4,17 @@ import { checkReadiness } from "../lib/readiness";
 
 const router: IRouter = Router();
 
+/** Commit of the running build, used to prove repository/deployment parity. */
+export function runningCommit(env: NodeJS.ProcessEnv = process.env): string | null {
+  const commit = (env.RENDER_GIT_COMMIT ?? env.GIT_COMMIT ?? "").trim();
+  return /^[0-9a-f]{7,40}$/i.test(commit) ? commit.toLowerCase() : null;
+}
+
 router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
+  const data = HealthCheckResponse.parse({
+    status: "ok",
+    commit: runningCommit(),
+  });
   res.json(data);
 });
 

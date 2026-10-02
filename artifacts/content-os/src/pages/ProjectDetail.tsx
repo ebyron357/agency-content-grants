@@ -62,6 +62,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { RepurposeTab } from "./RepurposeTab";
 import { PublishDialog } from "@/components/publishing/PublishDialog";
 import { RichEditor } from "@/components/RichEditor";
+import { PageShell, StateMessage } from "@/components/layout/Page";
 
 const WORKFLOW_TABS = [
   { id: "overview", label: "Overview" },
@@ -77,10 +78,10 @@ const WORKFLOW_TABS = [
 
 function ProgressPip({ status }: { status: string }) {
   if (status === "completed")
-    return <div className="w-2 h-2 rounded-full bg-green-500" />;
+    return <div className="w-2 h-2 rounded-full bg-emerald-400" />;
   if (status === "active")
-    return <div className="w-2 h-2 rounded-full bg-[#C8102E]" />;
-  return <div className="w-2 h-2 rounded-full bg-stone-200" />;
+    return <div className="w-2 h-2 rounded-full bg-primary" />;
+  return <div className="w-2 h-2 rounded-full bg-secondary" />;
 }
 
 function ScoreBar({
@@ -92,14 +93,14 @@ function ScoreBar({
 }) {
   const v = value ?? 0;
   const color =
-    v >= 80 ? "bg-green-500" : v >= 60 ? "bg-amber-400" : "bg-red-400";
+    v >= 80 ? "bg-emerald-400" : v >= 60 ? "bg-amber-400" : "bg-red-400";
   return (
     <div>
       <div className="flex justify-between mb-1">
-        <span className="text-xs text-stone-500">{label}</span>
-        <span className="text-xs font-semibold text-stone-700">{v}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-xs font-semibold text-foreground/85">{v}</span>
       </div>
-      <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
         <div
           className={`h-full ${color} rounded-full transition-all`}
           style={{ width: `${v}%` }}
@@ -132,8 +133,8 @@ function OverviewTab({ project, workflowStatus, onEdit }: any) {
   return (
     <div className="space-y-5">
       {workflowStatus && (
-        <div className="bg-white border border-stone-200 rounded-lg p-5">
-          <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             Pipeline
           </h3>
           <div className="flex items-start flex-wrap gap-y-2">
@@ -141,13 +142,13 @@ function OverviewTab({ project, workflowStatus, onEdit }: any) {
               <div key={stage.stage} className="flex items-center">
                 <div className="flex flex-col items-center gap-1">
                   <ProgressPip status={stage.status} />
-                  <span className="text-[9px] text-stone-400 text-center leading-tight w-14">
+                  <span className="text-[9px] text-muted-foreground text-center leading-tight w-14">
                     {stage.label}
                   </span>
                 </div>
                 {i < workflowStatus.stages.length - 1 && (
                   <div
-                    className={`w-5 h-px mb-4 ${stage.status === "completed" ? "bg-green-400" : "bg-stone-200"}`}
+                    className={`w-5 h-px mb-4 ${stage.status === "completed" ? "bg-emerald-400" : "bg-secondary"}`}
                   />
                 )}
               </div>
@@ -155,9 +156,9 @@ function OverviewTab({ project, workflowStatus, onEdit }: any) {
           </div>
         </div>
       )}
-      <div className="bg-white border border-stone-200 rounded-lg p-6">
+      <div className="bg-card border border-border rounded-2xl p-6">
         <div className="flex justify-between items-start mb-4">
-          <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Assignment Brief
           </h3>
           <Button variant="outline" size="sm" onClick={onEdit}>
@@ -168,10 +169,10 @@ function OverviewTab({ project, workflowStatus, onEdit }: any) {
           {fields.map(([label, val]) =>
             val ? (
               <div key={label}>
-                <p className="text-xs font-medium text-stone-400 uppercase tracking-wide mb-0.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">
                   {label}
                 </p>
-                <p className="text-sm text-stone-700 leading-relaxed">{val}</p>
+                <p className="text-sm text-foreground/85 leading-relaxed">{val}</p>
               </div>
             ) : null,
           )}
@@ -193,7 +194,7 @@ function ResearchTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-stone-800">Research Plan</h3>
+        <h3 className="font-semibold text-foreground">Research Plan</h3>
         <Button
           onClick={async () => {
             await generate.mutateAsync({ id: projectId, data: {} });
@@ -202,7 +203,7 @@ function ResearchTab({ projectId }: { projectId: string }) {
             });
           }}
           disabled={generate.isPending}
-          className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+          className="bg-primary hover:bg-primary/90 text-white gap-2"
         >
           {generate.isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -213,18 +214,18 @@ function ResearchTab({ projectId }: { projectId: string }) {
         </Button>
       </div>
       {isLoading && (
-        <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />
+        <div className="h-32 bg-muted animate-pulse rounded-lg" />
       )}
       {plan && (
         <>
-          <div className="bg-white border border-stone-200 rounded-lg p-5 space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <Badge
                 variant="outline"
                 className={
                   plan.status === "approved"
-                    ? "text-green-600 border-green-200"
-                    : "text-stone-500"
+                    ? "text-emerald-300 border-emerald-400/25"
+                    : "text-muted-foreground"
                 }
               >
                 {plan.status}
@@ -238,7 +239,7 @@ function ResearchTab({ projectId }: { projectId: string }) {
                       queryKey: getGetResearchPlanQueryKey(projectId),
                     });
                   }}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white"
                 >
                   Approve Plan
                 </Button>
@@ -246,10 +247,10 @@ function ResearchTab({ projectId }: { projectId: string }) {
             </div>
             {plan.summary && (
               <div>
-                <p className="text-xs text-stone-400 font-medium uppercase tracking-wider mb-1">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">
                   Summary
                 </p>
-                <p className="text-sm text-stone-700 leading-relaxed">
+                <p className="text-sm text-foreground/85 leading-relaxed">
                   {plan.summary}
                 </p>
               </div>
@@ -257,40 +258,40 @@ function ResearchTab({ projectId }: { projectId: string }) {
             <div className="grid grid-cols-2 gap-4">
               {plan.geographicBoundaries && (
                 <div>
-                  <p className="text-xs text-stone-400 mb-0.5">
+                  <p className="text-xs text-muted-foreground mb-0.5">
                     Geographic Boundaries
                   </p>
-                  <p className="text-sm text-stone-700">
+                  <p className="text-sm text-foreground/85">
                     {plan.geographicBoundaries}
                   </p>
                 </div>
               )}
               {plan.sourceCategories && (
                 <div>
-                  <p className="text-xs text-stone-400 mb-0.5">
+                  <p className="text-xs text-muted-foreground mb-0.5">
                     Source Categories
                   </p>
-                  <p className="text-sm text-stone-700">
+                  <p className="text-sm text-foreground/85">
                     {plan.sourceCategories}
                   </p>
                 </div>
               )}
               {plan.potentialConflicts && (
                 <div>
-                  <p className="text-xs text-stone-400 mb-0.5">
+                  <p className="text-xs text-muted-foreground mb-0.5">
                     Potential Conflicts
                   </p>
-                  <p className="text-sm text-stone-700">
+                  <p className="text-sm text-foreground/85">
                     {plan.potentialConflicts}
                   </p>
                 </div>
               )}
               {plan.missingInformation && (
                 <div>
-                  <p className="text-xs text-stone-400 mb-0.5">
+                  <p className="text-xs text-muted-foreground mb-0.5">
                     Information Gaps
                   </p>
-                  <p className="text-sm text-stone-700">
+                  <p className="text-sm text-foreground/85">
                     {plan.missingInformation}
                   </p>
                 </div>
@@ -298,17 +299,17 @@ function ResearchTab({ projectId }: { projectId: string }) {
             </div>
           </div>
           {(plan as any).questions?.length > 0 && (
-            <div className="bg-white border border-stone-200 rounded-lg p-5">
-              <h4 className="text-sm font-semibold text-stone-700 mb-3">
+            <div className="bg-card border border-border rounded-2xl p-5">
+              <h4 className="text-sm font-semibold text-foreground/85 mb-3">
                 Research Questions
               </h4>
               <ol className="space-y-2">
                 {(plan as any).questions.map((q: any, i: number) => (
                   <li key={q.id ?? i} className="flex gap-3 items-start">
-                    <span className="text-xs text-stone-300 font-mono mt-0.5 w-4 flex-shrink-0">
+                    <span className="text-xs text-muted-foreground font-mono mt-0.5 w-4 flex-shrink-0">
                       {i + 1}
                     </span>
-                    <p className="text-sm text-stone-700">{q.question}</p>
+                    <p className="text-sm text-foreground/85">{q.question}</p>
                   </li>
                 ))}
               </ol>
@@ -317,9 +318,9 @@ function ResearchTab({ projectId }: { projectId: string }) {
         </>
       )}
       {!isLoading && !plan && (
-        <div className="bg-white border border-dashed border-stone-200 rounded-lg p-10 text-center text-stone-400">
+        <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center text-muted-foreground">
           <Sparkles className="w-8 h-8 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium text-stone-500">
+          <p className="text-sm font-medium text-muted-foreground">
             No research plan yet
           </p>
           <p className="text-xs mt-1">
@@ -371,10 +372,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
     qc.invalidateQueries({ queryKey: getListSourcesQueryKey(projectId) });
 
   const statusColors: Record<string, string> = {
-    pending: "bg-stone-100 text-stone-500",
-    approved: "bg-green-50 text-green-700",
-    rejected: "bg-red-50 text-red-600",
-    needs_review: "bg-amber-50 text-amber-700",
+    pending: "bg-muted text-muted-foreground",
+    approved: "bg-emerald-400/10 text-emerald-300",
+    rejected: "bg-red-500/10 text-red-300",
+    needs_review: "bg-amber-400/10 text-amber-300",
   };
 
   const handlePdfUpload = async (e: React.FormEvent) => {
@@ -418,18 +419,18 @@ function SourcesTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-stone-800">Source Library</h3>
+        <h3 className="font-semibold text-foreground">Source Library</h3>
         <div className="flex gap-2">
           <Button
             onClick={() => setAdding("pdf")}
             variant="outline"
-            className="gap-2 text-stone-600"
+            className="gap-2 text-muted-foreground"
           >
             <FileText className="w-4 h-4" /> Upload PDF
           </Button>
           <Button
             onClick={() => setAdding("url")}
-            className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+            className="bg-primary hover:bg-primary/90 text-white gap-2"
           >
             <Plus className="w-4 h-4" /> Add Source
           </Button>
@@ -453,14 +454,14 @@ function SourcesTab({ projectId }: { projectId: string }) {
               relevantExcerpts: "",
             });
           }}
-          className="bg-white border border-stone-200 rounded-lg p-5 space-y-3"
+          className="bg-card border border-border rounded-2xl p-5 space-y-3"
         >
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-title" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Title *
               </label>
-              <Input
+              <Input id="projectdetail-title"
                 value={ns.title}
                 onChange={(e) =>
                   setNs((s) => ({ ...s, title: e.target.value }))
@@ -469,15 +470,15 @@ function SourcesTab({ projectId }: { projectId: string }) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-type" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Type
               </label>
-              <select
+              <select id="projectdetail-type"
                 value={ns.sourceType}
                 onChange={(e) =>
                   setNs((s) => ({ ...s, sourceType: e.target.value }))
                 }
-                className="w-full border border-stone-200 rounded-md px-3 py-2 text-sm"
+                className="w-full border border-border rounded-md px-3 py-2 text-sm"
               >
                 {[
                   "web",
@@ -496,20 +497,20 @@ function SourcesTab({ projectId }: { projectId: string }) {
               </select>
             </div>
             <div className="col-span-2">
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-url" className="text-xs font-medium text-muted-foreground mb-1 block">
                 URL
               </label>
-              <Input
+              <Input id="projectdetail-url"
                 value={ns.url}
                 onChange={(e) => setNs((s) => ({ ...s, url: e.target.value }))}
                 placeholder="https://…"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-publisher" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Publisher
               </label>
-              <Input
+              <Input id="projectdetail-publisher"
                 value={ns.publisher}
                 onChange={(e) =>
                   setNs((s) => ({ ...s, publisher: e.target.value }))
@@ -517,10 +518,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-publication-date" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Publication Date
               </label>
-              <Input
+              <Input id="projectdetail-publication-date"
                 type="date"
                 value={ns.publicationDate}
                 onChange={(e) =>
@@ -529,10 +530,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
               />
             </div>
             <div className="col-span-2">
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-relevant-excerpts" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Relevant Excerpts
               </label>
-              <Textarea
+              <Textarea id="projectdetail-relevant-excerpts"
                 value={ns.relevantExcerpts}
                 onChange={(e) =>
                   setNs((s) => ({ ...s, relevantExcerpts: e.target.value }))
@@ -546,7 +547,7 @@ function SourcesTab({ projectId }: { projectId: string }) {
             <Button
               type="submit"
               disabled={createSource.isPending}
-              className="bg-[#C8102E] hover:bg-[#a80d25] text-white"
+              className="bg-primary hover:bg-primary/90 text-white"
             >
               {createSource.isPending ? "Adding…" : "Add Source"}
             </Button>
@@ -565,44 +566,44 @@ function SourcesTab({ projectId }: { projectId: string }) {
       {adding === "pdf" && (
         <form
           onSubmit={handlePdfUpload}
-          className="bg-white border border-stone-200 rounded-lg p-5 space-y-4"
+          className="bg-card border border-border rounded-2xl p-5 space-y-4"
         >
           <div className="flex items-center gap-2 mb-1">
-            <FileText className="w-4 h-4 text-[#C8102E]" />
-            <h4 className="text-sm font-semibold text-stone-700">
+            <FileText className="w-4 h-4 text-brand" />
+            <h4 className="text-sm font-semibold text-foreground/85">
               Upload PDF Document
             </h4>
           </div>
 
           {/* File picker */}
           <div>
-            <label className="text-xs font-medium text-stone-500 mb-1 block">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
               PDF File *
             </label>
             {pdfFile ? (
-              <div className="flex items-center gap-3 bg-stone-50 border border-stone-200 rounded-md px-3 py-2">
-                <FileText className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                <span className="text-sm text-stone-700 flex-1 truncate">
+              <div className="flex items-center gap-3 bg-muted/50 border border-border rounded-md px-3 py-2">
+                <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm text-foreground/85 flex-1 truncate">
                   {pdfFile.name}
                 </span>
-                <span className="text-xs text-stone-400">
+                <span className="text-xs text-muted-foreground">
                   {(pdfFile.size / 1024).toFixed(0)} KB
                 </span>
                 <button
                   type="button"
                   onClick={() => setPdfFile(null)}
-                  className="text-stone-400 hover:text-stone-600 text-xs"
+                  className="text-muted-foreground hover:text-foreground text-xs"
                 >
                   ✕
                 </button>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-stone-200 rounded-lg p-6 cursor-pointer hover:border-[#C8102E] hover:bg-red-50/30 transition-colors">
-                <Upload className="w-6 h-6 text-stone-300" />
-                <span className="text-sm text-stone-500">
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-2xl p-6 cursor-pointer hover:border-brand hover:bg-red-500/5 transition-colors">
+                <Upload className="w-6 h-6 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
                   Click to select a PDF
                 </span>
-                <span className="text-xs text-stone-400">Max 50 MB</span>
+                <span className="text-xs text-muted-foreground">Max 50 MB</span>
                 <input
                   type="file"
                   accept="application/pdf,.pdf"
@@ -626,13 +627,13 @@ function SourcesTab({ projectId }: { projectId: string }) {
           {/* Optional metadata */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-title-auto-filled-from-filen" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Title{" "}
-                <span className="text-stone-400">
+                <span className="text-muted-foreground">
                   (auto-filled from filename)
                 </span>
               </label>
-              <Input
+              <Input id="projectdetail-title-auto-filled-from-filen"
                 value={pdfMeta.title}
                 onChange={(e) =>
                   setPdfMeta((m) => ({ ...m, title: e.target.value }))
@@ -641,10 +642,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-author" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Author
               </label>
-              <Input
+              <Input id="projectdetail-author"
                 value={pdfMeta.author}
                 onChange={(e) =>
                   setPdfMeta((m) => ({ ...m, author: e.target.value }))
@@ -652,10 +653,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-pdf-publisher" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Publisher
               </label>
-              <Input
+              <Input id="projectdetail-pdf-publisher"
                 value={pdfMeta.publisher}
                 onChange={(e) =>
                   setPdfMeta((m) => ({ ...m, publisher: e.target.value }))
@@ -663,10 +664,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500 mb-1 block">
+              <label htmlFor="projectdetail-pdf-publication-date" className="text-xs font-medium text-muted-foreground mb-1 block">
                 Publication Date
               </label>
-              <Input
+              <Input id="projectdetail-pdf-publication-date"
                 type="date"
                 value={pdfMeta.publicationDate}
                 onChange={(e) =>
@@ -677,7 +678,7 @@ function SourcesTab({ projectId }: { projectId: string }) {
           </div>
 
           {pdfError && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded px-3 py-2">
+            <p className="text-xs text-red-300 bg-red-500/10 border border-red-400/25 rounded px-3 py-2">
               {pdfError}
             </p>
           )}
@@ -686,7 +687,7 @@ function SourcesTab({ projectId }: { projectId: string }) {
             <Button
               type="submit"
               disabled={pdfUploading || !pdfFile}
-              className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+              className="bg-primary hover:bg-primary/90 text-white gap-2"
             >
               {pdfUploading ? (
                 <>
@@ -715,10 +716,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
 
       <div className="space-y-3">
         {isLoading && (
-          <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />
+          <div className="h-32 bg-muted animate-pulse rounded-lg" />
         )}
         {!isLoading && !sources?.length && adding === "none" && (
-          <div className="bg-white border border-dashed border-stone-200 rounded-lg p-8 text-center text-stone-400 text-sm">
+          <div className="bg-card border border-dashed border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
             No sources yet. Add URLs or upload PDF documents to build your
             research library.
           </div>
@@ -726,36 +727,36 @@ function SourcesTab({ projectId }: { projectId: string }) {
         {sources?.map((source) => (
           <div
             key={source.id}
-            className="bg-white border border-stone-200 rounded-lg p-4"
+            className="bg-card border border-border rounded-2xl p-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[source.status ?? ""] ?? "bg-stone-100 text-stone-500"}`}
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[source.status ?? ""] ?? "bg-muted text-muted-foreground"}`}
                   >
                     {source.status}
                   </span>
-                  <span className="text-xs text-stone-400 capitalize">
+                  <span className="text-xs text-muted-foreground capitalize">
                     {source.sourceType}
                   </span>
                   {(source as any).fileObjectPath && (
-                    <span className="text-xs text-stone-400 flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <FileText className="w-3 h-3" /> PDF
                     </span>
                   )}
                   {source.authorityScore != null && (
-                    <span className="text-xs text-stone-400">
+                    <span className="text-xs text-muted-foreground">
                       Authority:{" "}
                       {Math.round((source.authorityScore as number) * 100)}%
                     </span>
                   )}
                 </div>
-                <p className="font-medium text-stone-800 mt-1.5 text-sm">
+                <p className="font-medium text-foreground mt-1.5 text-sm">
                   {source.title}
                 </p>
                 {source.publisher && (
-                  <p className="text-xs text-stone-400 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {source.publisher}
                     {source.publicationDate
                       ? ` · ${source.publicationDate}`
@@ -763,7 +764,7 @@ function SourcesTab({ projectId }: { projectId: string }) {
                   </p>
                 )}
                 {source.relevantExcerpts && (
-                  <p className="text-xs text-stone-500 mt-2 line-clamp-2 italic">
+                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2 italic">
                     "{source.relevantExcerpts}"
                   </p>
                 )}
@@ -809,6 +810,7 @@ function SourcesTab({ projectId }: { projectId: string }) {
                     }}
                     disabled={fetchContent.isPending}
                     title="Fetch content"
+                    aria-label="Fetch content"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                   </Button>
@@ -821,7 +823,8 @@ function SourcesTab({ projectId }: { projectId: string }) {
                       await approveSource.mutateAsync(source.id);
                       refresh();
                     }}
-                    className="text-green-600 border-green-200 hover:bg-green-50"
+                    aria-label={`Approve source ${source.title ?? ""}`.trim()}
+                    className="text-emerald-300 border-emerald-400/25 hover:bg-emerald-400/10"
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
                   </Button>
@@ -840,9 +843,10 @@ function SourcesTab({ projectId }: { projectId: string }) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-red-400 border-red-100 hover:bg-red-50"
+                        aria-label={`Reject source ${source.title ?? ""}`.trim()}
+                        className="text-red-300 border-red-400/25 hover:bg-red-500/10"
                       >
-                        <XCircle className="w-3.5 h-3.5" />
+                        <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
                       </Button>
                     }
                   />
@@ -871,21 +875,21 @@ function ClaimsTab({ projectId }: { projectId: string }) {
     qc.invalidateQueries({ queryKey: getListClaimsQueryKey(projectId) });
 
   const statusColors: Record<string, string> = {
-    supported: "text-green-600 bg-green-50",
-    weakly_supported: "text-amber-600 bg-amber-50",
-    unsupported: "text-red-600 bg-red-50",
-    conflicting: "text-orange-600 bg-orange-50",
-    pending: "text-stone-500 bg-stone-100",
-    outdated: "text-purple-600 bg-purple-50",
+    supported: "text-emerald-300 bg-emerald-400/10",
+    weakly_supported: "text-amber-300 bg-amber-400/10",
+    unsupported: "text-red-300 bg-red-500/10",
+    conflicting: "text-orange-300 bg-orange-400/10",
+    pending: "text-muted-foreground bg-muted",
+    outdated: "text-violet-300 bg-violet-400/10",
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-stone-800">Claims Ledger</h3>
+        <h3 className="font-semibold text-foreground">Claims Ledger</h3>
         <Button
           onClick={() => setAdding(true)}
-          className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+          className="bg-primary hover:bg-primary/90 text-white gap-2"
         >
           <Plus className="w-4 h-4" /> Add Claim
         </Button>
@@ -899,13 +903,13 @@ function ClaimsTab({ projectId }: { projectId: string }) {
             setAdding(false);
             setForm({ claimText: "", claimType: "statistical" });
           }}
-          className="bg-white border border-stone-200 rounded-lg p-5 space-y-3"
+          className="bg-card border border-border rounded-2xl p-5 space-y-3"
         >
           <div>
-            <label className="text-xs font-medium text-stone-500 mb-1 block">
+            <label htmlFor="projectdetail-claim-text" className="text-xs font-medium text-muted-foreground mb-1 block">
               Claim Text *
             </label>
-            <Textarea
+            <Textarea id="projectdetail-claim-text"
               value={form.claimText}
               onChange={(e) =>
                 setForm((f) => ({ ...f, claimText: e.target.value }))
@@ -916,16 +920,16 @@ function ClaimsTab({ projectId }: { projectId: string }) {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-stone-500 mb-1 block">
+            <label htmlFor="projectdetail-claim-type" className="text-xs font-medium text-muted-foreground mb-1 block">
               Type
             </label>
-            <select
+            <select id="projectdetail-claim-type"
               aria-label="Claim type"
               value={form.claimType}
               onChange={(e) =>
                 setForm((f) => ({ ...f, claimType: e.target.value }))
               }
-              className="w-full border border-stone-200 rounded-md px-3 py-2 text-sm"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm"
             >
               {[
                 "statistical",
@@ -946,7 +950,7 @@ function ClaimsTab({ projectId }: { projectId: string }) {
             <Button
               type="submit"
               disabled={createClaim.isPending}
-              className="bg-[#C8102E] hover:bg-[#a80d25] text-white"
+              className="bg-primary hover:bg-primary/90 text-white"
             >
               {createClaim.isPending ? "Adding…" : "Add Claim"}
             </Button>
@@ -962,10 +966,10 @@ function ClaimsTab({ projectId }: { projectId: string }) {
       )}
       <div className="space-y-2">
         {isLoading && (
-          <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />
+          <div className="h-32 bg-muted animate-pulse rounded-lg" />
         )}
         {!isLoading && !claims?.length && !adding && (
-          <div className="bg-white border border-dashed border-stone-200 rounded-lg p-8 text-center text-stone-400 text-sm">
+          <div className="bg-card border border-dashed border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
             No claims tracked yet. Add factual claims to verify before they
             appear in content.
           </div>
@@ -973,39 +977,39 @@ function ClaimsTab({ projectId }: { projectId: string }) {
         {claims?.map((claim: any) => (
           <div
             key={claim.id}
-            className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-start gap-3"
+            className="bg-card border border-border rounded-2xl px-4 py-3 flex items-start gap-3"
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-stone-700 leading-snug">
+              <p className="text-sm text-foreground/85 leading-snug">
                 {claim.claimText}
               </p>
               <div className="flex items-center gap-2 mt-1.5">
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[claim.verificationStatus ?? "pending"] ?? "bg-stone-100 text-stone-500"}`}
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[claim.verificationStatus ?? "pending"] ?? "bg-muted text-muted-foreground"}`}
                 >
                   {claim.verificationStatus ?? "pending"}
                 </span>
-                <span className="text-xs text-stone-400 capitalize">
+                <span className="text-xs text-muted-foreground capitalize">
                   {claim.claimType}
                 </span>
                 {claim.confidence != null && (
-                  <span className="text-xs text-stone-400">
+                  <span className="text-xs text-muted-foreground">
                     Confidence: {Math.round(claim.confidence * 100)}%
                   </span>
                 )}
                 {claim.sourceTitle && (
-                  <span className="text-xs text-blue-600">
+                  <span className="text-xs text-sky-300">
                     Source: {claim.sourceTitle}
                   </span>
                 )}
                 {claim.timeSensitive && (
-                  <span className="text-xs text-amber-500">
+                  <span className="text-xs text-amber-300">
                     ⏰ Time-sensitive
                   </span>
                 )}
               </div>
               {claim.reviewerNotes && (
-                <p className="text-xs text-stone-400 mt-1 italic">
+                <p className="text-xs text-muted-foreground mt-1 italic">
                   {claim.reviewerNotes}
                 </p>
               )}
@@ -1055,7 +1059,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-stone-800">Content Outline</h3>
+        <h3 className="font-semibold text-foreground">Content Outline</h3>
         <div className="flex gap-2">
           {outline && (outline as any).status !== "approved" && (
             <Button
@@ -1064,7 +1068,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
                 await approveOutline.mutateAsync((outline as any).id);
                 refresh();
               }}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white"
             >
               Approve Outline
             </Button>
@@ -1075,7 +1079,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
               refresh();
             }}
             disabled={generate.isPending}
-            className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+            className="bg-primary hover:bg-primary/90 text-white gap-2"
           >
             {generate.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -1087,24 +1091,24 @@ function OutlineTab({ projectId }: { projectId: string }) {
         </div>
       </div>
       {isLoading && (
-        <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />
+        <div className="h-32 bg-muted animate-pulse rounded-lg" />
       )}
       {outline && (
         <div className="space-y-3">
           {sections.map((section: any, i: number) => (
             <div
               key={section.id}
-              className="bg-white border border-stone-200 rounded-lg p-4"
+              className="bg-card border border-border rounded-2xl p-4"
             >
               {editingId === section.id ? (
                 <div className="space-y-3">
-                  <Input
+                  <Input aria-label="Section title"
                     value={editForm.title ?? ""}
                     onChange={(e) =>
                       setEditForm((f) => ({ ...f, title: e.target.value }))
                     }
                   />
-                  <Textarea
+                  <Textarea aria-label="Section purpose"
                     value={editForm.purpose ?? ""}
                     onChange={(e) =>
                       setEditForm((f) => ({ ...f, purpose: e.target.value }))
@@ -1113,7 +1117,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
                     placeholder="Purpose"
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input
+                    <Input aria-label="Target word count"
                       type="number"
                       value={editForm.targetWordCount ?? ""}
                       onChange={(e) =>
@@ -1124,7 +1128,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
                       }
                       placeholder="Target word count"
                     />
-                    <Input
+                    <Input aria-label="Reader outcome"
                       value={editForm.readerOutcome ?? ""}
                       onChange={(e) =>
                         setEditForm((f) => ({
@@ -1146,7 +1150,7 @@ function OutlineTab({ projectId }: { projectId: string }) {
                         refresh();
                         setEditingId(null);
                       }}
-                      className="bg-[#C8102E] text-white"
+                      className="bg-primary text-white"
                     >
                       Save
                     </Button>
@@ -1161,20 +1165,20 @@ function OutlineTab({ projectId }: { projectId: string }) {
                 </div>
               ) : (
                 <div className="flex items-start gap-3">
-                  <span className="text-sm font-mono text-stone-300 w-5 flex-shrink-0 mt-0.5">
+                  <span className="text-sm font-mono text-muted-foreground w-5 flex-shrink-0 mt-0.5">
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-stone-800">
+                    <p className="font-semibold text-foreground">
                       {section.title}
                     </p>
                     {section.purpose && (
-                      <p className="text-xs text-stone-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {section.purpose}
                       </p>
                     )}
                     {section.targetWordCount && (
-                      <p className="text-xs text-stone-400 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         ~{section.targetWordCount} words
                       </p>
                     )}
@@ -1207,9 +1211,10 @@ function OutlineTab({ projectId }: { projectId: string }) {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-red-400 border-red-100"
+                          aria-label={`Delete section ${section.title ?? ""}`.trim()}
+                          className="text-red-300 border-red-400/25"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       }
                     />
@@ -1221,9 +1226,9 @@ function OutlineTab({ projectId }: { projectId: string }) {
         </div>
       )}
       {!isLoading && !outline && (
-        <div className="bg-white border border-dashed border-stone-200 rounded-lg p-10 text-center text-stone-400">
+        <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center text-muted-foreground">
           <Sparkles className="w-8 h-8 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium text-stone-500">No outline yet</p>
+          <p className="text-sm font-medium text-muted-foreground">No outline yet</p>
           <p className="text-xs mt-1">
             Generate a structured outline based on your research and sources
           </p>
@@ -1281,18 +1286,18 @@ function EditorTab({ projectId }: { projectId: string }) {
 
   if (isLoading)
     return (
-      <div className="h-64 animate-pulse rounded-3xl border border-white/[0.08] bg-white/[0.03]" />
+      <div className="h-64 animate-pulse rounded-2xl border border-border bg-muted/50" />
     );
 
   if (!doc)
     return (
-      <div className="flex min-h-[520px] items-center justify-center rounded-3xl border border-dashed border-white/[0.12] bg-[#0d1017] p-10 text-center text-white">
+      <div className="flex min-h-[520px] items-center justify-center rounded-2xl border border-dashed border-input bg-background p-10 text-center text-white">
         <div>
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e5484d]/[0.12] text-[#ff9696]">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/[0.12] text-brand">
             <Sparkles className="h-5 w-5" />
           </div>
           <p className="mb-2 font-semibold">No document yet</p>
-          <p className="mb-5 text-sm text-white/45">
+          <p className="mb-5 text-sm text-muted-foreground">
             Create the document to start drafting from your approved outline.
           </p>
           <Button
@@ -1301,7 +1306,7 @@ function EditorTab({ projectId }: { projectId: string }) {
               refresh();
             }}
             disabled={initDoc.isPending}
-            className="bg-[#e5484d] text-white hover:bg-[#f15b5f]"
+            className="bg-primary text-white hover:bg-primary/90"
           >
             {initDoc.isPending ? "Creating…" : "Create document"}
           </Button>
@@ -1310,19 +1315,19 @@ function EditorTab({ projectId }: { projectId: string }) {
     );
 
   return (
-    <div className="rounded-[28px] border border-white/[0.09] bg-[#0d1017] text-white shadow-2xl shadow-black/20">
+    <div className="rounded-2xl border border-border bg-background text-white shadow-2xl shadow-black/20">
       <div className="grid min-h-[720px] grid-cols-1 lg:grid-cols-[228px_minmax(0,1fr)_240px]">
-        <aside className="border-b border-white/[0.08] p-4 lg:border-b-0 lg:border-r lg:p-5">
+        <aside className="border-b border-border p-4 lg:border-b-0 lg:border-r lg:p-5">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Document map
               </p>
-              <p className="mt-1 text-xs text-white/45">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {(doc as any).wordCount ?? 0} words
               </p>
             </div>
-            <span className="rounded-full border border-white/[0.1] px-2 py-1 text-[10px] text-white/35">
+            <span className="rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground">
               {sections.length} parts
             </span>
           </div>
@@ -1337,8 +1342,8 @@ function EditorTab({ projectId }: { projectId: string }) {
                 className={cn(
                   "group min-w-[170px] rounded-2xl border px-3 py-3 text-left transition-all lg:min-w-0 lg:w-full",
                   selected?.id === section.id
-                    ? "border-[#e5484d]/55 bg-[#e5484d]/[0.12]"
-                    : "border-transparent hover:border-white/[0.08] hover:bg-white/[0.03]",
+                    ? "border-primary/55 bg-primary/[0.12]"
+                    : "border-transparent hover:border-border hover:bg-secondary/60",
                 )}
               >
                 <div className="mb-2 flex items-center justify-between">
@@ -1346,15 +1351,15 @@ function EditorTab({ projectId }: { projectId: string }) {
                     className={cn(
                       "font-mono text-[10px]",
                       selected?.id === section.id
-                        ? "text-[#ff9696]"
-                        : "text-white/25",
+                        ? "text-brand"
+                        : "text-muted-foreground",
                     )}
                   >
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <span className="flex items-center gap-1">
                     {section.isLocked && (
-                      <Lock className="h-3 w-3 text-white/35" />
+                      <Lock className="h-3 w-3 text-muted-foreground" />
                     )}
                     {section.isApproved && (
                       <CheckCircle className="h-3 w-3 text-emerald-300" />
@@ -1366,12 +1371,12 @@ function EditorTab({ projectId }: { projectId: string }) {
                     "line-clamp-2 text-xs font-medium leading-5",
                     selected?.id === section.id
                       ? "text-white"
-                      : "text-white/55",
+                      : "text-muted-foreground",
                   )}
                 >
                   {section.title}
                 </p>
-                <p className="mt-1 text-[10px] text-white/25">
+                <p className="mt-1 text-[10px] text-muted-foreground">
                   {section.wordCount > 0
                     ? `${section.wordCount} words`
                     : "Not drafted"}
@@ -1381,20 +1386,20 @@ function EditorTab({ projectId }: { projectId: string }) {
           </div>
         </aside>
 
-        <section className="min-w-0 border-b border-white/[0.08] lg:border-b-0 lg:border-r">
+        <section className="min-w-0 border-b border-border lg:border-b-0 lg:border-r">
           {selected ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] px-5 py-4 sm:px-8">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-4 sm:px-8">
                 <div>
-                  <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#ff7979]" />{" "}
+                  <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand" />{" "}
                     Writing canvas
                   </div>
                   <h3 className="text-lg font-semibold tracking-tight text-white">
                     {selected.title}
                   </h3>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-white/35">
-                    <span className="rounded-full border border-white/[0.1] px-2 py-0.5">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="rounded-full border border-border px-2 py-0.5">
                       {selected.status}
                     </span>
                     <span>{selected.wordCount || 0} words</span>
@@ -1405,7 +1410,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                 </div>
                 <div className="flex items-center gap-2">
                   {selected.isLocked && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] px-3 py-1.5 text-xs text-white/45">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground">
                       <Lock className="h-3.5 w-3.5" /> Locked
                     </span>
                   )}
@@ -1417,7 +1422,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                         : await lockSection.mutateAsync(selected.id);
                       refresh();
                     }}
-                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.1] px-3 text-xs text-white/55 transition hover:border-white/25 hover:text-white"
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-xs text-muted-foreground transition hover:border-foreground/25 hover:text-white"
                   >
                     {selected.isLocked ? (
                       <Unlock className="h-3.5 w-3.5" />
@@ -1441,7 +1446,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                 </div>
               </div>
               {!selected.isLocked && (
-                <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] bg-white/[0.015] px-5 py-3 sm:px-8">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/30 px-5 py-3 sm:px-8">
                   <button
                     type="button"
                     onClick={async () => {
@@ -1450,7 +1455,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                       refresh();
                     }}
                     disabled={isPending}
-                    className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#e5484d] px-3.5 text-xs font-semibold text-white transition hover:bg-[#f15b5f] disabled:opacity-50"
+                    className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-50"
                   >
                     {draftSection.isPending ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1465,7 +1470,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                         aria-label="AI edit type"
                         value={editType}
                         onChange={(e) => setEditType(e.target.value)}
-                        className="h-9 rounded-xl border border-white/[0.1] bg-[#080a0f] px-3 text-xs text-white/65"
+                        className="h-9 rounded-xl border border-border bg-background px-3 text-xs text-foreground/80"
                       >
                         <option value="natural_tone">Natural tone</option>
                         <option value="developmental">
@@ -1488,7 +1493,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                           refresh();
                         }}
                         disabled={isPending}
-                        className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.1] px-3 text-xs text-white/60 transition hover:border-white/25 hover:text-white"
+                        className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-xs text-muted-foreground transition hover:border-foreground/25 hover:text-white"
                       >
                         {editSection.isPending && (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1503,7 +1508,7 @@ function EditorTab({ projectId }: { projectId: string }) {
                         type="button"
                         onClick={handleSave}
                         disabled={saving}
-                        className="inline-flex h-9 items-center gap-2 rounded-xl bg-white px-3.5 text-xs font-semibold text-[#0d1017] transition hover:bg-white/90"
+                        className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
                       >
                         {saving && (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1523,11 +1528,11 @@ function EditorTab({ projectId }: { projectId: string }) {
                 {isPending ? (
                   <div className="flex h-full min-h-[560px] items-center justify-center">
                     <div className="text-center">
-                      <Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin text-[#ff7979]" />
-                      <p className="text-sm text-white/60">
+                      <Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin text-brand" />
+                      <p className="text-sm text-muted-foreground">
                         AI is writing this section…
                       </p>
-                      <p className="mt-1 text-xs text-white/30">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         The canvas will update when the pass is complete.
                       </p>
                     </div>
@@ -1550,10 +1555,10 @@ function EditorTab({ projectId }: { projectId: string }) {
           ) : (
             <div className="flex min-h-[560px] items-center justify-center p-8 text-center">
               <div>
-                <p className="text-sm font-medium text-white/65">
+                <p className="text-sm font-medium text-foreground/80">
                   Select a section to start writing
                 </p>
-                <p className="mt-1 text-xs text-white/30">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Your section navigation stays visible as you move through the
                   draft.
                 </p>
@@ -1565,19 +1570,19 @@ function EditorTab({ projectId }: { projectId: string }) {
         <aside className="p-5 sm:p-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Workspace intelligence
               </p>
-              <p className="mt-1 text-xs text-white/45">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Context for this section
               </p>
             </div>
-            <Sparkles className="h-4 w-4 text-[#ff7979]" />
+            <Sparkles className="h-4 w-4 text-brand" />
           </div>
           <div className="space-y-3">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
+            <div className="rounded-2xl border border-border bg-muted/40 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-medium text-white/65">
+                <span className="text-xs font-medium text-foreground/80">
                   Section state
                 </span>
                 <span className="h-2 w-2 rounded-full bg-emerald-300" />
@@ -1585,11 +1590,11 @@ function EditorTab({ projectId }: { projectId: string }) {
               <p className="text-2xl font-semibold text-white">
                 {selected?.wordCount ?? 0}
               </p>
-              <p className="mt-1 text-xs text-white/30">words in this pass</p>
-              <div className="mt-4 h-1 rounded-full bg-white/[0.08]">
-                <div className="h-full w-[72%] rounded-full bg-[#e5484d]" />
+              <p className="mt-1 text-xs text-muted-foreground">words in this pass</p>
+              <div className="mt-4 h-1 rounded-full bg-secondary">
+                <div className="h-full w-[72%] rounded-full bg-primary" />
               </div>
-              <p className="mt-2 text-[10px] text-white/30">
+              <p className="mt-2 text-[10px] text-muted-foreground">
                 Draft completeness · active
               </p>
             </div>
@@ -1613,13 +1618,13 @@ function EditorTab({ projectId }: { projectId: string }) {
                 View quality signals
               </button>
             </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
-              <p className="mb-3 text-xs font-medium text-white/65">
+            <div className="rounded-2xl border border-border bg-muted/40 p-4">
+              <p className="mb-3 text-xs font-medium text-foreground/80">
                 Next best action
               </p>
               <div className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#ff7979]" />
-                <p className="text-xs leading-5 text-white/45">
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-brand" />
+                <p className="text-xs leading-5 text-muted-foreground">
                   {selected?.isApproved
                     ? "Move to the next section or export the document."
                     : "Review this section, then approve it when the voice and evidence feel right."}
@@ -1667,15 +1672,15 @@ function QualityTab({
 
   const issues = (evaluation as any)?.issues ?? [];
   const severityColors: Record<string, string> = {
-    critical: "bg-red-50 border-red-100 text-red-700",
-    warning: "bg-amber-50 border-amber-100 text-amber-700",
-    info: "bg-blue-50 border-blue-100 text-blue-700",
+    critical: "bg-red-500/10 border-red-400/25 text-red-300",
+    warning: "bg-amber-400/10 border-amber-400/25 text-amber-300",
+    info: "bg-sky-400/10 border-sky-400/25 text-sky-300",
   };
 
   return (
     <div className="space-y-5">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-stone-800">Quality Evaluation</h3>
+        <h3 className="font-semibold text-foreground">Quality Evaluation</h3>
         <Button
           onClick={async () => {
             await runEval.mutateAsync({ id: projectId });
@@ -1684,7 +1689,7 @@ function QualityTab({
             });
           }}
           disabled={runEval.isPending}
-          className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+          className="bg-primary hover:bg-primary/90 text-white gap-2"
         >
           {runEval.isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -1695,26 +1700,26 @@ function QualityTab({
         </Button>
       </div>
       {isLoading && (
-        <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />
+        <div className="h-32 bg-muted animate-pulse rounded-lg" />
       )}
       {evaluation && (
         <div className="space-y-5">
           <div
-            className={`flex items-center gap-3 p-4 rounded-lg border ${evaluation.isPublicationReady ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}
+            className={`flex items-center gap-3 p-4 rounded-lg border ${evaluation.isPublicationReady ? "bg-emerald-400/10 border-emerald-400/25" : "bg-amber-400/10 border-amber-400/25"}`}
           >
             {evaluation.isPublicationReady ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-emerald-300" />
             ) : (
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              <AlertTriangle className="w-5 h-5 text-amber-300" />
             )}
             <div className="flex-1">
-              <p className="font-semibold text-stone-800 text-sm">
+              <p className="font-semibold text-foreground text-sm">
                 {evaluation.isPublicationReady
                   ? "Ready for publication"
                   : "Not yet publication-ready"}
               </p>
               {evaluation.summary && (
-                <p className="text-xs text-stone-600 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {evaluation.summary}
                 </p>
               )}
@@ -1723,14 +1728,14 @@ function QualityTab({
               <Button
                 size="sm"
                 onClick={() => setPublishOpen(true)}
-                className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-1.5 flex-shrink-0"
+                className="bg-primary hover:bg-primary/90 text-white gap-1.5 flex-shrink-0"
               >
                 <Send className="w-3.5 h-3.5" /> Publish
               </Button>
             )}
           </div>
-          <div className="bg-white border border-stone-200 rounded-lg p-5">
-            <h4 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4">
+          <div className="bg-card border border-border rounded-2xl p-5">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
               Quality Scores
             </h4>
             <div className="grid grid-cols-2 gap-x-8 gap-y-3">
@@ -1740,15 +1745,15 @@ function QualityTab({
             </div>
           </div>
           {issues.length > 0 && (
-            <div className="bg-white border border-stone-200 rounded-lg p-5">
-              <h4 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">
+            <div className="bg-card border border-border rounded-2xl p-5">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Issues to Address
               </h4>
               <div className="space-y-2">
                 {issues.map((issue: any, i: number) => (
                   <div
                     key={issue.id ?? i}
-                    className={`rounded border px-4 py-3 ${severityColors[issue.severity] ?? "bg-stone-50 border-stone-100 text-stone-700"}`}
+                    className={`rounded border px-4 py-3 ${severityColors[issue.severity] ?? "bg-muted/50 border-border text-foreground/85"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium">{issue.description}</p>
@@ -1769,9 +1774,9 @@ function QualityTab({
         </div>
       )}
       {!isLoading && !evaluation && (
-        <div className="bg-white border border-dashed border-stone-200 rounded-lg p-10 text-center text-stone-400">
+        <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center text-muted-foreground">
           <CheckCircle className="w-8 h-8 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium text-stone-500">
+          <p className="text-sm font-medium text-muted-foreground">
             No evaluation yet
           </p>
           <p className="text-xs mt-1">
@@ -1808,16 +1813,16 @@ function ExportTab({ projectId }: { projectId: string }) {
     { value: "pdf", label: "PDF Document (.pdf)" },
   ];
   const statusColors: Record<string, string> = {
-    completed: "text-green-600",
-    processing: "text-amber-600",
-    failed: "text-red-500",
+    completed: "text-emerald-300",
+    processing: "text-amber-300",
+    failed: "text-red-300",
   };
 
   return (
     <div className="space-y-5">
-      <div className="bg-white border border-stone-200 rounded-lg p-5">
-        <h3 className="font-semibold text-stone-800 mb-2">Export Document</h3>
-        <p className="text-xs text-stone-500 mb-4">
+      <div className="bg-card border border-border rounded-2xl p-5">
+        <h3 className="font-semibold text-foreground mb-2">Export Document</h3>
+        <p className="text-xs text-muted-foreground mb-4">
           Every export includes an evidence register when this project has
           sources or claims, including source links, retrieval status, and
           supporting excerpts.
@@ -1827,7 +1832,7 @@ function ExportTab({ projectId }: { projectId: string }) {
             aria-label="Export format"
             value={format}
             onChange={(e) => setFormat(e.target.value)}
-            className="border border-stone-200 rounded-md px-3 py-2 text-sm flex-1"
+            className="border border-border rounded-md px-3 py-2 text-sm flex-1"
           >
             {FORMATS.map((f) => (
               <option key={f.value} value={f.value}>
@@ -1846,7 +1851,7 @@ function ExportTab({ projectId }: { projectId: string }) {
               });
             }}
             disabled={createExport.isPending}
-            className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2"
+            className="bg-primary hover:bg-primary/90 text-white gap-2"
           >
             <Download className="w-4 h-4" />
             {createExport.isPending ? "Exporting…" : "Export"}
@@ -1855,19 +1860,19 @@ function ExportTab({ projectId }: { projectId: string }) {
       </div>
       <div className="space-y-2">
         {isLoading && (
-          <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />
+          <div className="h-32 bg-muted animate-pulse rounded-lg" />
         )}
         {exports?.map((exp) => (
           <div
             key={exp.id}
-            className="bg-white border border-stone-200 rounded-lg px-4 py-3 flex items-center gap-3"
+            className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-3"
           >
-            <Download className="w-4 h-4 text-stone-300" />
+            <Download className="w-4 h-4 text-muted-foreground" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-stone-700">
+              <p className="text-sm font-medium text-foreground/85">
                 {exp.format} export
               </p>
-              <p className="text-xs text-stone-400">
+              <p className="text-xs text-muted-foreground">
                 {exp.createdAt
                   ? new Date(exp.createdAt as string).toLocaleString()
                   : ""}
@@ -1876,13 +1881,13 @@ function ExportTab({ projectId }: { projectId: string }) {
                   : ""}
               </p>
               {exp.validationNotes && (
-                <p className="text-xs text-stone-400 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {exp.validationNotes}
                 </p>
               )}
             </div>
             <span
-              className={`text-xs font-medium ${statusColors[exp.status ?? ""] ?? "text-stone-400"}`}
+              className={`text-xs font-medium ${statusColors[exp.status ?? ""] ?? "text-muted-foreground"}`}
             >
               {exp.status}
             </span>
@@ -1890,7 +1895,7 @@ function ExportTab({ projectId }: { projectId: string }) {
               <a
                 href={resolveApiAssetUrl(exp.fileUrl as string)}
                 download
-                className="text-xs text-[#C8102E] underline hover:no-underline"
+                className="text-xs text-brand underline hover:no-underline"
               >
                 Download
               </a>
@@ -1898,9 +1903,9 @@ function ExportTab({ projectId }: { projectId: string }) {
           </div>
         ))}
         {!isLoading && !exports?.length && (
-          <div className="bg-white border border-dashed border-stone-200 rounded-lg p-10 text-center text-stone-400">
+          <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center text-muted-foreground">
             <Download className="w-8 h-8 mx-auto mb-3 opacity-30" />
-            <p className="text-sm font-medium text-stone-500">No exports yet</p>
+            <p className="text-sm font-medium text-muted-foreground">No exports yet</p>
             <p className="text-xs mt-1">
               Download the finished document as PDF, DOCX, Markdown, or plain
               text using the controls above. Your document must exist first —
@@ -1936,8 +1941,8 @@ function EditProjectModal({ project, onClose, onSave }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-        <h2 className="font-serif text-xl font-bold mb-5">
+      <div className="bg-card rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <h2 className=" text-xl font-bold mb-5">
           Edit Assignment Brief
         </h2>
         <div className="grid grid-cols-2 gap-4">
@@ -1961,11 +1966,11 @@ function EditProjectModal({ project, onClose, onSave }: any) {
             ] as [string, string, boolean, boolean][]
           ).map(([key, label, multi, full]) => (
             <div key={key} className={full || multi ? "col-span-2" : ""}>
-              <label className="block text-xs font-medium text-stone-500 mb-1">
+              <label htmlFor={`brief-${key}`} className="block text-xs font-medium text-muted-foreground mb-1">
                 {label}
               </label>
               {multi ? (
-                <Textarea
+                <Textarea id={`brief-${key}`}
                   value={form[key] ?? ""}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -1974,6 +1979,7 @@ function EditProjectModal({ project, onClose, onSave }: any) {
                 />
               ) : (
                 <Input
+                  id={`brief-${key}`}
                   value={form[key] ?? ""}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -1991,7 +1997,7 @@ function EditProjectModal({ project, onClose, onSave }: any) {
               await onSave(form);
               setSaving(false);
             }}
-            className="bg-[#C8102E] hover:bg-[#a80d25] text-white"
+            className="bg-primary hover:bg-primary/90 text-white"
           >
             {saving ? "Saving…" : "Save Changes"}
           </Button>
@@ -2019,21 +2025,21 @@ function GenerationProgressView({
   isRunning: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[55vh] px-8">
+    <div className="flex min-h-[55vh] flex-col items-center justify-center rounded-2xl border border-border bg-card px-8 py-10" role="status" aria-live="polite">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div className="space-y-2">
-          <div className="w-10 h-10 bg-[#C8102E] rounded-lg flex items-center justify-center mx-auto">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-brand/30 bg-primary/15 text-brand">
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
           </div>
-          <h2 className="text-xl font-bold text-[#111] font-serif">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
             Writing your draft
           </h2>
           {totalCount > 0 ? (
-            <p className="text-sm text-stone-500">
+            <p className="text-sm text-muted-foreground">
               {completedCount} of {totalCount} sections done
             </p>
           ) : (
-            <p className="text-sm text-stone-500">Preparing sections…</p>
+            <p className="text-sm text-muted-foreground">Preparing sections…</p>
           )}
         </div>
 
@@ -2042,22 +2048,22 @@ function GenerationProgressView({
             {draftProgress.map((section) => (
               <div key={section.sectionId} className="flex items-center gap-3">
                 {section.status === "done" ? (
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <CheckCircle className="w-4 h-4 text-emerald-300 flex-shrink-0" />
                 ) : section.status === "drafting" ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-[#C8102E] flex-shrink-0" />
+                  <Loader2 className="w-4 h-4 animate-spin text-brand flex-shrink-0" />
                 ) : section.status === "error" ? (
-                  <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <XCircle className="w-4 h-4 text-red-300 flex-shrink-0" />
                 ) : (
-                  <div className="w-4 h-4 rounded-full border-2 border-stone-200 flex-shrink-0" />
+                  <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0" />
                 )}
                 <span
                   className={cn(
                     "text-sm truncate",
-                    section.status === "done" && "text-stone-400",
+                    section.status === "done" && "text-muted-foreground",
                     section.status === "drafting" &&
-                      "text-stone-800 font-medium",
-                    section.status === "error" && "text-red-600",
-                    section.status === "waiting" && "text-stone-400",
+                      "text-foreground font-medium",
+                    section.status === "error" && "text-red-300",
+                    section.status === "waiting" && "text-muted-foreground",
                   )}
                 >
                   {section.title}
@@ -2068,7 +2074,7 @@ function GenerationProgressView({
         )}
 
         {!isRunning && totalCount === 0 && (
-          <div className="flex items-center justify-center gap-2 text-sm text-stone-400">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span>Loading document…</span>
           </div>
@@ -2129,30 +2135,40 @@ export default function ProjectDetail() {
 
   if (isLoading)
     return (
-      <div className="max-w-6xl mx-auto px-8 py-8">
-        <div className="mb-6 space-y-3">
-          <div className="h-3 w-24 bg-stone-100 animate-pulse rounded" />
-          <div className="h-8 w-2/3 bg-stone-100 animate-pulse rounded-lg" />
-        </div>
-        <div className="border-b border-stone-200 mb-6">
-          <div className="flex gap-3 pb-2">
+      <PageShell>
+        <div role="status" aria-label="Loading document" className="space-y-7">
+          <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+          <div className="space-y-4 rounded-2xl border border-border bg-card p-7">
+            <div className="h-5 w-40 animate-pulse rounded-full bg-muted" />
+            <div className="h-9 w-2/3 animate-pulse rounded-lg bg-muted" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="flex gap-2 rounded-2xl border border-border bg-card p-2">
             {WORKFLOW_TABS.map((tab) => (
-              <div
-                key={tab.id}
-                className="h-4 w-16 bg-stone-100 animate-pulse rounded"
-              />
+              <div key={tab.id} className="h-8 w-20 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
+          <div className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
         </div>
-        <div className="space-y-4">
-          <div className="h-32 bg-stone-100 animate-pulse rounded-lg" />
-          <div className="h-48 bg-stone-100 animate-pulse rounded-lg" />
-        </div>
-      </div>
+      </PageShell>
     );
   if (!project)
     return (
-      <div className="px-8 py-8 text-stone-400 text-sm">Project not found</div>
+      <PageShell width="narrow">
+        <StateMessage
+          tone="error"
+          title="This document could not be found."
+          description="It may have been deleted, or the link may be out of date. Your other documents are unaffected."
+          action={
+            <Link
+              href="/projects"
+              className="inline-flex h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Back to Documents
+            </Link>
+          }
+        />
+      </PageShell>
     );
 
   // Show generation progress while Quick mode section drafting is in flight
@@ -2163,15 +2179,15 @@ export default function ProjectDetail() {
         draftAll.completedCount < draftAll.totalCount))
   ) {
     return (
-      <div className="max-w-6xl mx-auto px-8 py-8">
+      <PageShell width="default">
         <div className="mb-6">
           <Link
             href="/projects"
-            className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 mb-3"
+            className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
-            <ChevronLeft className="w-3 h-3" /> All Projects
+            <ChevronLeft className="h-3.5 w-3.5" /> All documents
           </Link>
-          <h1 className="text-2xl font-bold text-[#111] font-serif leading-snug">
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">
             {project.title}
           </h1>
         </div>
@@ -2181,37 +2197,37 @@ export default function ProjectDetail() {
           totalCount={draftAll.totalCount}
           isRunning={draftAll.isRunning}
         />
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#080a0f] px-4 py-5 text-white sm:px-6 lg:px-8 lg:py-8">
+    <div className="min-h-screen bg-background px-4 py-5 text-white sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-[1480px]">
         <div className="mb-7 flex items-center justify-between gap-4">
           <Link
             href="/projects"
-            className="inline-flex items-center gap-2 text-xs text-white/40 transition hover:text-white"
+            className="inline-flex items-center gap-2 text-xs text-muted-foreground transition hover:text-white"
           >
-            <ChevronLeft className="h-3.5 w-3.5" /> All projects
+            <ChevronLeft className="h-3.5 w-3.5" /> All documents
           </Link>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#ff7979]" /> Editorial
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Editorial
             workspace
           </div>
         </div>
-        <div className="mb-7 rounded-[28px] border border-white/[0.09] bg-[#10131a] p-5 shadow-2xl shadow-black/20 sm:p-7">
+        <div className="mb-7 rounded-2xl border border-border bg-card p-5 shadow-2xl shadow-black/20 sm:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-[#e5484d]/35 bg-[#e5484d]/[0.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#ff9b9b]">
+                <span className="rounded-full border border-primary/35 bg-primary/[0.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">
                   {project.contentType}
                 </span>
                 <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.06] px-2.5 py-1 text-[10px] font-medium text-emerald-200">
                   {project.status}
                 </span>
                 {(project as any).brandName && (
-                  <span className="text-xs text-white/35">
+                  <span className="text-xs text-muted-foreground">
                     {(project as any).brandName}
                   </span>
                 )}
@@ -2219,19 +2235,19 @@ export default function ProjectDetail() {
               <h1 className="max-w-4xl text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
                 {project.title}
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                 Move from brief to approved draft with evidence, quality
                 signals, and a clear next action at every stage.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className="rounded-full border border-white/[0.1] px-3 py-2 text-xs text-white/45">
+              <span className="rounded-full border border-border px-3 py-2 text-xs text-muted-foreground">
                 {(docData as any)?.wordCount ?? 0} words
               </span>
               <button
                 type="button"
                 onClick={() => setEditingProject(true)}
-                className="rounded-xl border border-white/[0.1] px-3.5 py-2 text-xs font-medium text-white/65 transition hover:border-white/25 hover:text-white"
+                className="rounded-xl border border-border px-3.5 py-2 text-xs font-medium text-foreground/80 transition hover:border-foreground/25 hover:text-white"
               >
                 Edit brief
               </button>
@@ -2239,17 +2255,20 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <div className="mb-7 overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#10131a] p-1.5">
-          <div className="flex min-w-max gap-1">
+        <div className="mb-7 overflow-x-auto rounded-2xl border border-border bg-card p-1.5">
+          <div role="tablist" aria-label="Project workflow" className="flex min-w-max gap-1">
             {WORKFLOW_TABS.map((tab) => (
               <button
                 key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
                   "rounded-xl px-3.5 py-2.5 text-xs font-medium whitespace-nowrap transition",
                   activeTab === tab.id
-                    ? "bg-white text-[#0d1017] shadow-lg"
-                    : "text-white/38 hover:bg-white/[0.04] hover:text-white/80",
+                    ? "bg-secondary text-foreground shadow-[inset_0_-2px_0_0_hsl(var(--brand))]"
+                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
                 )}
               >
                 {tab.label}
