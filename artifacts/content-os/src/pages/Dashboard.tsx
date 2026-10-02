@@ -1,18 +1,31 @@
-import { useGetDashboardStats, useGetRecentActivity, useListProviders } from '@workspace/api-client-react';
+import { useGetDashboardStats, useGetRecentActivity, useListProjects, useListProviders } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { AlertTriangle, Activity, ArrowUpRight, Building2, CheckCircle2, Clock, FolderKanban, Sparkles } from 'lucide-react';
+import { AlertTriangle, Activity, ArrowRight, Building2, FolderKanban, Plus, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { PageHeader, PageShell, Panel, PanelHeader, StateMessage } from '@/components/layout/Page';
 
-function StatCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
-  return (
-    <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-      {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}
+// Workflow stages in order; used for progress and pipeline grouping.
+const STAGES = ['assignment', 'research_plan', 'sources', 'claims', 'outline', 'drafting', 'editing', 'quality', 'export'] as const;
 
-const ACTIVITY_ICONS: Record<string, string> = {
+const STAGE_LABELS: Record<string, string> = {
+  assignment: 'Brief',
+  research_plan: 'Research',
+  sources: 'Sources',
+  claims: 'Claims',
+  outline: 'Outline',
+  drafting: 'Drafting',
+  editing: 'Editing',
+  quality: 'Quality review',
+  export: 'Ready to export',
+};
+
+const PIPELINE = [
+  { label: 'Planning', hint: 'Brief, research, sources, claims, outline', stages: ['assignment', 'research_plan', 'sources', 'claims', 'outline'] },
+  { label: 'Drafting', hint: 'Writing and editing sections', stages: ['drafting', 'editing'] },
+  { label: 'In review', hint: 'Quality checks before export', stages: ['quality'] },
+  { label: 'Ready', hint: 'Cleared for export', stages: ['export'] },
+];
+
+const ACTIVITY_LABELS: Record<string, string> = {
   project_created: 'Project created',
   brand_created: 'Brand added',
   research_plan_generated: 'Research plan ready',
@@ -22,95 +35,246 @@ const ACTIVITY_ICONS: Record<string, string> = {
   source_approved: 'Source approved',
 };
 
+function relativeTime(iso?: string) {
+  if (!iso) return '';
+  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function stageProgress(stage?: string) {
+  const index = STAGES.indexOf((stage ?? 'assignment') as (typeof STAGES)[number]);
+  return Math.round(((index < 0 ? 0 : index + 1) / STAGES.length) * 100);
+}
+
 export default function Dashboard() {
-  const { data: stats } = useGetDashboardStats();
+  const stats = useGetDashboardStats();
+  const projects = useListProjects();
   const { data: activity } = useGetRecentActivity();
   const { data: providers } = useListProviders();
 
-  const hasAnyProvider = providers?.some(p => p.isConfigured) ?? false;
-  const hasData = (stats?.totalBrands ?? 0) > 0 || (stats?.totalProjects ?? 0) > 0;
+  const totalBrands = stats.data?.totalBrands ?? 0;
+  const totalProjects = stats.data?.totalProjects ?? 0;
+  const providerMissing = providers !== undefined && !providers.some(p => p.isConfigured);
+
+  const activeProjects = (projects.data ?? [])
+    .filter(p => p.status !== 'archived' && p.status !== 'completed')
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const continueWorking = activeProjects.slice(0, 4);
+
+  const pipeline = PIPELINE.map(group => ({
+    ...group,
+    count: activeProjects.filter(p => group.stages.includes(p.workflowStage)).length,
+  }));
+
+  const workspaceState = stats.data
+    ? `${stats.data.activeProjects} active project${stats.data.activeProjects === 1 ? '' : 's'} · ${totalBrands} brand${totalBrands === 1 ? '' : 's'} · ${stats.data.totalExports} export${stats.data.totalExports === 1 ? '' : 's'}`
+    : 'Loading workspace…';
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Content OS</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Editorial command center</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">Turn a strong idea into publish-ready content with a focused workspace for every stage.</p>
-        </div>
-        <Link href="/create" className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-          <Sparkles className="mr-2 h-4 w-4" /> Create content
-        </Link>
-      </div>
+    <PageShell>
+      <PageHeader
+        eyebrow="Command center"
+        title="Editorial command center"
+        description={workspaceState}
+        actions={
+          <>
+            <Link
+              href="/projects"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              <FolderKanban className="h-4 w-4" aria-hidden="true" /> Documents
+            </Link>
+            <Link
+              href="/create"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90"
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" /> Create content
+            </Link>
+          </>
+        }
+      />
 
-      {stats && !hasData && (
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">Your editorial workspace is ready.</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Start by creating a brand so your content has a consistent voice, audience, and point of view. <Link href="/brands" className="font-semibold text-primary underline underline-offset-2">Set up a brand</Link></p>
+      {stats.isError && (
+        <StateMessage
+          tone="error"
+          title="The dashboard could not load workspace data."
+          description="Your content is unaffected. Check the connection and try again."
+          action={
+            <button
+              type="button"
+              onClick={() => { stats.refetch(); projects.refetch(); }}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-xs font-medium text-foreground hover:bg-secondary"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Retry
+            </button>
+          }
+        />
+      )}
+
+      {providerMissing && (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">AI generation is running in demo mode</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Generated text is clearly labelled placeholder output until an AI provider key is configured on the server.
+              </p>
+            </div>
           </div>
+          <Link href="/settings" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-amber-400/30 px-3 text-xs font-semibold text-amber-200 hover:bg-amber-400/10">
+            Review provider status <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
         </div>
       )}
 
-      {!hasAnyProvider && (
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 dark:border-amber-900/70 dark:bg-amber-950/30">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">AI generation is not configured</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Add a provider in <Link href="/settings" className="font-semibold text-foreground underline underline-offset-2">Settings</Link> to enable live generation. Until then, the workspace remains safe to explore in demo mode.</p>
-          </div>
-        </div>
+      {stats.data && totalBrands === 0 && (
+        <StateMessage
+          title="Start with a brand"
+          description="A brand gives every piece a consistent voice, audience and point of view. It is the one thing Content OS needs before you create content."
+          action={
+            <Link href="/brands" className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+              <Plus className="h-4 w-4" aria-hidden="true" /> Add your first brand
+            </Link>
+          }
+        />
       )}
 
-      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <StatCard label="Brands" value={stats?.totalBrands ?? 0} />
-        <StatCard label="Projects" value={stats?.totalProjects ?? 0} sub={`${stats?.activeProjects ?? 0} active`} />
-        <StatCard label="Documents" value={stats?.totalDocuments ?? 0} />
-        <StatCard label="Exports" value={stats?.totalExports ?? 0} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="rounded-2xl border border-border/70 bg-card shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-            <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /><h2 className="text-sm font-semibold text-foreground">Recent activity</h2></div>
-            <span className="text-xs text-muted-foreground">Latest workspace events</span>
-          </div>
-          <div className="divide-y divide-border/50">
-            {!activity?.length && (
-              <div className="px-6 py-12 text-center"><Sparkles className="mx-auto mb-3 h-6 w-6 text-primary/70" /><p className="text-sm font-medium text-foreground">Your workspace is ready.</p><p className="mt-1 text-xs text-muted-foreground">Create a project to see your production activity here.</p></div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <Panel>
+            <PanelHeader title="Continue working" description="Most recently updated active projects" />
+            {projects.isLoading && (
+              <div className="space-y-3 p-5" role="status" aria-label="Loading projects">
+                {[0, 1, 2].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}
+              </div>
             )}
-            {activity?.map(item => (
-              <div key={item.id} className="flex items-start gap-3 px-5 py-4">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Activity className="h-4 w-4 text-primary" /></div>
-                <div className="min-w-0 flex-1"><p className="text-sm leading-snug text-foreground">{item.description}</p><p className="mt-0.5 text-xs text-muted-foreground">{ACTIVITY_ICONS[item.type ?? ''] ?? 'Workspace update'}{item.brandName ? ` · ${item.brandName}` : ''}</p></div>
-                <span className="mt-0.5 shrink-0 text-xs text-muted-foreground">{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</span>
+            {!projects.isLoading && continueWorking.length === 0 && totalBrands > 0 && (
+              <div className="px-6 py-10 text-center">
+                <p className="text-sm font-medium text-foreground">Nothing in progress yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Create a piece of content and it will appear here so you can pick it back up.</p>
+                <Link href="/create" className="mt-4 inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Create content
+                </Link>
               </div>
-            ))}
-          </div>
-        </section>
-
-        <aside className="space-y-4">
-          <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold text-foreground">Quick actions</h2>
-            <div className="space-y-1">
-              <Link href="/create" className="group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"><span className="flex items-center gap-3"><Sparkles className="h-4 w-4 text-primary" /> Create content</span><ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></Link>
-              <Link href="/projects" className="group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"><span className="flex items-center gap-3"><FolderKanban className="h-4 w-4 text-muted-foreground" /> View projects</span><ArrowUpRight className="h-4 w-4 text-muted-foreground" /></Link>
-              <Link href="/brands" className="group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"><span className="flex items-center gap-3"><Building2 className="h-4 w-4 text-muted-foreground" /> Manage brands</span><ArrowUpRight className="h-4 w-4 text-muted-foreground" /></Link>
-              <Link href="/settings" className="group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"><span className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-muted-foreground" /> Configure providers</span><ArrowUpRight className="h-4 w-4 text-muted-foreground" /></Link>
-            </div>
-          </div>
-
-          {stats?.projectsByStatus && (
-            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-foreground">Project status</h2>
-              <div className="space-y-3">
-                {Object.entries(stats.projectsByStatus).map(([status, count]) => <div key={status} className="flex items-center justify-between"><div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs capitalize text-muted-foreground">{status}</span></div><span className="text-xs font-semibold text-foreground">{count as number}</span></div>)}
+            )}
+            <ul className="divide-y divide-border">
+              {continueWorking.map(project => (
+                <li key={project.id}>
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-secondary/50 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="rounded-full border border-border px-2 py-0.5 font-medium capitalize text-foreground/85">{project.contentType}</span>
+                        {project.brandName && <span>{project.brandName}</span>}
+                        <span aria-hidden="true">·</span>
+                        <span>Updated {relativeTime(project.updatedAt)}</span>
+                      </div>
+                      <p className="truncate text-sm font-semibold text-foreground">{project.title}</p>
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="h-1 w-full max-w-xs overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                          <div className="h-full rounded-full bg-brand" style={{ width: `${stageProgress(project.workflowStage)}%` }} />
+                        </div>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">{STAGE_LABELS[project.workflowStage] ?? project.workflowStage}</span>
+                      </div>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand">
+                      Resume <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {activeProjects.length > continueWorking.length && (
+              <div className="border-t border-border px-5 py-3">
+                <Link href="/projects" className="text-xs font-semibold text-brand hover:underline">
+                  View all {activeProjects.length} active projects
+                </Link>
               </div>
+            )}
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Recent activity" description="Latest workspace events" icon={<Activity className="h-4 w-4 text-brand" aria-hidden="true" />} />
+            {!activity?.length ? (
+              <p className="px-5 py-8 text-center text-xs text-muted-foreground">Activity from drafting, review and export will appear here.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {activity.slice(0, 6).map(item => (
+                  <li key={item.id} className="flex items-start gap-3 px-5 py-3.5">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/70" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-snug text-foreground">{item.description}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {ACTIVITY_LABELS[item.type ?? ''] ?? 'Workspace update'}{item.brandName ? ` · ${item.brandName}` : ''}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(item.createdAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </div>
+
+        <aside className="space-y-6" aria-label="Production overview">
+          <Panel>
+            <PanelHeader title="Production pipeline" description={`${activeProjects.length} active project${activeProjects.length === 1 ? '' : 's'} by stage`} />
+            <ul className="space-y-1 p-3">
+              {pipeline.map(group => (
+                <li key={group.label} className="flex items-center justify-between rounded-xl px-3 py-2.5">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{group.label}</p>
+                    <p className="text-[11px] text-muted-foreground">{group.hint}</p>
+                  </div>
+                  <span className="min-w-8 rounded-lg bg-muted px-2 py-1 text-center text-sm font-semibold tabular-nums text-foreground">{group.count}</span>
+                </li>
+              ))}
+            </ul>
+            <dl className="grid grid-cols-3 border-t border-border text-center">
+              {[
+                ['Documents', stats.data?.totalDocuments],
+                ['Sources', stats.data?.totalSources],
+                ['Exports', stats.data?.totalExports],
+              ].map(([label, value]) => (
+                <div key={label as string} className="px-2 py-4">
+                  <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">{value ?? '—'}</dd>
+                </div>
+              ))}
+            </dl>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Quick actions" />
+            <div className="space-y-1 p-3">
+              {[
+                { href: '/create', label: 'Create content', icon: Sparkles },
+                { href: '/projects', label: 'Open documents', icon: FolderKanban },
+                { href: '/brands', label: 'Manage brands', icon: Building2 },
+                { href: '/distribution', label: 'Plan distribution', icon: Send },
+              ].map(({ href, label, icon: Icon }) => (
+                <Link key={href} href={href} className="group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-secondary">
+                  <span className="flex items-center gap-3"><Icon className="h-4 w-4 text-muted-foreground group-hover:text-brand" aria-hidden="true" /> {label}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                </Link>
+              ))}
             </div>
-          )}
+          </Panel>
         </aside>
       </div>
-    </div>
+
+      {stats.data && totalProjects === 0 && totalBrands > 0 && (
+        <p className="mt-6 text-center text-xs text-muted-foreground">Tip: Create walks you from a one-line intent to a brief, research plan, outline and first draft.</p>
+      )}
+    </PageShell>
   );
 }

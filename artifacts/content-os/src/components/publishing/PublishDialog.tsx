@@ -69,16 +69,16 @@ export function PublishDialog({ open, onOpenChange, brandId, sourceType, documen
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label className="text-xs text-stone-500">Destination</Label>
+            <Label htmlFor="publishdialog-destination" className="text-xs text-muted-foreground">Destination</Label>
             {isLoading ? (
-              <div className="h-9 bg-stone-100 rounded animate-pulse" />
+              <div className="h-9 bg-muted rounded animate-pulse" />
             ) : activeDestinations.length === 0 ? (
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded px-3 py-2">
+              <p className="text-xs text-amber-300 bg-amber-400/10 border border-amber-400/25 rounded px-3 py-2">
                 No active destinations yet. Add one from Distribution → Destinations first.
               </p>
             ) : (
               <Select value={destinationId} onValueChange={setDestinationId}>
-                <SelectTrigger><SelectValue placeholder="Choose a destination" /></SelectTrigger>
+                <SelectTrigger id="publishdialog-destination"><SelectValue placeholder="Choose a destination" /></SelectTrigger>
                 <SelectContent>
                   {activeDestinations.map((d) => (
                     <SelectItem key={d.id} value={d.id}>{d.label} ({d.platform})</SelectItem>
@@ -89,21 +89,21 @@ export function PublishDialog({ open, onOpenChange, brandId, sourceType, documen
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-stone-500">When</Label>
-            <div className="flex gap-2">
-              <Button type="button" size="sm" variant={mode === 'now' ? 'default' : 'outline'} className={mode === 'now' ? 'bg-[#C8102E] hover:bg-[#a80d25] text-white' : ''} onClick={() => setMode('now')}>
+            <p id="publish-when" className="text-xs font-medium text-muted-foreground">When</p>
+            <div role="group" aria-labelledby="publish-when" className="flex gap-2">
+              <Button type="button" size="sm" variant={mode === 'now' ? 'default' : 'outline'} className={mode === 'now' ? 'bg-primary hover:bg-primary/90 text-white' : ''} onClick={() => setMode('now')}>
                 <Send className="w-3.5 h-3.5 mr-1.5" /> Publish now
               </Button>
-              <Button type="button" size="sm" variant={mode === 'schedule' ? 'default' : 'outline'} className={mode === 'schedule' ? 'bg-[#C8102E] hover:bg-[#a80d25] text-white' : ''} onClick={() => setMode('schedule')}>
+              <Button type="button" size="sm" variant={mode === 'schedule' ? 'default' : 'outline'} className={mode === 'schedule' ? 'bg-primary hover:bg-primary/90 text-white' : ''} onClick={() => setMode('schedule')}>
                 <CalendarClock className="w-3.5 h-3.5 mr-1.5" /> Schedule
               </Button>
             </div>
             {mode === 'schedule' && (
-              <Input type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} className="mt-2" />
+              <Input type="datetime-local" aria-label="Scheduled date and time" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} className="mt-2" />
             )}
           </div>
 
-          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">{error}</p>}
+          {error && <p role="alert" className="text-xs text-red-300 bg-red-500/10 border border-red-400/25 rounded-xl px-3 py-2">{error}</p>}
         </div>
 
         <DialogFooter>
@@ -111,7 +111,7 @@ export function PublishDialog({ open, onOpenChange, brandId, sourceType, documen
           <Button
             onClick={handleSubmit}
             disabled={createPublication.isPending || activeDestinations.length === 0}
-            className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-1.5"
+            className="bg-primary hover:bg-primary/90 text-white gap-1.5"
           >
             {createPublication.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             {mode === 'now' ? 'Publish' : 'Schedule'}

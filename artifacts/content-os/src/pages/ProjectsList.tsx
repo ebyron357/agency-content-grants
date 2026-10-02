@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useListProjects, useCreateProject, useListBrands, useListBlueprints, getListProjectsQueryKey } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { Plus, FolderKanban, ChevronRight } from 'lucide-react';
+import { Plus, FolderKanban, ArrowRight, Search } from 'lucide-react';
+import { PageHeader, PageShell, StateMessage } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -24,15 +25,15 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-50 text-green-700',
-  draft: 'bg-stone-100 text-stone-500',
-  completed: 'bg-blue-50 text-blue-700',
-  archived: 'bg-stone-100 text-stone-400',
+  active: 'bg-emerald-400/10 text-emerald-300',
+  draft: 'bg-muted text-muted-foreground',
+  completed: 'bg-sky-400/10 text-sky-300',
+  archived: 'bg-muted text-muted-foreground',
 };
 
 export default function ProjectsList() {
   const qc = useQueryClient();
-  const { data: projects, isLoading } = useListProjects();
+  const { data: projects, isLoading, isError, refetch } = useListProjects();
   const { data: brands } = useListBrands();
   const { data: blueprints } = useListBlueprints();
   const createProject = useCreateProject();
@@ -59,91 +60,136 @@ export default function ProjectsList() {
   const brandMap = Object.fromEntries((brands ?? []).map(b => [b.id, b.name]));
 
   const query = search.trim().toLowerCase();
-  const filteredProjects = query
-    ? (projects ?? []).filter(p =>
-        (p.title ?? '').toLowerCase().includes(query) ||
-        ((p as any).topic ?? '').toLowerCase().includes(query))
-    : (projects ?? []);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const sorted = [...(projects ?? [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const types = Array.from(new Set(sorted.map(p => p.contentType))).sort();
+  const filteredProjects = sorted.filter(p =>
+    (typeFilter === 'all' || p.contentType === typeFilter) &&
+    (!query ||
+      (p.title ?? '').toLowerCase().includes(query) ||
+      ((p as any).topic ?? '').toLowerCase().includes(query) ||
+      ((p as any).brandName ?? '').toLowerCase().includes(query)));
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#111] font-serif">Content Projects</h1>
-          <p className="text-stone-500 mt-1 text-sm">{projects?.length ?? 0} projects across all brands</p>
-        </div>
-        <Button onClick={() => setOpen(true)} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2">
-          <Plus className="w-4 h-4" /> New Project
-        </Button>
-      </div>
+    <PageShell width="default">
+      <PageHeader
+        eyebrow="Documents"
+        title="Documents"
+        description={`${projects?.length ?? 0} document project${projects?.length === 1 ? '' : 's'} across all brands, most recently updated first.`}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" /> Blank project
+            </Button>
+            <Link
+              href="/create"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" /> New content
+            </Link>
+          </>
+        }
+      />
+
+      {isError && (
+        <StateMessage
+          tone="error"
+          title="Documents could not be loaded."
+          description="Nothing has been lost. Check the connection and try again."
+          action={<Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>}
+        />
+      )}
 
       {isLoading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-20 bg-stone-100 animate-pulse rounded-lg" />)}
+        <div className="space-y-3" role="status" aria-label="Loading documents">
+          {[1, 2, 3].map(i => <div key={i} className="h-24 animate-pulse rounded-2xl border border-border bg-card" />)}
         </div>
       )}
 
-      {!isLoading && !projects?.length && (
-        <div className="text-center py-16 text-stone-400">
-          <FolderKanban className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="font-medium text-stone-600">No projects yet</p>
-          <p className="text-sm mt-1">Create your first content project to begin</p>
-          <Button onClick={() => setOpen(true)} className="mt-4 bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2">
-            <Plus className="w-4 h-4" /> Create your first project
-          </Button>
+      {!isLoading && !isError && !projects?.length && (
+        <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
+          <FolderKanban className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-semibold text-foreground">No documents yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">Describe what you want to write and Content OS will build the brief, research plan, outline and first draft.</p>
+          <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+            <Plus className="h-4 w-4" aria-hidden="true" /> Create your first document
+          </Link>
         </div>
       )}
 
       {!isLoading && !!projects?.length && (
-        <div className="mb-4">
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search projects by title or topic…"
-            className="max-w-sm"
-          />
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search title, topic or brand…"
+              aria-label="Search documents"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by content type">
+            {['all', ...types].map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTypeFilter(t)}
+                aria-pressed={typeFilter === t}
+                className={`h-8 rounded-lg border px-3 text-xs font-medium capitalize transition-colors ${typeFilter === t ? 'border-brand/50 bg-primary/15 text-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}
+              >
+                {t === 'all' ? 'All types' : t}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card empty:hidden">
         {!isLoading && !!projects?.length && !filteredProjects.length && (
-          <p className="text-sm text-stone-400 py-4 text-center">No projects match “{search}”.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">No documents match your search.</p>
         )}
-        {filteredProjects.map(project => (
-          <Link key={project.id} href={`/projects/${project.id}`} className="flex items-center gap-4 bg-white border border-stone-200 hover:border-stone-300 rounded-lg p-5 transition-colors group">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs bg-stone-100 text-stone-500 px-2 py-0.5 rounded font-medium capitalize">{project.contentType}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded capitalize font-medium ${STATUS_COLORS[project.status ?? ''] ?? 'bg-stone-100 text-stone-400'}`}>{project.status}</span>
+        <ul className="divide-y divide-border">
+          {filteredProjects.map(project => (
+            <li key={project.id}>
+              <Link href={`/projects/${project.id}`} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-secondary/50">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{project.title}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span className="rounded-full border border-border px-2 py-0.5 font-medium capitalize text-foreground/85">{project.contentType}</span>
+                    {(project as any).brandName && <span>{(project as any).brandName}</span>}
+                    <span aria-hidden="true">·</span>
+                    <span>Stage: <span className="text-foreground/85">{STAGE_LABELS[project.workflowStage ?? ''] ?? project.workflowStage}</span></span>
+                    <span aria-hidden="true">·</span>
+                    <span className={`rounded px-1.5 py-0.5 capitalize ${STATUS_COLORS[project.status ?? ''] ?? 'bg-muted text-muted-foreground'}`}>{project.status}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
-                <p className="font-semibold text-[#111] font-serif text-base leading-snug">{project.title}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  {(project as any).brandName && (
-                    <span className="text-xs text-stone-400">{(project as any).brandName}</span>
-                  )}
-                  <span className="text-xs text-stone-300">·</span>
-                  <span className="text-xs text-stone-400">Stage: {STAGE_LABELS[project.workflowStage ?? ''] ?? project.workflowStage}</span>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-stone-500 transition-colors flex-shrink-0" />
-          </Link>
-        ))}
+                <span className="hidden shrink-0 items-center gap-1.5 text-xs font-semibold text-brand sm:inline-flex">
+                  Resume <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-brand sm:hidden" aria-hidden="true" />
+              </Link>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl">New Content Project</DialogTitle>
+            <DialogTitle className="text-xl">New blank project</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate}>
             {step === 1 && (
               <div className="space-y-4 mt-3">
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 mb-1.5">Brand *</label>
-                  <select
+                  <label htmlFor="np-brand" className="mb-1.5 block text-xs font-medium text-muted-foreground">Brand *</label>
+                  <select id="np-brand"
                     value={form.brandId}
                     onChange={e => set('brandId', e.target.value)}
-                    className="w-full border border-stone-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent"
+                    className="h-10 w-full rounded-xl border border-input bg-background/60 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     required
                   >
                     <option value="">Select a brand…</option>
@@ -151,53 +197,53 @@ export default function ProjectsList() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 mb-1.5">Content Type *</label>
-                  <select
+                  <label htmlFor="np-type" className="mb-1.5 block text-xs font-medium text-muted-foreground">Content Type *</label>
+                  <select id="np-type"
                     value={form.contentType}
                     onChange={e => set('contentType', e.target.value)}
-                    className="w-full border border-stone-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                    className="h-10 w-full rounded-xl border border-input bg-background/60 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 mb-1.5">Project Title *</label>
-                  <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. The Complete First-Time Homebuyer's Guide" required />
+                  <label htmlFor="np-title" className="mb-1.5 block text-xs font-medium text-muted-foreground">Project Title *</label>
+                  <Input id="np-title" value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. The Complete First-Time Homebuyer's Guide" required />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button type="button" onClick={() => setStep(2)} disabled={!form.brandId || !form.title} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">Next →</Button>
+                  <Button type="button" onClick={() => setStep(2)} disabled={!form.brandId || !form.title}>Next →</Button>
                 </div>
               </div>
             )}
             {step === 2 && (
               <div className="space-y-4 mt-3">
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 mb-1.5">Topic / Core Subject</label>
-                  <Textarea value={form.topic} onChange={e => set('topic', e.target.value)} placeholder="What is this content specifically about?" rows={2} />
+                  <label htmlFor="np-topic" className="mb-1.5 block text-xs font-medium text-muted-foreground">Topic / Core Subject</label>
+                  <Textarea id="np-topic" value={form.topic} onChange={e => set('topic', e.target.value)} placeholder="What is this content specifically about?" rows={2} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 mb-1.5">Intended Audience</label>
-                  <Input value={form.intendedAudience} onChange={e => set('intendedAudience', e.target.value)} placeholder="e.g. First-time homebuyers aged 25-40" />
+                  <label htmlFor="np-audience" className="mb-1.5 block text-xs font-medium text-muted-foreground">Intended Audience</label>
+                  <Input id="np-audience" value={form.intendedAudience} onChange={e => set('intendedAudience', e.target.value)} placeholder="e.g. First-time homebuyers aged 25-40" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 mb-1.5">Purpose</label>
-                  <Input value={form.purpose} onChange={e => set('purpose', e.target.value)} placeholder="What should the reader be able to do after reading?" />
+                  <label htmlFor="np-purpose" className="mb-1.5 block text-xs font-medium text-muted-foreground">Purpose</label>
+                  <Input id="np-purpose" value={form.purpose} onChange={e => set('purpose', e.target.value)} placeholder="What should the reader be able to do after reading?" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-stone-600 mb-1.5">Target Length</label>
-                    <Input value={form.targetLength} onChange={e => set('targetLength', e.target.value)} placeholder="e.g. 2000-3000 words" />
+                    <label htmlFor="np-length" className="mb-1.5 block text-xs font-medium text-muted-foreground">Target Length</label>
+                    <Input id="np-length" value={form.targetLength} onChange={e => set('targetLength', e.target.value)} placeholder="e.g. 2000-3000 words" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-stone-600 mb-1.5">Tone</label>
-                    <Input value={form.tone} onChange={e => set('tone', e.target.value)} placeholder="e.g. Professional, warm" />
+                    <label htmlFor="np-tone" className="mb-1.5 block text-xs font-medium text-muted-foreground">Tone</label>
+                    <Input id="np-tone" value={form.tone} onChange={e => set('tone', e.target.value)} placeholder="e.g. Professional, warm" />
                   </div>
                 </div>
                 <div className="flex justify-between gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => setStep(1)}>← Back</Button>
-                  <Button type="submit" disabled={createProject.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">
-                    {createProject.isPending ? 'Creating…' : 'Create Project'}
+                  <Button type="submit" disabled={createProject.isPending}>
+                    {createProject.isPending ? 'Creating…' : 'Create project'}
                   </Button>
                 </div>
               </div>
@@ -205,6 +251,6 @@ export default function ProjectsList() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useListBrands, useCreateBrand } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { Plus, Building2, ChevronRight } from 'lucide-react';
+import { Plus, Building2, ArrowRight } from 'lucide-react';
+import { PageHeader, PageShell, StateMessage } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getListBrandsQueryKey } from '@workspace/api-client-react';
 
 export default function BrandsList() {
-  const { data: brands, isLoading } = useListBrands();
+  const { data: brands, isLoading, isError, refetch } = useListBrands();
   const createBrand = useCreateBrand();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -26,48 +27,74 @@ export default function BrandsList() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#111] font-serif">Brand Portfolio</h1>
-          <p className="text-stone-500 mt-1 text-sm">{brands?.length ?? 0} brands in your content system</p>
-        </div>
-        <Button onClick={() => setOpen(true)} className="bg-[#C8102E] hover:bg-[#a80d25] text-white gap-2">
-          <Plus className="w-4 h-4" /> New Brand
-        </Button>
-      </div>
+    <PageShell width="default">
+      <PageHeader
+        eyebrow="Brands"
+        title="Brands"
+        description={`${brands?.length ?? 0} brand${brands?.length === 1 ? '' : 's'}. Each brand carries the voice, audience and context every document inherits.`}
+        actions={
+          <Button onClick={() => setOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> New brand
+          </Button>
+        }
+      />
+
+      {isError && (
+        <StateMessage
+          tone="error"
+          title="Brands could not be loaded."
+          description="Nothing has been lost. Check the connection and try again."
+          action={<Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>}
+        />
+      )}
 
       {isLoading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-24 bg-stone-100 animate-pulse rounded-lg" />)}
+        <div className="grid gap-3 md:grid-cols-2" role="status" aria-label="Loading brands">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 animate-pulse rounded-2xl border border-border bg-card" />)}
         </div>
       )}
 
-      {!isLoading && !brands?.length && (
-        <div className="text-center py-16 text-stone-400">
-          <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="font-medium text-stone-600">No brands yet</p>
-          <p className="text-sm mt-1">Create your first brand to get started</p>
+      {!isLoading && !isError && !brands?.length && (
+        <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
+          <Building2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-semibold text-foreground">No brands yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">Add a brand to give your content a consistent voice, audience and point of view.</p>
+          <Button onClick={() => setOpen(true)} className="mt-5 gap-2">
+            <Plus className="h-4 w-4" /> Add your first brand
+          </Button>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-2">
         {brands?.map(brand => (
-          <Link key={brand.id} href={`/brands/${brand.id}`} className="flex items-center gap-4 bg-white border border-stone-200 hover:border-stone-300 rounded-lg p-5 transition-colors group">
-              <div className="w-10 h-10 bg-stone-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-5 h-5 text-stone-400" />
+          <Link key={brand.id} href={`/brands/${brand.id}`} className="group flex flex-col rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/25">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-sm font-semibold text-brand" aria-hidden="true">
+                {brand.name.slice(0, 1).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[#111] font-serif text-lg leading-snug">{brand.name}</p>
-                {brand.industry && <p className="text-xs text-stone-400 mt-0.5">{brand.industry}</p>}
-                {brand.description && (
-                  <p className="text-sm text-stone-500 mt-1 line-clamp-1">{brand.description}</p>
-                )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-semibold text-foreground">{brand.name}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{brand.industry || 'Industry not set'}</p>
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <span className="text-xs text-stone-400">{(brand as any).projectCount ?? 0} projects</span>
-                <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-stone-500 transition-colors" />
+              <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                {brand.projectCount ?? 0} project{brand.projectCount === 1 ? '' : 's'}
+              </span>
+            </div>
+            <dl className="mt-4 grid gap-2 text-xs">
+              <div>
+                <dt className="font-medium text-muted-foreground">Voice</dt>
+                <dd className="mt-0.5 line-clamp-1 text-foreground/85">{brand.voiceDescription || 'Not defined yet'}</dd>
               </div>
+              {brand.description && (
+                <div>
+                  <dt className="font-medium text-muted-foreground">About</dt>
+                  <dd className="mt-0.5 line-clamp-2 text-foreground/85">{brand.description}</dd>
+                </div>
+              )}
+            </dl>
+            <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-brand">
+              Open brand <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </span>
           </Link>
         ))}
       </div>
@@ -75,30 +102,30 @@ export default function BrandsList() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl">New Brand</DialogTitle>
+            <DialogTitle className="text-xl">New brand</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 mt-2">
             <div>
-              <label className="block text-xs font-medium text-stone-600 mb-1.5">Brand Name *</label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FirstHome Financial" required />
+              <label htmlFor="nb-name" className="mb-1.5 block text-xs font-medium text-muted-foreground">Brand Name *</label>
+              <Input id="nb-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. FirstHome Financial" required />
             </div>
             <div>
-              <label className="block text-xs font-medium text-stone-600 mb-1.5">Industry</label>
-              <Input value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} placeholder="e.g. Personal Finance" />
+              <label htmlFor="nb-industry" className="mb-1.5 block text-xs font-medium text-muted-foreground">Industry</label>
+              <Input id="nb-industry" value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} placeholder="e.g. Personal Finance" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-stone-600 mb-1.5">Description</label>
-              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief overview of the brand and what it does" rows={3} />
+              <label htmlFor="nb-description" className="mb-1.5 block text-xs font-medium text-muted-foreground">Description</label>
+              <Textarea id="nb-description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief overview of the brand and what it does" rows={3} />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={createBrand.isPending} className="bg-[#C8102E] hover:bg-[#a80d25] text-white">
-                {createBrand.isPending ? 'Creating…' : 'Create Brand'}
+              <Button type="submit" disabled={createBrand.isPending}>
+                {createBrand.isPending ? 'Creating…' : 'Create brand'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

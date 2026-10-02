@@ -85,8 +85,10 @@ describe("Create page — form validation", () => {
   it("selects Blog Post by default", () => {
     render(<Create />);
     const blogCard = screen.getByText("Blog Post").closest("button");
-    // Blog Post card should have the active styling class
-    expect(blogCard?.className).toContain("border-[#C8102E]");
+    // The selected content type is exposed to assistive technology and styled
+    // with the shared brand accent token.
+    expect(blogCard).toHaveAttribute("aria-pressed", "true");
+    expect(blogCard?.className).toContain("border-brand");
   });
 
   it("allows switching content type", async () => {
@@ -98,8 +100,10 @@ describe("Create page — form validation", () => {
     const guideCard = screen.getByText("Guide").closest("button");
     const blogCard = screen.getByText("Blog Post").closest("button");
 
-    expect(guideCard?.className).toContain("border-[#C8102E]");
-    expect(blogCard?.className).not.toContain("border-[#C8102E]");
+    expect(guideCard).toHaveAttribute("aria-pressed", "true");
+    expect(blogCard).toHaveAttribute("aria-pressed", "false");
+    expect(guideCard?.className).toContain("border-brand");
+    expect(blogCard?.className).not.toContain("border-brand");
   });
 
   it("shows Advanced options section", async () => {

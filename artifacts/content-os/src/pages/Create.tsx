@@ -211,27 +211,27 @@ export default function Create() {
   if (isGenerating) {
     const activeStep = workflowStepIndex(generatingStage);
     return (
-      <div className="min-h-screen bg-[#080a0f] px-6 text-white flex items-center justify-center">
-        <div className="w-full max-w-md rounded-3xl border border-white/[0.09] bg-[#10131a] p-8 shadow-2xl shadow-black/40">
+      <div className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground" role="status" aria-live="polite">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl shadow-black/40">
           <div className="mb-10 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e5484d] text-white">
-              <Sparkles className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand/30 bg-primary/15 text-brand">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Content OS
               </p>
-              <p className="text-sm text-white/70">Workflow in progress</p>
+              <p className="text-sm text-foreground/80">Workflow in progress</p>
             </div>
           </div>
           <div className="mb-8">
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-[#ff7b7b]">
+            <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-brand">
               Building your asset
             </p>
             <h1 className="text-2xl font-semibold tracking-tight">
               Turning intent into a content system.
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-white/50">
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               {stageToLabel(generatingStage)}
             </p>
           </div>
@@ -239,7 +239,7 @@ export default function Create() {
             {WORKFLOW_STEPS.map((step, index) => (
               <div
                 key={step}
-                className="flex items-center gap-3 rounded-xl border border-white/[0.07] px-4 py-3"
+                className="flex items-center gap-3 rounded-xl border border-border px-4 py-3"
               >
                 <div
                   className={cn(
@@ -247,8 +247,8 @@ export default function Create() {
                     index < activeStep
                       ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-300"
                       : index === activeStep
-                        ? "border-[#e5484d]/70 bg-[#e5484d]/10 text-[#ff9b9b]"
-                        : "border-white/10 text-white/35",
+                        ? "border-primary/70 bg-primary/10 text-brand"
+                        : "border-border text-muted-foreground",
                   )}
                 >
                   {index < activeStep ? (
@@ -262,7 +262,7 @@ export default function Create() {
                 <span
                   className={cn(
                     "text-sm",
-                    index <= activeStep ? "text-white" : "text-white/35",
+                    index <= activeStep ? "text-white" : "text-muted-foreground",
                   )}
                 >
                   {step}
@@ -276,51 +276,51 @@ export default function Create() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080a0f] text-white">
-      <header className="border-b border-white/[0.08] bg-[#080a0f]/95 px-5 py-4 backdrop-blur-xl sm:px-8">
+    <div className="min-h-screen bg-background text-white">
+      <header className="border-b border-border bg-background/95 px-5 py-4 backdrop-blur-xl sm:px-8">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between">
           <Link
             href="/projects"
-            className="group inline-flex items-center gap-2 text-sm text-white/45 transition hover:text-white"
+            className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-white"
           >
             <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />{" "}
-            All projects
+            All documents
           </Link>
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/35">
-            <WandSparkles className="h-3.5 w-3.5 text-[#ff7979]" /> New workflow
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <WandSparkles className="h-3.5 w-3.5 text-brand" /> New workflow
           </div>
           <div className="hidden w-24 sm:block" />
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1280px] gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-12 lg:py-12">
+      <div className="mx-auto grid max-w-[1280px] gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-12 lg:py-12">
         <section>
           <div className="mb-10 max-w-2xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#e5484d]/25 bg-[#e5484d]/[0.08] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#ff9696]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ff7979]" /> Brief
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/[0.08] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-brand">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Brief
               the system
             </div>
             <h1 className="text-4xl font-semibold tracking-[-0.045em] text-white sm:text-5xl">
               What would you like to write?
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-white/48 sm:text-base">
+            <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
               Give Content OS the intent. We’ll turn it into a brief, research
               path, structure, and first draft you can shape.
             </p>
           </div>
 
           <div className="space-y-8">
-            <div className="rounded-3xl border border-white/[0.09] bg-[#10131a] p-5 shadow-2xl shadow-black/20 sm:p-7">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-2xl shadow-black/20 sm:p-7">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
-                    <span className="text-[#ff7979]">01</span> Intent
+                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    <span className="text-brand">01</span> Intent
                   </div>
                   <h2 className="text-lg font-semibold tracking-tight">
                     What should exist when we’re done?
                   </h2>
                 </div>
-                <Target className="h-5 w-5 text-white/20" />
+                <Target className="h-5 w-5 text-muted-foreground" />
               </div>
               <Textarea
                 value={topic}
@@ -328,29 +328,29 @@ export default function Create() {
                 placeholder="e.g. How electric vehicles are reshaping the automotive industry in 2025"
                 rows={5}
                 disabled={isGenerating}
-                className="min-h-[150px] resize-none rounded-2xl border-white/[0.1] bg-[#080a0f] px-4 py-4 text-base leading-7 text-white placeholder:text-white/25 focus:border-[#e5484d]/70 focus:ring-[#e5484d]/30"
+                className="min-h-[150px] resize-none rounded-2xl border-border bg-background px-4 py-4 text-base leading-7 text-white placeholder:text-muted-foreground/70 focus:border-brand/70 focus:ring-ring/30"
               />
-              <div className="mt-3 flex items-center justify-between gap-3 text-xs text-white/30">
+              <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>Specific intent creates a sharper first pass.</span>
                 <span>{topic.length}/500</span>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/[0.09] bg-[#10131a] p-5 sm:p-7">
+            <div className="rounded-2xl border border-border bg-card p-5 sm:p-7">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
-                    <span className="text-[#ff7979]">02</span> Output shape
+                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    <span className="text-brand">02</span> Output shape
                   </div>
                   <h2 className="text-lg font-semibold tracking-tight">
                     Choose the shape of the work.
                   </h2>
-                  <p className="mt-1 text-sm text-white/42">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Start with a mode. You can refine the brief before
                     generation.
                   </p>
                 </div>
-                <Layers3 className="h-5 w-5 text-white/20" />
+                <Layers3 className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {CONTENT_TYPES.map((type) => {
@@ -361,31 +361,37 @@ export default function Create() {
                       key={type.value}
                       type="button"
                       onClick={() => setContentType(type.value)}
-                      className={`${cn("group relative flex min-h-[88px] flex-col justify-between rounded-2xl border p-3 text-left transition-all", active ? "border-[#e5484d]/80 bg-[#e5484d]/[0.12] shadow-[0_0_0_1px_rgba(229,72,77,0.16)]" : "border-white/[0.07] bg-[#080a0f] hover:border-white/20 hover:bg-white/[0.03]")} ${active ? "border-[#C8102E]" : ""}`}
+                      aria-pressed={active}
+                      className={cn(
+                        "group relative flex min-h-[88px] flex-col justify-between rounded-2xl border p-3 text-left transition-all",
+                        active
+                          ? "border-brand bg-primary/[0.12] shadow-[0_0_0_1px_hsl(var(--brand)/0.16)]"
+                          : "border-border bg-background hover:border-foreground/25 hover:bg-secondary/60",
+                      )}
                     >
                       <div className="flex items-center justify-between">
                         <Icon
                           className={cn(
                             "h-4 w-4",
                             active
-                              ? "text-[#ff9696]"
-                              : "text-white/35 group-hover:text-white/65",
+                              ? "text-brand"
+                              : "text-muted-foreground group-hover:text-foreground/80",
                           )}
                         />
                         {active && (
-                          <Check className="h-3.5 w-3.5 text-[#ff9696]" />
+                          <Check className="h-3.5 w-3.5 text-brand" />
                         )}
                       </div>
                       <div>
                         <p
                           className={cn(
                             "text-sm font-medium",
-                            active ? "text-white" : "text-white/70",
+                            active ? "text-white" : "text-foreground/80",
                           )}
                         >
                           {type.label}
                         </p>
-                        <p className="mt-1 hidden text-[10px] leading-4 text-white/35 sm:block">
+                        <p className="mt-1 hidden text-[10px] leading-4 text-muted-foreground sm:block">
                           {type.description}
                         </p>
                       </div>
@@ -395,29 +401,30 @@ export default function Create() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/[0.09] bg-[#10131a] p-5 sm:p-7">
+            <div className="rounded-2xl border border-border bg-card p-5 sm:p-7">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
-                    <span className="text-[#ff7979]">03</span> Context
+                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    <span className="text-brand">03</span> Context
                   </div>
                   <h2 className="text-lg font-semibold tracking-tight">
                     Set the operating context.
                   </h2>
                 </div>
-                <Layers3 className="h-5 w-5 text-white/20" />
+                <Layers3 className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-white/45">
+                  <label htmlFor="create-brand" className="mb-2 block text-xs font-medium text-muted-foreground">
                     Brand workspace
                   </label>
                   {brands.length > 0 ? (
                     <select
+                      id="create-brand"
                       value={brandId}
                       onChange={(e) => setBrandId(e.target.value)}
                       disabled={isGenerating}
-                      className="h-11 w-full rounded-xl border border-white/[0.1] bg-[#080a0f] px-3 text-sm text-white focus:border-[#e5484d]/70 focus:outline-none"
+                      className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-white focus:border-brand/70 focus:outline-none"
                     >
                       {brands.length > 1 && (
                         <option value="">Select a brand…</option>
@@ -440,10 +447,10 @@ export default function Create() {
                   )}
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-white/45">
+                  <p id="create-research-depth" className="mb-2 block text-xs font-medium text-muted-foreground">
                     Research depth
-                  </label>
-                  <div className="flex rounded-xl border border-white/[0.1] bg-[#080a0f] p-1">
+                  </p>
+                  <div role="group" aria-labelledby="create-research-depth" className="flex rounded-xl border border-border bg-background p-1">
                     {(
                       [
                         ["quick", "Quick"],
@@ -455,11 +462,12 @@ export default function Create() {
                         key={value}
                         type="button"
                         onClick={() => setResearchDepth(value)}
+                        aria-pressed={researchDepth === value}
                         className={cn(
                           "flex-1 rounded-lg px-2 py-2 text-xs font-medium transition",
                           researchDepth === value
-                            ? "bg-white/[0.12] text-white"
-                            : "text-white/35 hover:text-white/70",
+                            ? "bg-secondary text-white"
+                            : "text-muted-foreground hover:text-foreground/80",
                         )}
                       >
                         {label}
@@ -470,93 +478,93 @@ export default function Create() {
               </div>
               <div className="mt-5 grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-white/45">
-                    Audience <span className="text-white/25">optional</span>
+                  <label htmlFor="create-audience-optional" className="mb-2 block text-xs font-medium text-muted-foreground">
+                    Audience <span className="text-muted-foreground">optional</span>
                   </label>
-                  <Input
+                  <Input id="create-audience-optional"
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
                     placeholder="e.g. Marketing managers"
                     disabled={isGenerating}
-                    className="h-11 rounded-xl border-white/[0.1] bg-[#080a0f] text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/70 focus:ring-[#e5484d]/30"
+                    className="h-11 rounded-xl border-border bg-background text-sm text-white placeholder:text-muted-foreground/70 focus:border-brand/70 focus:ring-ring/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-white/45">
-                    Outcome <span className="text-white/25">optional</span>
+                  <label htmlFor="create-outcome-optional" className="mb-2 block text-xs font-medium text-muted-foreground">
+                    Outcome <span className="text-muted-foreground">optional</span>
                   </label>
-                  <Input
+                  <Input id="create-outcome-optional"
                     value={purpose}
                     onChange={(e) => setPurpose(e.target.value)}
                     placeholder="What should it change?"
                     disabled={isGenerating}
-                    className="h-11 rounded-xl border-white/[0.1] bg-[#080a0f] text-sm text-white placeholder:text-white/25 focus:border-[#e5484d]/70 focus:ring-[#e5484d]/30"
+                    className="h-11 rounded-xl border-border bg-background text-sm text-white placeholder:text-muted-foreground/70 focus:border-brand/70 focus:ring-ring/30"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/[0.09] bg-[#10131a] overflow-hidden">
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
-                className="flex w-full items-center justify-between px-5 py-5 text-left transition hover:bg-white/[0.025] sm:px-7"
+                className="flex w-full items-center justify-between px-5 py-5 text-left transition hover:bg-secondary/60 sm:px-7"
               >
                 <span>
-                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     04 · Optional precision
                   </span>
                   <span className="text-sm font-semibold text-white">
                     Advanced options
                   </span>
-                  <span className="ml-2 text-xs text-white/35">
+                  <span className="ml-2 text-xs text-muted-foreground">
                     {showAdvanced ? "Open" : "Tune advanced settings"}
                   </span>
                 </span>
                 {showAdvanced ? (
-                  <ChevronUp className="h-4 w-4 text-white/35" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-white/35" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </button>
               {showAdvanced && (
-                <div className="grid gap-5 border-t border-white/[0.08] px-5 pb-6 pt-5 sm:grid-cols-2 sm:px-7">
+                <div className="grid gap-5 border-t border-border px-5 pb-6 pt-5 sm:grid-cols-2 sm:px-7">
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-white/45">
+                    <label htmlFor="create-target-length" className="mb-2 block text-xs font-medium text-muted-foreground">
                       Target length
                     </label>
-                    <Input
+                    <Input id="create-target-length"
                       value={targetLength}
                       onChange={(e) => setTargetLength(e.target.value)}
                       placeholder="e.g. 1,500 words"
-                      className="h-11 rounded-xl border-white/[0.1] bg-[#080a0f] text-sm text-white placeholder:text-white/25"
+                      className="h-11 rounded-xl border-border bg-background text-sm text-white placeholder:text-muted-foreground/70"
                     />
                   </div>
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-white/45">
+                    <label htmlFor="create-tone-point-of-view" className="mb-2 block text-xs font-medium text-muted-foreground">
                       Tone / point of view
                     </label>
-                    <Input
+                    <Input id="create-tone-point-of-view"
                       value={tone}
                       onChange={(e) => setTone(e.target.value)}
                       placeholder="e.g. direct, optimistic"
-                      className="h-11 rounded-xl border-white/[0.1] bg-[#080a0f] text-sm text-white placeholder:text-white/25"
+                      className="h-11 rounded-xl border-border bg-background text-sm text-white placeholder:text-muted-foreground/70"
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="mb-2 block text-xs font-medium text-white/45">
+                    <label htmlFor="create-additional-direction" className="mb-2 block text-xs font-medium text-muted-foreground">
                       Additional direction
                     </label>
-                    <Textarea
+                    <Textarea id="create-additional-direction"
                       value={additionalInstructions}
                       onChange={(e) =>
                         setAdditionalInstructions(e.target.value)
                       }
                       placeholder="Specific requirements, structure preferences, or points to cover…"
                       rows={4}
-                      className="resize-none rounded-xl border-white/[0.1] bg-[#080a0f] text-sm leading-6 text-white placeholder:text-white/25"
+                      className="resize-none rounded-xl border-border bg-background text-sm leading-6 text-white placeholder:text-muted-foreground/70"
                     />
-                    <p className="mt-2 text-xs text-white/30">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       You can add sources and refine claims after the first
                       workflow pass.
                     </p>
@@ -572,12 +580,12 @@ export default function Create() {
               </div>
             )}
 
-            <div className="flex flex-col gap-4 rounded-3xl border border-[#e5484d]/25 bg-[#e5484d]/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div>
-                <div className="flex items-center gap-2 text-xs font-medium text-[#ffb0b0]">
+                <div className="flex items-center gap-2 text-xs font-medium text-brand">
                   <WandSparkles className="h-4 w-4" /> Ready to brief the system
                 </div>
-                <p className="mt-2 max-w-lg text-xs leading-5 text-white/42">
+                <p className="mt-2 max-w-lg text-xs leading-5 text-muted-foreground">
                   Content OS will create the brief, research plan, outline, and
                   first draft. You stay in control before anything ships.
                 </p>
@@ -586,7 +594,7 @@ export default function Create() {
                 type="button"
                 onClick={handleGenerate}
                 disabled={!canGenerate}
-                className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#e5484d] px-5 text-sm font-semibold text-white shadow-lg shadow-[#e5484d]/20 transition hover:bg-[#f15b5f] disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 <Sparkles className="h-4 w-4" /> Generate Content{" "}
                 <ArrowRight className="h-4 w-4" />
@@ -596,35 +604,35 @@ export default function Create() {
         </section>
 
         <aside className="lg:pt-16">
-          <div className="sticky top-8 rounded-3xl border border-white/[0.09] bg-[#10131a] p-5 sm:p-6">
+          <div className="sticky top-8 rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="mb-7 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Workflow preview
               </span>
-              <span className="rounded-full border border-white/[0.1] px-2 py-1 text-[10px] text-white/40">
+              <span className="rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground">
                 Live brief
               </span>
             </div>
             <div className="mb-7">
               <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e5484d]/[0.12] text-[#ff9696]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/[0.12] text-brand">
                   <selected.icon className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-lg font-semibold text-white">
                     {selected.mode} workflow
                   </p>
-                  <p className="text-xs text-white/38">
+                  <p className="text-xs text-muted-foreground">
                     {selected.mode} workflow
                   </p>
                 </div>
               </div>
-              <p className="text-sm leading-6 text-white/45">
+              <p className="text-sm leading-6 text-muted-foreground">
                 {selected.description}. Your brief will be shaped for clarity,
                 momentum, and review.
               </p>
             </div>
-            <div className="space-y-2 border-t border-white/[0.08] pt-5">
+            <div className="space-y-2 border-t border-border pt-5">
               {[
                 ["Intent", topic ? "Captured" : "Waiting"],
                 ["Format", selected.mode],
@@ -646,13 +654,13 @@ export default function Create() {
                   key={label}
                   className="flex items-center justify-between gap-4 text-xs"
                 >
-                  <span className="text-white/35">{label}</span>
+                  <span className="text-muted-foreground">{label}</span>
                   <span
                     className={cn(
                       "truncate text-right",
                       value === "Waiting" || value === "Select one"
-                        ? "text-white/25"
-                        : "text-white/75",
+                        ? "text-muted-foreground"
+                        : "text-foreground/80",
                     )}
                   >
                     {value}
@@ -660,24 +668,24 @@ export default function Create() {
                 </div>
               ))}
             </div>
-            <div className="mt-7 border-t border-white/[0.08] pt-5">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">
+            <div className="mt-7 border-t border-border pt-5">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 What happens next
               </p>
               <div className="space-y-3">
                 {WORKFLOW_STEPS.map((step, index) => (
                   <div key={step} className="flex items-center gap-3">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.12] text-[10px] text-white/35">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-input text-[10px] text-muted-foreground">
                       {index + 1}
                     </span>
-                    <span className="text-xs text-white/50">{step}</span>
+                    <span className="text-xs text-muted-foreground">{step}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
         </aside>
-      </main>
+      </div>
     </div>
   );
 }
