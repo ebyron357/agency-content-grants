@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v4.1.11 /workspace/scratch/ca9a4ed2537c/portfolio/repos/agency-content-grants/artifacts/content-os
+
+
+ Test Files  4 passed (4)
+      Tests  21 passed (21)
+   Start at  11:48:11
+   Duration  4.64s (transform 969ms, setup 974ms, import 1.23s, tests 1.72s, environment 7.34s)
+

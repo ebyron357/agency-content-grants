@@ -1,0 +1,35 @@
+$ node --test scripts/assert-api-test-env.test.mjs && vitest run --config vitest.unit.config.ts
+✔ accepts postgres on localhost (27.081849ms)
+✔ accepts postgres on 127.0.0.1 (26.016636ms)
+✔ accepts postgres on postgres (32.479999ms)
+✔ accepts postgresql on localhost (34.581064ms)
+✔ accepts postgresql on 127.0.0.1 (35.066512ms)
+✔ accepts postgresql on postgres (25.186803ms)
+✔ rejects missing URL without disclosing credentials (30.185832ms)
+✔ rejects blank URL without disclosing credentials (32.970223ms)
+✔ rejects malformed URL without disclosing credentials (43.537433ms)
+✔ rejects wrong protocol without disclosing credentials (35.054714ms)
+✔ rejects remote host without disclosing credentials (44.788241ms)
+✔ rejects host suffix spoof without disclosing credentials (38.127305ms)
+✔ rejects production database without disclosing credentials (39.494612ms)
+✔ rejects empty database without disclosing credentials (37.122001ms)
+✔ rejects production environment without disclosing credentials (40.202043ms)
+✔ rejects missing reset opt-in without disclosing credentials (70.298803ms)
+✔ rejects false reset opt-in without disclosing credentials (45.104985ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 759.197718
+
+ RUN  v4.1.11 /workspace/scratch/ca9a4ed2537c/portfolio/repos/agency-content-grants/artifacts/api-server
+
+
+ Test Files  19 passed (19)
+      Tests  131 passed (131)
+   Start at  11:48:10
+   Duration  3.38s (transform 3.06s, setup 0ms, import 4.24s, tests 2.74s, environment 3ms)
+
