@@ -1,0 +1,21 @@
+Scope: all 9 workspace projects
+? Verifying lockfile against supply-chain policies (748 entries)...
+Lockfile is up to date, resolution step is skipped
+Packages: -18
+------------------
+✓ Lockfile passes supply-chain policies (748 entries in 13.2s)
+
+. preinstall$ node scripts/enforce-pnpm.mjs
+. preinstall: Done
+Done in 14.2s using pnpm v11.25.0
+$ node --test mockupPreviewPlugin.test.mjs
+✔ discovery retains nested TSX previews and excludes private files/directories (26.41131ms)
+✔ missing mockup directory generates an empty registry (3.56575ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 210.397788
