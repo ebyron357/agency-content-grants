@@ -37,7 +37,7 @@ services:
 
 databases:
   - name: agency-content-grants-db
-    plan: 0.5c-1g
+    plan: 0.1c-256mb
     region: ohio
     databaseName: content_machine
     user: content_machine
