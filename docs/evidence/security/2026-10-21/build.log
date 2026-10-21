@@ -1,0 +1,81 @@
+$ pnpm run typecheck && pnpm -r --if-present run build
+$ pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+$ tsc --build
+Scope: 4 of 9 workspace projects
+artifacts/content-os typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck: Done
+artifacts/api-server typecheck: Done
+artifacts/mockup-sandbox typecheck: Done
+artifacts/content-os typecheck: Done
+Scope: 8 of 9 workspace projects
+artifacts/mockup-sandbox build$ vite build
+artifacts/mockup-sandbox build: vite v7.3.7 building client environment for production...
+artifacts/mockup-sandbox build: transforming...
+artifacts/mockup-sandbox build: ✓ 2077 modules transformed.
+artifacts/mockup-sandbox build: rendering chunks...
+artifacts/mockup-sandbox build: computing gzip size...
+artifacts/mockup-sandbox build: dist/index.html                   4.45 kB │ gzip:  1.24 kB
+artifacts/mockup-sandbox build: dist/assets/index-CF3WidaN.css  100.38 kB │ gzip: 16.97 kB
+artifacts/mockup-sandbox build: dist/assets/index-vAWnBeLZ.js    13.92 kB │ gzip:  4.90 kB
+artifacts/mockup-sandbox build: dist/assets/App-B64m40Bp.js      21.43 kB │ gzip:  7.34 kB
+artifacts/mockup-sandbox build: dist/assets/mail-OYlgaKhC.js    124.14 kB │ gzip: 40.84 kB
+artifacts/mockup-sandbox build: dist/assets/index-Bc3odB6F.js   189.28 kB │ gzip: 60.19 kB
+artifacts/mockup-sandbox build: ✓ built in 11.92s
+artifacts/mockup-sandbox build: Done
+artifacts/content-os build$ vite build --config vite.config.ts
+artifacts/api-server build$ node ./build.mjs
+artifacts/content-os build: vite v7.3.7 building client environment for production...
+artifacts/content-os build: transforming...
+artifacts/api-server build:   dist\index.mjs                   3.5mb
+artifacts/api-server build:   dist\pino-worker.mjs           153.5kb
+artifacts/api-server build:   dist\pino-file.mjs             142.1kb
+artifacts/api-server build:   dist\pino-pretty.mjs           115.9kb
+artifacts/api-server build:   dist\thread-stream-worker.mjs    7.4kb
+artifacts/api-server build:   ...and 5 more output files...
+artifacts/api-server build: Done in 2824ms
+artifacts/api-server build: Done
+artifacts/content-os build: ✓ 2202 modules transformed.
+artifacts/content-os build: rendering chunks...
+artifacts/content-os build: computing gzip size...
+artifacts/content-os build: dist/public/index.html                           1.54 kB │ gzip:   0.59 kB
+artifacts/content-os build: dist/public/assets/index-CMROiXha.css          139.82 kB │ gzip:  22.19 kB
+artifacts/content-os build: dist/public/assets/chevron-down-KP6r5QH8.js      0.13 kB │ gzip:   0.14 kB
+artifacts/content-os build: dist/public/assets/arrow-right-CjegF9_z.js       0.17 kB │ gzip:   0.16 kB
+artifacts/content-os build: dist/public/assets/chevron-up-C7fWqDws.js        0.20 kB │ gzip:   0.18 kB
+artifacts/content-os build: dist/public/assets/lock-Q26RXBE-.js              0.20 kB │ gzip:   0.19 kB
+artifacts/content-os build: dist/public/assets/circle-x-CKQgrw1H.js          0.20 kB │ gzip:   0.18 kB
+artifacts/content-os build: dist/public/assets/chart-column-MIFUuHXH.js      0.25 kB │ gzip:   0.20 kB
+artifacts/content-os build: dist/public/assets/circle-check-BZ0cPBvg.js      0.26 kB │ gzip:   0.21 kB
+artifacts/content-os build: dist/public/assets/refresh-cw-JDpGC4nf.js        0.32 kB │ gzip:   0.23 kB
+artifacts/content-os build: dist/public/assets/trash-2-BJiACsVA.js           0.33 kB │ gzip:   0.22 kB
+artifacts/content-os build: dist/public/assets/file-text-D5mvSAMn.js         0.33 kB │ gzip:   0.22 kB
+artifacts/content-os build: dist/public/assets/textarea-BT8UGHG9.js          0.46 kB │ gzip:   0.32 kB
+artifacts/content-os build: dist/public/assets/sparkles-BSj7oH2U.js          0.50 kB │ gzip:   0.28 kB
+artifacts/content-os build: dist/public/assets/input-CCyTRRMW.js             0.56 kB │ gzip:   0.37 kB
+artifacts/content-os build: dist/public/assets/badge-CAGw1sb0.js             0.74 kB │ gzip:   0.40 kB
+artifacts/content-os build: dist/public/assets/label-B4_e1Jye.js             1.12 kB │ gzip:   0.68 kB
+artifacts/content-os build: dist/public/assets/not-found-CCDtQRuA.js         1.25 kB │ gzip:   0.66 kB
+artifacts/content-os build: dist/public/assets/button-Cb565kaW.js            1.30 kB │ gzip:   0.65 kB
+artifacts/content-os build: dist/public/assets/api-Dfm-5YF5.js               1.34 kB │ gzip:   0.49 kB
+artifacts/content-os build: dist/public/assets/dialog-DTu4A-fM.js            2.19 kB │ gzip:   0.86 kB
+artifacts/content-os build: dist/public/assets/confirm-dialog-DIuoSPZn.js    4.14 kB │ gzip:   1.44 kB
+artifacts/content-os build: dist/public/assets/index-DsGepKJy.js             4.69 kB │ gzip:   1.68 kB
+artifacts/content-os build: dist/public/assets/BrandsList-BSBlHMaB.js        5.24 kB │ gzip:   1.92 kB
+artifacts/content-os build: dist/public/assets/ProjectsList-fWNwqUHO.js     10.31 kB │ gzip:   3.40 kB
+artifacts/content-os build: dist/public/assets/Dashboard-ZgYgRvOM.js        10.77 kB │ gzip:   3.44 kB
+artifacts/content-os build: dist/public/assets/Performance-1cne6--Q.js      13.53 kB │ gzip:   3.85 kB
+artifacts/content-os build: dist/public/assets/BrandDetail-aIezJsWA.js      16.30 kB │ gzip:   4.41 kB
+artifacts/content-os build: dist/public/assets/index-a72XdLa0.js            17.27 kB │ gzip:   6.57 kB
+artifacts/content-os build: dist/public/assets/Distribution-wmpk_F2d.js     17.36 kB │ gzip:   5.33 kB
+artifacts/content-os build: dist/public/assets/format-Yl1d0lkB.js           19.51 kB │ gzip:   5.55 kB
+artifacts/content-os build: dist/public/assets/Create-yBVBrkTN.js           21.13 kB │ gzip:   6.14 kB
+artifacts/content-os build: dist/public/assets/select-CpFxLlFd.js           22.38 kB │ gzip:   7.68 kB
+artifacts/content-os build: dist/public/assets/Settings-BQzf8HZu.js         24.63 kB │ gzip:   7.07 kB
+artifacts/content-os build: dist/public/assets/api-DtLT6sf1.js              36.61 kB │ gzip:   8.65 kB
+artifacts/content-os build: dist/public/assets/index-BSBAQ4E4.js           339.77 kB │ gzip: 109.71 kB
+artifacts/content-os build: dist/public/assets/ProjectDetail-SVdNPO-g.js   489.88 kB │ gzip: 149.16 kB
+artifacts/content-os build: ✓ built in 15.65s
+artifacts/content-os build: Done

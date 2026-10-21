@@ -1,0 +1,68 @@
+$ node --test scripts/assert-api-test-env.test.mjs && vitest run --config vitest.unit.config.ts
+✔ accepts postgres on localhost (118.838ms)
+✔ accepts postgres on 127.0.0.1 (129.8207ms)
+✔ accepts postgres on postgres (118.2948ms)
+✔ accepts postgresql on localhost (113.4738ms)
+✔ accepts postgresql on 127.0.0.1 (112.6735ms)
+✔ accepts postgresql on postgres (113.2631ms)
+✔ rejects missing URL without disclosing credentials (149.0304ms)
+✔ rejects blank URL without disclosing credentials (159.6923ms)
+✔ rejects malformed URL without disclosing credentials (164.6737ms)
+✔ rejects wrong protocol without disclosing credentials (138.4494ms)
+✔ rejects remote host without disclosing credentials (124.1997ms)
+✔ rejects host suffix spoof without disclosing credentials (142.9339ms)
+✔ rejects production database without disclosing credentials (139.9577ms)
+✔ rejects empty database without disclosing credentials (140.1344ms)
+✔ rejects production environment without disclosing credentials (125.8374ms)
+✔ rejects missing reset opt-in without disclosing credentials (126.3033ms)
+✔ rejects false reset opt-in without disclosing credentials (108.6711ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2507.9154
+
+ RUN  v4.1.11 <repo>/artifacts/api-server
+
+ ❯ src/__tests__/project-files.test.ts (2 tests | 1 failed) 350ms
+     × collects images, source PDFs and export files inside their roots 18ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/project-files.test.ts > projectFilePaths > collects images, source PDFs and export files inside their roots
+AssertionError: expected [ Array(3) ] to deeply equal [ '/data/uploads/images/a.png', …(2) ]
+
+- Expected
++ Received
+
+  [
+-   "/data/uploads/images/a.png",
+-   "/data/uploads/sources/b.pdf",
+-   "/data/exports/guide_1.docx",
++   "C:\\data\\uploads\\images\\a.png",
++   "C:\\data\\uploads\\sources\\b.pdf",
++   "C:\\data\\exports\\guide_1.docx",
+  ]
+
+ ❯ src/__tests__/project-files.test.ts:26:7
+     24|         exportUrls: ["/api/exports/download/guide_1.docx", null],
+     25|       }),
+     26|     ).toEqual([
+       |       ^
+     27|       "/data/uploads/images/a.png",
+     28|       "/data/uploads/sources/b.pdf",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 18 passed (19)
+      Tests  1 failed | 130 passed (131)
+   Start at  16:34:51
+   Duration  5.61s (transform 4.07s, setup 0ms, import 6.57s, tests 2.94s, environment 6ms)
+
+<repo>\artifacts\api-server:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @workspace/api-server@0.0.0 test:unit: `node --test scripts/assert-api-test-env.test.mjs && vitest run --config vitest.unit.config.ts`
+Exit status 1
