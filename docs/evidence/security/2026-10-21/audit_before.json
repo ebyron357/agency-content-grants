@@ -1,0 +1,102 @@
+{
+  "baseline": "origin/main 6dc15e9",
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 3,
+      "moderate": 7,
+      "high": 2,
+      "critical": 0
+    },
+    "dependencies": 315,
+    "devDependencies": 430,
+    "optionalDependencies": 13,
+    "totalDependencies": 748
+  },
+  "advisories": [
+    {
+      "module": "postcss-selector-parser",
+      "severity": "moderate",
+      "vulnerable": "<7.1.6",
+      "patched": ">=7.1.6",
+      "ghsa": "GHSA-rj75-hqrm-r3gf"
+    },
+    {
+      "module": "fast-copy",
+      "severity": "moderate",
+      "vulnerable": ">=4.0.0 <4.1.0",
+      "patched": ">=4.1.0",
+      "ghsa": "GHSA-jggr-w7fw-pc2j"
+    },
+    {
+      "module": "sanitize-html",
+      "severity": "moderate",
+      "vulnerable": "<2.18.0",
+      "patched": ">=2.18.0",
+      "ghsa": "GHSA-x3q4-9hxx-gx8m"
+    },
+    {
+      "module": "vite",
+      "severity": "moderate",
+      "vulnerable": ">=7.0.0 <=7.3.6",
+      "patched": ">=7.3.7",
+      "ghsa": "GHSA-698v-4r3x-3vcv"
+    },
+    {
+      "module": "sanitize-html",
+      "severity": "low",
+      "vulnerable": ">=2.17.7 <2.18.0",
+      "patched": ">=2.18.0",
+      "ghsa": "GHSA-374f-7chj-9948"
+    },
+    {
+      "module": "sanitize-html",
+      "severity": "moderate",
+      "vulnerable": "<2.18.0",
+      "patched": ">=2.18.0",
+      "ghsa": "GHSA-cv27-6wvh-8x7j"
+    },
+    {
+      "module": "markdown-it",
+      "severity": "low",
+      "vulnerable": "<14.3.3",
+      "patched": ">=14.3.3",
+      "ghsa": "GHSA-vfgh-jcmw-g37q"
+    },
+    {
+      "module": "vite",
+      "severity": "moderate",
+      "vulnerable": ">=7.0.0 <=7.3.6",
+      "patched": ">=7.3.7",
+      "ghsa": "GHSA-r825-w8mm-5pxw"
+    },
+    {
+      "module": "vite",
+      "severity": "high",
+      "vulnerable": ">=7.0.0 <=7.3.6",
+      "patched": ">=7.3.7",
+      "ghsa": "GHSA-587h-7wmj-h5pm"
+    },
+    {
+      "module": "markdown-it",
+      "severity": "high",
+      "vulnerable": ">=14.1.0 <14.3.3",
+      "patched": ">=14.3.3",
+      "ghsa": "GHSA-gfr2-rv44-r23c"
+    },
+    {
+      "module": "vite",
+      "severity": "low",
+      "vulnerable": ">=7.0.0 <=7.3.6",
+      "patched": ">=7.3.7",
+      "ghsa": "GHSA-9jrq-w75r-8gcw"
+    },
+    {
+      "module": "vite",
+      "severity": "moderate",
+      "vulnerable": ">=7.0.0 <=7.3.6",
+      "patched": ">=7.3.7",
+      "ghsa": "GHSA-rq7h-c2jc-7f22"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+$ node --test mockupPreviewPlugin.test.mjs
+✔ discovery retains nested TSX previews and excludes private files/directories (104.9591ms)
+✔ missing mockup directory generates an empty registry (22.4834ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 548.2415

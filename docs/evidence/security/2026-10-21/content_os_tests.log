@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v4.1.11 <repo>/artifacts/content-os
+
+
+ Test Files  4 passed (4)
+      Tests  21 passed (21)
+   Start at  16:35:00
+   Duration  11.64s (transform 1.15s, setup 4.94s, import 1.63s, tests 4.49s, environment 16.96s)
+
