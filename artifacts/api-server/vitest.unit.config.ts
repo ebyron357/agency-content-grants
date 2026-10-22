@@ -21,6 +21,7 @@ export default defineConfig({
       "src/__tests__/patch-hardening.test.ts",
       "src/__tests__/project-files.test.ts",
       "src/__tests__/rich-text.test.ts",
+      "src/__tests__/security-headers.test.ts",
       "src/__tests__/video-validator.test.ts",
       "src/lib/ai/demo.test.ts",
       "src/lib/ai/providerRequest.test.ts",

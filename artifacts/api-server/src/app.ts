@@ -9,6 +9,7 @@ import { router } from "./routes";
 import { logger } from "./lib/logger";
 import { seedDatabase } from "./lib/seed";
 import { requireAdmin } from "./middleware/requireAdmin";
+import { applySecurityHeaders } from "./middleware/securityHeaders";
 import { pool } from "@workspace/db";
 
 const PgStore = connectPgSimple(session);
@@ -17,6 +18,9 @@ const app: Express = express();
 
 // Trust reverse proxy (Render, nginx, etc.) for secure cookies and rate-limiting
 app.set("trust proxy", 1);
+
+// Security headers on every response; removes x-powered-by.
+applySecurityHeaders(app);
 
 app.use(
   pinoHttp({
