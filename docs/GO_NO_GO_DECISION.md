@@ -1,35 +1,29 @@
 # GO / NO-GO Decision
 
-**Current decision record. Date: 2 October 2026.** It replaces the 12 August 2026 closeout-authorisation decision, archived verbatim at [`history/GO_NO_GO_DECISION_2026-08-12.md`](history/GO_NO_GO_DECISION_2026-08-12.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+**Current decision record. Date: 24 October 2026.** It replaces the 2 October 2026 decision, archived verbatim at [`history/GO_NO_GO_DECISION_2026-10-02.md`](history/GO_NO_GO_DECISION_2026-10-02.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
 ## Decision
 
 | Scope | Decision |
 |---|---|
-| Release candidate on `main` (reviewed code SHA `3537357888e98b6a519e4665a019c1df863fd6e6`, merged via PR #16) | **GO — VERIFIED COMPLETE** |
-| Production | **NO-GO — one owner-only blocker: the Render production environment has not been created** |
-| Closure state (per [`PROJECT_COMPLETION_STANDARD.md`](PROJECT_COMPLETION_STANDARD.md) §44) | **BLOCKED — OWNER ACTION REQUIRED** |
+| Content Machine release scope (Issue #8 and the approved closeout) | **GO — VERIFIED COMPLETE** (unchanged since 2 October) |
+| Production environment | **LIVE** — the owner created the Render environment; it serves `d9a06e7` (PR #21 merge) and passes health, readiness, SHA-parity and anonymous-rejection checks |
+| Production GO | **NO-GO — pending one deploy and its verification.** Production runs dependencies with high-severity advisories and lacks the HTTP security headers merged in PR #22. Both are fixed only on `main` (the headers) and in the 24 October dependency PR |
+| Closure state (per [`PROJECT_COMPLETION_STANDARD.md`](PROJECT_COMPLETION_STANDARD.md) §44) | **BLOCKED — OWNER ACTION REQUIRED** (merge, manual deploy, smoke verification) |
 
-## The only remaining blocker
+## Remaining steps to PRODUCTION GO
 
-Production requires paid Render resources (web service, PostgreSQL, persistent disk) in the owner's Render account and owner-held secrets (`ADMIN_PASSWORD` and an AI provider key, without which `/api/readyz` reports `not_ready` in production). No agent has Render credentials or billing authority, and none may create paid resources without owner approval.
+1. Merge the 24 October dependency PR (`fix/dependency-advisories-oct24`) once CI is green. *Owner: reviewer / product owner.*
+2. Trigger a manual Render deploy of the resulting `main` commit (`autoDeployTrigger: off`). *Owner: Render account holder — agents do not trigger production deploys.*
+3. Run `tests/production-smoke.sh` against `https://agency-content-grants.onrender.com` with `EXPECTED_SHA` set to that commit (health, readiness, SHA parity, security headers, authentication/session, anonymous rejection, persistence, media, export, ownership probes, logout, cleanup). It needs `ADMIN_PASSWORD`, so the owner or an operator holding it runs it. Runbook §4.
+4. Confirm Render logs show no unexpected errors during the smoke run, and the previous deploy is listed under **Events** for rollback.
+5. Record the result in `PROJECT_STATUS.md`, this file, Issue #8 and ClickUp `86e2tjzyc`; on a pass, change the decision to **PRODUCTION GO** and close Issue #8.
 
-**Owner action:** in Render, **New → Blueprint** → `ebyron357/agency-content-grants`, branch `main` → approve the plan charges → enter `ADMIN_PASSWORD` and `OPENAI_API_KEY`.
-
-## What changes the decision to PRODUCTION GO
-
-All of the following, recorded in `PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`:
-
-1. Render reports the service live on the `main` release commit.
-2. `tests/production-smoke.sh` passes against the production URL with `EXPECTED_SHA` set to that commit (health, readiness, SHA parity, authentication/session, anonymous rejection, persistence, media, export, ownership probes, logout, cleanup).
-3. Render logs for the service show no unexpected errors during the smoke run.
-4. The rollback path is confirmed available in Render (previous deploy listed under **Events**, or a re-deploy of the prior commit).
-
-If any check fails, the decision stays NO-GO until the failure is fixed through a reviewed PR or the deploy is rolled back.
+If any check fails, the decision stays NO-GO until the failure is fixed through a reviewed PR or the deploy is rolled back to `d9a06e7`.
 
 ## Resolved items (no longer blockers)
 
-Kept here so earlier records are not mistaken for open work: canonical repository confirmed (`ebyron357/agency-content-grants`); recovery baseline merged (PRs #4, #5); implementation lanes PR #9 and PR #10 superseded and closed; canonical closeout merged (PR #11); CI hardening merged (PRs #12, #13); release hygiene and security CI merged (PR #15); Issue #8 UI/UX system lock, dependency advisories, `/api/auth/me` admin state, deployment-parity reporting and production smoke tooling merged (PR #16); accessibility automated in CI across all primary routes; Replit is reference evidence only and is not a deployment target.
+Render environment created by the owner and serving production (verified 22 and 24 October); HTTP security headers merged (PR #22); October dependency advisories cleared (PRs #18, #19) and Render database sized for the $20/month baseline (PR #21). Earlier items: canonical repository confirmed (`ebyron357/agency-content-grants`); recovery baseline merged (PRs #4, #5); implementation lanes PR #9 and PR #10 superseded and closed; canonical closeout merged (PR #11); CI hardening merged (PRs #12, #13); release hygiene and security CI merged (PR #15); Issue #8 UI/UX system lock, `/api/auth/me` admin state, deployment-parity reporting and production smoke tooling merged (PR #16); accessibility automated in CI across all primary routes; Replit is reference evidence only and is not a deployment target.
 
 ## Standing rules
 

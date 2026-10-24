@@ -1,0 +1,327 @@
+{
+  "advisories": {
+    "1242767": {
+      "findings": [
+        {
+          "version": "4.1.11",
+          "paths": [
+            "artifacts__api-server>vitest>@vitest/mocker",
+            "artifacts__content-os>vitest>@vitest/mocker"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1242767,
+      "title": "Vitest: Code injection via unauthenticated manual mock registration",
+      "module_name": "@vitest/mocker",
+      "vulnerable_versions": ">=2.1.0-beta.7 <4.1.12",
+      "patched_versions": ">=4.1.12",
+      "severity": "moderate",
+      "cwe": "CWE-94, CWE-116, CWE-306",
+      "github_advisory_id": "GHSA-qxg6-89mg-rqv8",
+      "url": "https://github.com/advisories/GHSA-qxg6-89mg-rqv8"
+    },
+    "1242769": {
+      "findings": [
+        {
+          "version": "4.1.11",
+          "paths": [
+            "artifacts__api-server>vitest>@vitest/mocker",
+            "artifacts__content-os>vitest>@vitest/mocker"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1242769,
+      "title": "Vitest: Windows backslash traversal bypasses the @vitest/mocker redirect allowlist fix",
+      "module_name": "@vitest/mocker",
+      "vulnerable_versions": ">=4.1.11 <4.1.12",
+      "patched_versions": ">=4.1.12",
+      "severity": "moderate",
+      "cwe": "CWE-22",
+      "github_advisory_id": "GHSA-xp26-3454-mjgp",
+      "url": "https://github.com/advisories/GHSA-xp26-3454-mjgp"
+    },
+    "1242883": {
+      "findings": [
+        {
+          "version": "10.7.2",
+          "paths": [
+            "artifacts__api-server>express-rate-limit>ip-address"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1242883,
+      "title": "ip-address: Address6 matches a zone identifier in quadratic time ahead of its length limit, allowing a single long string to stall the process",
+      "module_name": "ip-address",
+      "vulnerable_versions": "<=10.7.3",
+      "patched_versions": ">=10.7.4",
+      "severity": "moderate",
+      "cwe": "CWE-1333",
+      "github_advisory_id": "GHSA-rxp7-6hxx-x8q5",
+      "url": "https://github.com/advisories/GHSA-rxp7-6hxx-x8q5"
+    },
+    "1243066": {
+      "findings": [
+        {
+          "version": "3.25.76",
+          "paths": [
+            "artifacts__content-os>zod",
+            "artifacts__mockup-sandbox>zod",
+            "lib__api-zod>zod",
+            "lib__db>drizzle-zod>zod",
+            "lib__db>zod"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243066,
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "module_name": "zod",
+      "vulnerable_versions": "<4.6.6",
+      "patched_versions": ">=4.6.6",
+      "severity": "high",
+      "cwe": "CWE-770",
+      "github_advisory_id": "GHSA-mrhx-c7xc-m3w5",
+      "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5"
+    },
+    "1243074": {
+      "findings": [
+        {
+          "version": "2.3.0",
+          "paths": [
+            "artifacts__api-server>express>body-parser",
+            "artifacts__api-server>express-rate-limit>express>body-parser"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243074,
+      "title": "body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body",
+      "module_name": "body-parser",
+      "vulnerable_versions": ">=2.0.0 <2.4.0",
+      "patched_versions": ">=2.4.0",
+      "severity": "high",
+      "cwe": "CWE-248",
+      "github_advisory_id": "GHSA-27r3-jxmh-p828",
+      "url": "https://github.com/advisories/GHSA-27r3-jxmh-p828"
+    },
+    "1243077": {
+      "findings": [
+        {
+          "version": "8.11.2",
+          "paths": [
+            "artifacts__api-server>undici",
+            "artifacts__api-server>vitest>jsdom>undici",
+            "artifacts__content-os>jsdom>undici",
+            "artifacts__content-os>vitest>jsdom>undici"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243077,
+      "title": "undici vulnerable to Denial of Service via unbounded memory in the EventSource parser",
+      "module_name": "undici",
+      "vulnerable_versions": ">=8.0.0 <8.12.2",
+      "patched_versions": ">=8.12.2",
+      "severity": "moderate",
+      "cwe": "CWE-770",
+      "github_advisory_id": "GHSA-4qv8-2p9j-2685",
+      "url": "https://github.com/advisories/GHSA-4qv8-2p9j-2685"
+    },
+    "1243080": {
+      "findings": [
+        {
+          "version": "8.11.2",
+          "paths": [
+            "artifacts__api-server>undici",
+            "artifacts__api-server>vitest>jsdom>undici",
+            "artifacts__content-os>jsdom>undici",
+            "artifacts__content-os>vitest>jsdom>undici"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243080,
+      "title": "undici vulnerable to Subresource Integrity bypass via non-lowercase algorithm tokens",
+      "module_name": "undici",
+      "vulnerable_versions": ">=8.0.0 <8.12.2",
+      "patched_versions": ">=8.12.2",
+      "severity": "moderate",
+      "cwe": "CWE-178",
+      "github_advisory_id": "GHSA-f72v-6w45-q472",
+      "url": "https://github.com/advisories/GHSA-f72v-6w45-q472"
+    },
+    "1243083": {
+      "findings": [
+        {
+          "version": "2.4.0",
+          "paths": [
+            "artifacts__api-server>multer"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243083,
+      "title": "multer vulnerable to Denial of Service via a pending asynchronous fileFilter after request teardown",
+      "module_name": "multer",
+      "vulnerable_versions": ">=2.0.0 <2.5.0",
+      "patched_versions": ">=2.5.0",
+      "severity": "high",
+      "cwe": "CWE-248, CWE-404",
+      "github_advisory_id": "GHSA-q7qp-rjg7-q26m",
+      "url": "https://github.com/advisories/GHSA-q7qp-rjg7-q26m"
+    },
+    "1243098": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-draft-04>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-formats>ajv>fast-uri"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243098,
+      "title": "fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.0.0 <3.1.9",
+      "patched_versions": ">=3.1.9",
+      "severity": "moderate",
+      "cwe": "CWE-172, CWE-180",
+      "github_advisory_id": "GHSA-w74x-v6f9-j3xg",
+      "url": "https://github.com/advisories/GHSA-w74x-v6f9-j3xg"
+    },
+    "1243101": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-draft-04>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-formats>ajv>fast-uri"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243101,
+      "title": "fast-uri vulnerable to improper path equivalence in relative reference normalization",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.0.0 <3.1.9",
+      "patched_versions": ">=3.1.9",
+      "severity": "low",
+      "cwe": "CWE-41",
+      "github_advisory_id": "GHSA-xhq7-xmqj-769h",
+      "url": "https://github.com/advisories/GHSA-xhq7-xmqj-769h"
+    },
+    "1243104": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-draft-04>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-formats>ajv>fast-uri"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243104,
+      "title": "fast-uri vulnerable to host confusion via unchecked WHATWG host canonicalization",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.1.3 <3.1.9",
+      "patched_versions": ">=3.1.9",
+      "severity": "moderate",
+      "cwe": "CWE-20, CWE-436",
+      "github_advisory_id": "GHSA-wjr9-j795-jxcr",
+      "url": "https://github.com/advisories/GHSA-wjr9-j795-jxcr"
+    },
+    "1243107": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-draft-04>ajv>fast-uri",
+            "lib__api-spec>orval>@scalar/openapi-parser>ajv-formats>ajv>fast-uri"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243107,
+      "title": "fast-uri vulnerable to scheme injection via an unescaped first-segment colon in suffix references",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.0.0 <3.1.9",
+      "patched_versions": ">=3.1.9",
+      "severity": "low",
+      "cwe": "CWE-41, CWE-116",
+      "github_advisory_id": "GHSA-333x-w4r6-6crp",
+      "url": "https://github.com/advisories/GHSA-333x-w4r6-6crp"
+    },
+    "1243112": {
+      "findings": [
+        {
+          "version": "8.11.2",
+          "paths": [
+            "artifacts__api-server>undici",
+            "artifacts__api-server>vitest>jsdom>undici",
+            "artifacts__content-os>jsdom>undici",
+            "artifacts__content-os>vitest>jsdom>undici"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1243112,
+      "title": "undici vulnerable to Denial of Service via unhandled error on excessive content-encodings",
+      "module_name": "undici",
+      "vulnerable_versions": ">=8.0.0 <8.12.2",
+      "patched_versions": ">=8.12.2",
+      "severity": "high",
+      "cwe": "CWE-248, CWE-459",
+      "github_advisory_id": "GHSA-xjj6-f33q-929c",
+      "url": "https://github.com/advisories/GHSA-xjj6-f33q-929c"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 2,
+      "moderate": 7,
+      "high": 4,
+      "critical": 0
+    },
+    "dependencies": 314,
+    "devDependencies": 430,
+    "optionalDependencies": 13,
+    "totalDependencies": 747
+  }
+}
