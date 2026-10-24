@@ -100,6 +100,16 @@ else
 fi
 check "GET / serves the Content OS app shell" "200" "$(code ncurl "$BASE_URL/")"
 if ncurl "$BASE_URL/" | grep -q '<div id="root">'; then pass "App shell contains the React root"; else fail "App shell contains the React root" "root element missing"; fi
+for target in "$BASE_URL/" "$API/healthz"; do
+  ncurl "$target" -D "$WORK/headers.txt" -o /dev/null
+  for header in "x-content-type-options: nosniff" "x-frame-options: DENY" "content-security-policy: .*frame-ancestors 'none'" "referrer-policy: strict-origin-when-cross-origin"; do
+    if grep -qi "^$header" "$WORK/headers.txt"; then pass "$target sends ${header%%:*}"; else fail "$target sends ${header%%:*}" "header missing or different"; fi
+  done
+  if [[ "$BASE_URL" == https://* ]]; then
+    if grep -qi '^strict-transport-security: max-age=' "$WORK/headers.txt"; then pass "$target sends strict-transport-security"; else fail "$target sends strict-transport-security" "header missing"; fi
+  fi
+  if grep -qi '^x-powered-by:' "$WORK/headers.txt"; then fail "$target hides x-powered-by" "x-powered-by present"; else pass "$target hides x-powered-by"; fi
+done
 
 section "2. Unauthenticated access is rejected"
 RANDOM_ID="00000000-0000-4000-8000-000000000000"
