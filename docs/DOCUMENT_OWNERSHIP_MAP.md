@@ -39,6 +39,7 @@ These describe earlier stages. Each carries a "historical" banner pointing here.
 |---|---|
 | `docs/history/PROJECT_STATUS_2026-09-24_PRE_CLOSEOUT.md` | Pre-closeout status, product strategy and competitive analysis (PR #11 era) |
 | `docs/history/GO_NO_GO_DECISION_2026-08-12.md` | 12 Aug 2026 closeout authorisation |
+| `docs/history/GO_NO_GO_DECISION_2026-10-02.md` | 2 Oct 2026 decision (release candidate GO; production NO-GO pending Render creation) |
 | `docs/history/PROJECT_STATUS_RECOVERY_BASELINE.md` | Recovery-baseline status |
 | `docs/PROGRAM_CHARTER.md`, `docs/STAGE_0_EXECUTION_PLAN.md`, `docs/REPOSITORY_BASELINE.md`, `docs/governance/GOVERNANCE_BASELINE.md`, `prompts/CURSOR_MASTER_ORCHESTRATOR.md` | Stage 0 planning and governance (July–August 2026) |
 | `docs/recovery/*`, `RECOVERY_PROVENANCE.md` | Replit source recovery (August 2026) |
