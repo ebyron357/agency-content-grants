@@ -6,10 +6,10 @@ Finish the Agency Content and Grant Intelligence Platform as an evidence-first, 
 
 ## Current state and authorization
 
-`docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 26 October 2026:
+`docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 2 November 2026:
 
 - The release candidate on `main` is **VERIFIED COMPLETE** (Issue #8 UI/UX lock and all repository, CI, accessibility, security and production-mode rehearsal gates).
-- Production is **LIVE** on Render running `main` `6d9f488` (security headers and the 24 October dependency fix) but **NO-GO** until the authenticated `tests/production-smoke.sh` run and Render log review are recorded. Deploys and paid resources are owner-only; agents must not trigger production deploys or create paid resources.
+- Production is **LIVE** on Render running `main` `6d9f488` (security headers and the 24 October dependency fix) but **NO-GO**. A runtime `qs` advisory found on 2 November must be fixed and deployed (branch `fix/dependency-advisories-nov02`). The authenticated `tests/production-smoke.sh` run and Render log review must also be recorded. Deploys and paid resources are owner-only; agents must not trigger production deploys or create paid resources.
 
 Agents may maintain, fix and verify the product within the approved scope below, prepare and verify deployments, and update the governing records. No agent may bypass a failing gate merely to meet a schedule.
 
@@ -162,4 +162,4 @@ A checkbox or project status may be marked complete only when:
 
 ## Current execution directive
 
-The product closeout is implemented and verified; do not reopen completed work or start a new product cycle. The remaining steps are in `docs/GO_NO_GO_DECISION.md`: an operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.
+The product closeout is implemented and verified; do not reopen completed work or start a new product cycle. The remaining steps are in `docs/GO_NO_GO_DECISION.md`. The 2 November dependency fix is merged and deployed. Then an operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, a comment on Issue #8 (already closed) and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.
