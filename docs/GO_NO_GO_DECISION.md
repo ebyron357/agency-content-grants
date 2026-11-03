@@ -6,6 +6,7 @@
 
 | Scope | Decision |
 |---|---|
+| Grant information directory | **Merged in PR #26 (`3221c7b`); source validation passed, not deployed.** See `GRANT_RESOURCES.md`; no production promotion is implied |
 | Content Machine release scope (Issue #8 and the approved closeout) | **GO — VERIFIED COMPLETE** (unchanged since 2 October) |
 | Production environment | **LIVE on `main` `6d9f488`** (PR #23 merge, which includes the PR #22 security headers). Health, readiness, SHA parity, anonymous rejection and security headers verified anonymously on 26 October and 2 November |
 | Production GO | **NO-GO.** Two items remain: (a) the runtime `qs` advisory found on 2 November must be fixed and deployed; (b) the `ADMIN_PASSWORD`-authenticated smoke test and Render log review must be recorded |
@@ -46,5 +47,5 @@ These continue to apply after production GO:
 - Never commit secrets, real customer data or credentials. Production secrets live only in the Render environment.
 - Production smoke tests use clearly labelled synthetic records and delete them.
 - No purchases, billing changes or new paid services without explicit owner approval.
-- Grant/proposal intelligence remains deferred; building it requires a new owner decision.
+- The owner authorized the curated grant information directory on November 2. Automated matching, proposal generation, applicant data and submissions remain deferred until the owner approves `GRANT_PLATFORM_PLAN.md` (PR #27).
 - Re-audit dependencies before each production deploy, at every severity, not only at the CI gate's `high` threshold.

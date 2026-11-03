@@ -11,13 +11,13 @@ Delivered capabilities:
 - Automation API with scoped keys and signed webhooks (`docs/automation-api.md`).
 - One dark command-center design system across every screen (`docs/DESIGN_SYSTEM.md`), accessibility-gated in CI.
 
-Grant/proposal intelligence from early planning is **not implemented** and remains deferred by owner decision.
+A curated grant resource directory at `/grants` is implemented: funding types, eligibility summaries, permitted uses, timing and official sources. See [`docs/GRANT_RESOURCES.md`](docs/GRANT_RESOURCES.md). Automated grant matching, proposal generation and submissions remain deferred.
 
 ## Status
 
-**Release candidate verified complete; production not yet deployed.** All repository, CI, browser, accessibility, security and production-mode rehearsal gates pass. The single remaining step is owner-only: creating the Render environment from `render.yaml` (paid resources and owner-held secrets). The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
+**Existing Content Machine is deployed; authenticated production verification remains outstanding in the October 26 status record.** The grant directory is implemented in PR #26 and is not yet deployed. The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
 
-- Production URL: not provisioned (expected `https://agency-content-grants.onrender.com` once created; sign-in at `/`).
+- Recorded production URL: `https://agency-content-grants.onrender.com` (sign-in at `/`); consult the status record for verified deployment identity.
 - Access model: one workspace account protected by the `ADMIN_PASSWORD` secret; no self-registration ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)).
 
 ## Architecture

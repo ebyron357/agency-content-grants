@@ -6,11 +6,28 @@ Status date: **2 November 2026**. Owner: Emmanuel Andre Byron (`ebyron357`). Thi
 
 | Area | Verified state | Next action and owner |
 |---|---|---|
+| Grant resource directory | **Merged in [PR #26](https://github.com/ebyron357/agency-content-grants/pull/26) (`3221c7b`); not deployed.** 21 primary-source resources, filters, source dates and review indicators. Owner authorized November 2. See [scope and maintenance](GRANT_RESOURCES.md) | Deploy together with the dependency fix below; production deployment remains an owner-controlled action |
 | Previously delivered Content Machine scope | Historical closeout evidence is retained; new advisories do not reopen unrelated accepted functionality | Preserve accepted scope |
 | Production | **LIVE: deployed `main` `6d9f4887a28d8caec52e2e32c11e61d4a74059f4` (PR #23 merge).** The agent re-checked it on 26 October and again on 2 November 2026, both times anonymously, with no credentials. `/api/healthz` reports commit `6d9f488` (SHA parity with the deployed code; the later `main` commits change documentation only). `/api/readyz` returns 200, anonymous `/api/projects` returns 401, and `/` returns the PR #22 headers (`content-security-policy`, `x-frame-options`, `strict-transport-security`). The authenticated `tests/production-smoke.sh` run and Render log review are **not recorded here** | An operator holding `ADMIN_PASSWORD` runs `tests/production-smoke.sh` with `EXPECTED_SHA` set to the deployed commit, reviews Render logs, and records the result |
 | HTTP security headers | **DEPLOYED.** [PR #22](https://github.com/ebyron357/agency-content-grants/pull/22) (`4d7328d`); observed on production on 26 October and 2 November. Header set and decisions below | — |
 | Dependency security | **IN PROGRESS: 2 moderate advisories, fix on branch `fix/dependency-advisories-nov02`.** A re-audit of `main` on 2 November found two advisories published after the clean audit of 26 October. `qs` 6.16.0 ([GHSA-6pq8-jhm2-2vcw](https://github.com/advisories/GHSA-6pq8-jhm2-2vcw)) is in the runtime path (`express` → `body-parser`), so production is affected until the fix is deployed. `minimatch` 10.2.5 ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)) is reached only through `orval` → `typedoc` during code generation. The branch overrides `qs ^6.16.1` (resolves 6.17.1) and `typedoc>minimatch ^11.0.1` (resolves 11.0.3), and the audit then reports zero advisories at every severity. The existing `--audit-level=high` gate passed throughout, because both advisories are moderate. Evidence: [2026-11-02](evidence/security/2026-11-02/README.md). Previous repair: [PR #23](https://github.com/ebyron357/agency-content-grants/pull/23), merged and deployed as `6d9f488` on 24 October ([evidence](evidence/security/2026-10-24/README.md)) | Merge the branch's PR once CI is green; include it in the next production deploy; re-audit before each deploy |
 | Local validation (2 November, Linux) | Frozen install, format check, repository typecheck and build, API unit tests (137, including `project-files`, which fails only on Windows), UI tests (21), audit and identical API code generation all pass on the advisory branch. Docker is unavailable locally, so the database-backed API, integration and Playwright accessibility suites run in CI only | — |
+
+## Grant directory validation — November 2, 2026
+
+Baseline: `6d62fbaf58426a4cdacbee24765e327b629a96f7`. Dedicated branch: `feat/grant-resource-directory`. No database migrations, backend changes, new dependencies or paid integrations.
+
+- Frozen install passed (Node 24.22.1, pnpm 11.25.0; CI retains the repository-pinned versions).
+- Workspace typecheck and full production build passed. Existing ProjectDetail bundle-size warning remains.
+- Content OS tests: 27 passed, including six new grant tests.
+- Hermetic API tests: 137 passed, plus 17 database-environment guard tests.
+- Formatting and `git diff --check` passed.
+- Grant browser tests: 3 passed at 1440px and 390px, covering discovery, combined filters, empty-state recovery, the sign-in UI and axe checks (no serious/critical findings). These use an explicit auth UI fixture. The real-session route check is added to the existing hosted accessibility gate.
+- Local browser fallback: pinned Playwright Chromium 153 download failed (invalid archive); runtime Chromium 151 also failed. Chromium Headless Shell 134 downloaded successfully and ran the browser suite using an uncommitted local config. Full Chrome hit a container Unix-socket restriction; Vite and the test browser were started in the same process tree. No repository dependency pins or CI requirements were changed for this fallback.
+- Hosted CI [41564319136](https://github.com/ebyron357/agency-content-grants/actions/runs/41564319136) passed on source commit `bf7f37e7dc74657b2c1a22843cbcf055e1ba9886`, including database-backed API tests, integration, the real-session accessibility gate, security and production build. Closeout validation [41564319258](https://github.com/ebyron357/agency-content-grants/actions/runs/41564319258) also passed. No local PostgreSQL/Docker is available. Any later documentation-only commit must still pass required checks; the PR check list is authoritative for its current head.
+- `pnpm audit --audit-level=high` passed but reported two moderate advisories. No high/critical advisories were reported. This is a new dated result, not the October 26 zero-advisory claim.
+
+Screenshots and reproducible commands: [grant directory evidence](evidence/grants/2026-11-02/README.md). No production deployment, smoke result or new production GO is claimed.
 
 ## HTTP security headers (deployed)
 
@@ -76,7 +93,7 @@ Render deploys are manual (`autoDeployTrigger: off`). No agent creates paid reso
 
 ## Preserved product and operating constraints
 
-- Approved scope is the delivered Content Machine. Grant/proposal intelligence remains deferred under existing owner decisions.
+- Approved scope includes the delivered Content Machine plus the November 2 owner-authorized curated grant information directory. Automated eligibility, applicant data, proposal generation and submissions remain deferred; a proposed plan for them is in [`GRANT_PLATFORM_PLAN.md`](GRANT_PLATFORM_PLAN.md) (PR #27) and needs owner approval.
 - One shared operator account; access is revoked by password rotation. No new identity or tenant model is introduced.
 - Single instance, in-process schedulers, and persistent Render disk remain the deployment design. Media and exports remain on disk; backup and retention procedures remain in the existing runbooks.
 - AI providers, Typefully, and production credentials are owner-managed external dependencies. Demonstration output must stay labelled.

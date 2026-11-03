@@ -87,3 +87,7 @@ Regular users can view provider status and dependencies. Changing model assignme
 ## 10. Getting help
 
 See [`TROUBLESHOOTING_AND_SUPPORT.md`](TROUBLESHOOTING_AND_SUPPORT.md). For anything not covered there, contact the workspace owner using the details in your access handoff.
+
+## Grant resources
+
+Open **Grants** in the sidebar. Search by mission or expense, then choose a funding type, location and status. Each card shows the support amount, eligibility, permitted uses, limits, timing and official source links. Location is a discovery filter, not a determination that your organization qualifies. Check the official page before applying. Older listings and elapsed deadlines show “Review required”; closed and paused programs are watchlist resources. Cash, credits, software and fundraising services are labeled separately. See [the directory guide](GRANT_RESOURCES.md) for scope and maintenance.
