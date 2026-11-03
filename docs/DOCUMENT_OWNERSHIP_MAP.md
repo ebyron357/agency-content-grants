@@ -14,6 +14,7 @@ Updated 2 November 2026. Every fact has one current home. If two documents disag
 | `docs/PROJECT_COMPLETION_STANDARD.md` | Universal completion standard | Product owner | Product owner approval |
 | `docs/DESIGN_SYSTEM.md` | Locked UI system (tokens, components, behaviour rules) | Product owner | Approved PR with accessibility gate green |
 | `docs/GRANT_RESOURCES.md` | Grant directory scope, source provenance, maintenance and limits | Product owner / maintainers | Approved PR |
+| `docs/GRANT_PLATFORM_PLAN.md` | Proposed plan for grant discovery, matching, writing studio and assisted submission for nonprofits and businesses; phases and owner decisions | Product owner | Product owner approval |
 | `docs/CI.md` | CI contract for PRs to `main` | Technical lead | Approved PR |
 | `docs/BRANCH_AND_PR_POLICY.md` | Branching and PR requirements | Technical lead | Approved PR |
 | `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` | Deploy, verify, release, rollback, backup, restore, DR, decommission | Operator | Approved PR |
