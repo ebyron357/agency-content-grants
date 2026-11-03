@@ -2,6 +2,7 @@
 export type FundingKind =
   | "Cash grant"
   | "Partner-led grant"
+  | "Grant or investment"
   | "Advertising credit"
   | "Software grant"
   | "Cloud credit"
@@ -187,7 +188,7 @@ export const grantResources: GrantResource[] = [
   {
     id: "drk",
     name: "Draper Richards Kaplan Foundation",
-    kind: "Cash grant",
+    kind: "Grant or investment",
     amount: "Up to $300,000 over three years",
     regions: ["United States", "Africa", "Europe", "India"],
     topics: ["Social enterprise", "Community"],
