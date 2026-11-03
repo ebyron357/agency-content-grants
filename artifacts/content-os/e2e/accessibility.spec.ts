@@ -110,6 +110,7 @@ test("every primary authenticated route passes the accessibility gate on one des
   for (const [path, label] of [
     ["/dashboard", "dashboard"],
     ["/projects", "documents"],
+    ["/grants", "grants"],
     ["/brands", "brands"],
     [`/brands/${brand.id}`, "brand detail"],
     ["/distribution", "distribution"],
@@ -143,6 +144,7 @@ test("every primary authenticated route passes the accessibility gate on one des
   for (const name of [
     "New content",
     "Documents",
+    "Grants",
     "Brands",
     "Distribution",
     "Performance",

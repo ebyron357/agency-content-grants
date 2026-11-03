@@ -1,6 +1,6 @@
 # Document Ownership Map and Authority Index
 
-Updated 2 October 2026. Every fact has one current home. If two documents disagree, the **current** document listed here wins and the other must be corrected or labelled historical in the same PR.
+Updated 2 November 2026. Every fact has one current home. If two documents disagree, the **current** document listed here wins and the other must be corrected or labelled historical in the same PR.
 
 ## Current documents
 
@@ -13,6 +13,7 @@ Updated 2 October 2026. Every fact has one current home. If two documents disagr
 | `.cursor/rules/content-machine-governance.mdc` | Cursor pointer to `AGENTS.md` and current authority | Product owner | Product owner approval |
 | `docs/PROJECT_COMPLETION_STANDARD.md` | Universal completion standard | Product owner | Product owner approval |
 | `docs/DESIGN_SYSTEM.md` | Locked UI system (tokens, components, behaviour rules) | Product owner | Approved PR with accessibility gate green |
+| `docs/GRANT_RESOURCES.md` | Grant directory scope, source provenance, maintenance and limits | Product owner / maintainers | Approved PR |
 | `docs/CI.md` | CI contract for PRs to `main` | Technical lead | Approved PR |
 | `docs/BRANCH_AND_PR_POLICY.md` | Branching and PR requirements | Technical lead | Approved PR |
 | `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` | Deploy, verify, release, rollback, backup, restore, DR, decommission | Operator | Approved PR |

@@ -37,7 +37,7 @@ The autonomous closeout may implement and verify the product capabilities requir
 - Accessibility, responsive UX, SEO/metadata, error states, and reliability fixes required for a production-quality product.
 - Removal or consolidation of duplicate recovered UI/source trees only when the canonical implementation is proven, unique assets are preserved, and the change is covered by tests/evidence.
 
-Grant/proposal intelligence features outside the already approved product plan remain separately gated when they introduce source eligibility, legal/compliance, submission, or regulated-data obligations not needed for the Content Machine closeout.
+The owner’s November 2, 2026 request authorizes a curated grant information directory (see `docs/GRANT_RESOURCES.md`), preserving the existing design. Automated eligibility decisions, applicant data, proposal generation and submissions remain deferred. Grant/proposal intelligence outside this narrow information scope remains separately gated.
 
 ## Non-negotiable rules
 
@@ -162,4 +162,4 @@ A checkbox or project status may be marked complete only when:
 
 ## Current execution directive
 
-The product closeout is implemented and verified; do not reopen completed work or start a new product cycle. The remaining steps are in `docs/GO_NO_GO_DECISION.md`: an operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.
+The original Content Machine closeout is implemented and verified. The November 2 owner-authorized grant directory is a separate focused addition; preserve completed functionality and validate the new route. The remaining steps are in `docs/GO_NO_GO_DECISION.md`: an operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.
