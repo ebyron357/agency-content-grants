@@ -28,6 +28,7 @@ import performanceRouter from "./performance";
 import apiKeysRouter from "./api-keys";
 import webhooksRouter from "./webhooks";
 import mediaRouter from "./media";
+import grantsRouter from "./grants";
 
 export const router = Router();
 
@@ -61,3 +62,4 @@ router.use(performanceRouter);
 router.use(apiKeysRouter);
 router.use(webhooksRouter);
 router.use(mediaRouter);
+router.use(grantsRouter);

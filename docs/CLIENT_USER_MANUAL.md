@@ -17,6 +17,8 @@ The left rail is on every screen. On a phone it collapses to icons; hover or lon
 | Rail item | What it is for |
 |---|---|
 | **New content** | Start a new piece from a one-line intent |
+| **Grant Studio** | Find federal grants your organization can apply for, then write, budget, check and package the application |
+| **Grants** | A curated directory of grant and in-kind programs, with official sources |
 | **Documents** | Every document project, most recently updated first, with search, type filters and **Resume** |
 | **Brands** | Voice, audience and context that every document inherits |
 | **Distribution** | Connect destinations, schedule and review publishing |
@@ -91,3 +93,18 @@ See [`TROUBLESHOOTING_AND_SUPPORT.md`](TROUBLESHOOTING_AND_SUPPORT.md). For anyt
 ## Grant resources
 
 Open **Grants** in the sidebar. Search by mission or expense, then choose a funding type, location and status. Each card shows the support amount, eligibility, permitted uses, limits, timing and official source links. Location is a discovery filter, not a determination that your organization qualifies. Check the official page before applying. Older listings and elapsed deadlines show “Review required”; closed and paused programs are watchlist resources. Cash, credits, software and fundraising services are labeled separately. See [the directory guide](GRANT_RESOURCES.md) for scope and maintenance.
+
+## Grant Studio
+
+Open **Grant Studio** in the sidebar. The full guide is [Grant Studio](GRANT_STUDIO.md).
+
+1. **Add organization.** Choose the organization type: 501(c)(3), other nonprofit, small business or other for-profit. Enter the legal name, state, annual budget, mission and focus areas (comma separated, for example `literacy, early childhood`). Specific focus areas give better matches than broad ones such as "health".
+2. **Readiness.** Mark each registration and document as missing, in progress or ready, with its expiry date. Federal applications need an active SAM.gov registration and a Grants.gov Authorized Organization Representative.
+3. **Matches.** Opportunities come from Grants.gov and are refreshed daily. Each card shows the fit score, why it fits, and what is missing. **Only my topics** hides eligible but off-topic opportunities; clear it to see everything you are eligible for. Opportunities you cannot apply for are left out, and the count tells you how many.
+4. **Review and apply.** Read the opportunity and open the official notice. **Start application** asks you to confirm that you read the notice's eligibility section and that your organization meets it.
+5. **Requirements.** Check the compliance matrix and add anything the notice asks for. With an AI provider configured, you can paste the notice and choose **Extract**. Then choose **Confirm all**.
+6. **Write.** Work through each section within its limit. **Draft with AI** uses only your organization's facts and marks anything missing as `[Add: …]`, which you must fill in. **Review** scores the section. **Approve** locks it, and editing it later reopens it.
+7. **Budget.** Add lines by category with a justification for each, and set your indirect rate if you have one. The total is checked against the award ceiling.
+8. **Review & package.** Every failing check has a **Fix** link. When all checks pass, the authorized representative approves the package and downloads it. **Download draft** works at any time for team review.
+
+Grant Studio never submits for you. Submit through Grants.gov Workspace or the funder's portal, and confirm the forms the package lists. Without an AI provider, the drafting tools show a labelled scaffold, which has to be replaced before the package can be approved.

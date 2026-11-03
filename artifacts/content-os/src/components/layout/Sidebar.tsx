@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Building2, FolderKanban, Settings, Plus, LogOut, Send, LineChart, PenLine, HandCoins } from 'lucide-react';
+import { LayoutDashboard, Building2, FolderKanban, Settings, Plus, LogOut, Send, LineChart, PenLine, HandCoins, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const nav = [
+  { href: '/grant-studio', label: 'Grant Studio', icon: Landmark },
   { href: '/grants', label: 'Grants', icon: HandCoins },
   { href: '/projects', label: 'Documents', icon: FolderKanban },
   { href: '/brands', label: 'Brands', icon: Building2 },

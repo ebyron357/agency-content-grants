@@ -1,17 +1,30 @@
 # Content Machine — current project status
 
-Status updated: **2 November 2026**. Production observations below remain dated **26 October 2026** and have not been reverified for this work package. Owner: Emmanuel Andre Byron (`ebyron357`). This is the single current status record. Governing issue: [#8](https://github.com/ebyron357/agency-content-grants/issues/8). ClickUp control task: `86e2tjzyc`.
+Status updated: **3 November 2026**. Production observations below remain dated **26 October 2026** and have not been reverified for this work package. Owner: Emmanuel Andre Byron (`ebyron357`). This is the single current status record. Governing issue: [#8](https://github.com/ebyron357/agency-content-grants/issues/8). ClickUp control task: `86e2tjzyc`.
 
 ## Current verdict
 
 | Area | Verified state | Next action and owner |
 |---|---|---|
+| Grant Studio (discovery to approved application package, nonprofits and businesses) | **Implemented on `feat/grant-studio`; pull request open, not merged or deployed.** Daily Grants.gov sync (1,348 open opportunities on 3 November), explained matching with an on-topic filter, readiness tracking, a compliance matrix, a section writer with grounded AI drafting and review, an SF-424A budget, approvals and DOCX packages. Submission stays with the authorized representative. See [Grant Studio](GRANT_STUDIO.md) and [evidence](evidence/grant-studio/2026-11-03/README.md) | Owner reviews the pull request and accepts the scope change below; merge requires green checks on the latest head; deployment (migration `0016`) is a separate owner-controlled action |
 | Grant resource directory | **Implemented in [PR #26](https://github.com/ebyron357/agency-content-grants/pull/26); not deployed.** 21 primary-source resources, filters, source dates and review indicators. Owner authorized November 2. See [scope and maintenance](GRANT_RESOURCES.md) | Merge requires green checks on the latest PR head; production deployment remains a separate owner-controlled action |
 | Previously delivered Content Machine scope | Historical closeout evidence is retained; new advisories do not reopen unrelated accepted functionality | Preserve accepted scope |
 | Production | **LIVE — deployed `main` `6d9f4887a28d8caec52e2e32c11e61d4a74059f4` (PR #23 merge).** Agent re-check on 26 October 2026 (anonymous, no credentials): `/api/healthz` reports commit `6d9f488` (SHA parity with `main`), `/api/readyz` 200, anonymous `/api/projects` 401, and `/` returns every header from PR #22 with no `x-powered-by`. The authenticated `tests/production-smoke.sh` run and Render log review are **not recorded here** | Operator holding `ADMIN_PASSWORD` runs `tests/production-smoke.sh` with `EXPECTED_SHA=6d9f4887a28d8caec52e2e32c11e61d4a74059f4`, reviews Render logs, and records the result |
 | HTTP security headers | **DEPLOYED.** [PR #22](https://github.com/ebyron357/agency-content-grants/pull/22) (`4d7328d`); observed on production 26 October. Header set and decisions below | — |
 | Dependency security | **PASS — merged and deployed.** [PR #23](https://github.com/ebyron357/agency-content-grants/pull/23) merged 24 October as `6d9f488` by `ebyron357` after CI passed on head `2a37fae` ([run 40117653812](https://github.com/ebyron357/agency-content-grants/actions/runs/40117653812): format, typecheck, API unit and DB-backed tests, UI tests, integration, accessibility, build, secret scan, audit, SBOM). It cleared 4 high, 7 moderate and 2 low advisories and the `@tiptap/pm` peer mismatch. Re-audit of `main` on 26 October: no known vulnerabilities. Evidence: [2026-10-24](evidence/security/2026-10-24/README.md) | Re-audit before each production deploy |
 | October 26 local validation | Frozen install, typecheck, content-os tests, build and high-severity audit pass on Windows. One API unit test (`project-files`, POSIX paths) and the format check fail only from Windows path/CRLF effects and pass in Linux CI. Docker is unavailable locally, so database-backed API, integration and Playwright accessibility suites run in CI only | — |
+
+## Grant Studio validation — November 3, 2026
+
+Branch `feat/grant-studio` from `main` `3221c7b`. Adds migration `0016_add_grant_studio` (nine tables), the `/api/grants/*` routes, a daily Grants.gov sync (public, keyless API; no new dependency or paid service) and four `/grant-studio` screens.
+
+- Format check, workspace typecheck and production build passed.
+- API unit tests: 168 passed (31 Grant Studio). Database-backed API tests: 348 passed (4 Grant Studio integration tests against a real local PostgreSQL 16). Content OS tests: 27 passed.
+- Playwright under the CI condition (`NODE_ENV=test`, empty opportunity store): 6 passed, including the new `grant-studio.spec.ts` and the accessibility gate, which now visits `/grant-studio`.
+- Live-data browser journey with synthetic organizations: nonprofit and small-business profiles, readiness, matches, eligibility confirmation, requirements, demo-scaffold drafting, budget, package checks and draft DOCX. axe found no serious or critical issues, and mobile pages had no horizontal scroll.
+- The run found a ranking defect: off-topic NIH opportunities ranked first, and cost sharing was unknown for most matches. It was fixed before commit and is recorded in the evidence.
+
+Hosted CI on the pull request is authoritative. No production deployment is claimed.
 
 ## Grant directory validation — November 2, 2026
 
@@ -73,7 +86,7 @@ Render deploys are manual (`autoDeployTrigger: off`). No agent creates paid reso
 
 ## Preserved product and operating constraints
 
-- Approved scope includes the delivered Content Machine plus the November 2 owner-authorized curated grant information directory. Automated eligibility, applicant data, proposal generation and submissions remain deferred.
+- Approved scope includes the delivered Content Machine and the November 2 owner-authorized curated grant information directory. On November 3 the owner asked for end-to-end grant software for nonprofits and businesses, with assisted submission. Grant Studio implements this: applicant profiles, matching, writing tools and packages. It becomes accepted scope when the owner approves its pull request. Autonomous submission and automated eligibility decisions remain excluded: a person confirms eligibility, and the authorized representative approves and submits.
 - One shared operator account; access is revoked by password rotation. No new identity or tenant model is introduced.
 - Single instance, in-process schedulers, and persistent Render disk remain the deployment design. Media and exports remain on disk; backup and retention procedures remain in the existing runbooks.
 - AI providers, Typefully, and production credentials are owner-managed external dependencies. Demonstration output must stay labelled.
@@ -82,6 +95,6 @@ Render deploys are manual (`autoDeployTrigger: off`). No agent creates paid reso
 
 ## Governing documents and history
 
-`AGENTS.md`, `docs/GO_NO_GO_DECISION.md`, `docs/DOCUMENT_OWNERSHIP_MAP.md`, `docs/CI.md`, `docs/PROJECT_COMPLETION_STANDARD.md`, and the deployment, security/access, data lifecycle, admin, client, troubleshooting, and acceptance manuals remain in force. This status update changes observed facts, not their security or approval policies. The October 2 GO/NO-GO record's historical gate results must not be interpreted as a current clean vulnerability audit.
+`AGENTS.md`, `docs/GO_NO_GO_DECISION.md`, `docs/DOCUMENT_OWNERSHIP_MAP.md`, `docs/GRANT_STUDIO.md`, `docs/CI.md`, `docs/PROJECT_COMPLETION_STANDARD.md`, and the deployment, security/access, data lifecycle, admin, client, troubleshooting, and acceptance manuals remain in force. This status update changes observed facts, not their security or approval policies. The October 2 GO/NO-GO record's historical gate results must not be interpreted as a current clean vulnerability audit.
 
-The complete prior status, evidence matrix, known limitations, document index, and release history are retained in [the superseded October 2 snapshot](history/PROJECT_STATUS_2026-10-02_PRE_SECURITY_REPAIR.md). Earlier recovery records remain historical. This file supersedes the 24 October version as the single current status; it does not overwrite or fabricate prior evidence.
+The complete prior status, evidence matrix, known limitations, document index, and release history are retained in [the superseded October 2 snapshot](history/PROJECT_STATUS_2026-10-02_PRE_SECURITY_REPAIR.md). Earlier recovery records remain historical. This file supersedes the 2 November version as the single current status; it does not overwrite or fabricate prior evidence.
