@@ -47,7 +47,7 @@ One sans family (Inter) everywhere; no serif headings.
 
 `artifacts/content-os/src/components/layout/`:
 
-- `Sidebar` — dark navigation rail. Identity, primary **New content** action, Documents, Brands, Distribution, Performance, Dashboard, Settings, secondary Sign out. Collapses to a 64px icon rail below `md` with tooltips and accessible names; active item has `aria-current="page"` and a brand indicator.
+- `Sidebar` — dark navigation rail. Identity, primary **New content** action, Grants, Documents, Brands, Distribution, Performance, Dashboard, Settings, secondary Sign out. Collapses to a 64px icon rail below `md` with tooltips and accessible names; active item has `aria-current="page"` and a brand indicator.
 - `Page` — `PageShell`, `PageHeader`, `Panel`, `PanelHeader`, `StateMessage` (empty/error state with one recommended action), `LoadingState`.
 
 Shared primitives in `components/ui/` (button, input, select, textarea, card, dialog, alert-dialog, tabs, tooltip, toast) carry the same radius, height and focus-ring rules.
@@ -64,6 +64,8 @@ Shared primitives in `components/ui/` (button, input, select, textarea, card, di
 
 ## Enforcement
 
-`artifacts/content-os/e2e/accessibility.spec.ts` (CI job **CI → validate**) logs in and runs axe (WCAG 2.0/2.1 A/AA, critical + serious) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, the 404 page and all nine Project Detail workflow tabs. It also asserts the dark shell tokens, that every navigation destination is reachable by name on a 390px viewport, and that there is no horizontal page scroll on mobile.
+`artifacts/content-os/e2e/accessibility.spec.ts` (CI job **CI → validate**) logs in and runs axe (WCAG 2.0/2.1 A/AA, critical + serious) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, Grants, the 404 page and all nine Project Detail workflow tabs. It also asserts the dark shell tokens, that every navigation destination is reachable by name on a 390px viewport, and that there is no horizontal page scroll on mobile.
 
 Visual evidence for the locked system: `docs/evidence/ui/closeout-2026-10-02/`.
+
+The grant directory reuses these locked tokens, page primitives and responsive rules. It adds one sidebar destination and no visual redesign.
