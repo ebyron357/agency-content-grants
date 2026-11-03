@@ -4,7 +4,7 @@ Decision: **ADOPT — curated information directory**, authorized by the owner�
 
 ## Delivered scope
 
-The authenticated `/grants` screen adds 21 curated resources to Content OS without changing the existing visual system. It includes cash grants, partner-led grants, advertising/cloud credits, software grants, a fundraising platform and funding directories. This is a practical starting collection selected for community nonprofits and international work, not an exhaustive list or a ranking of funders. Search covers names, mission, expenses, topics and geographic descriptions. Funding-type, location and published-status filters combine.
+The authenticated `/grants` screen adds 21 curated resources to Content OS without changing the existing visual system. It includes cash grants, grant-or-investment funding, partner-led grants, advertising/cloud credits, software grants, a fundraising platform and funding directories. This is a practical starting collection selected for community nonprofits and international work, not an exhaustive list or a ranking of funders. Search covers names, mission, expenses, topics and geographic descriptions. Funding-type, location and published-status filters combine.
 
 Every resource records amount or benefit, geography, eligibility summary, supported uses, restrictions, timing, status, official sources and the source-check date. Dollar General’s four programs are separate entries because amounts, eligible expenses and cycles differ. The preparation checklist helps users assemble common application information; each funder controls its actual requirements.
 

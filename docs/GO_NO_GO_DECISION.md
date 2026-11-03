@@ -6,7 +6,7 @@
 
 | Scope | Decision |
 |---|---|
-| Grant information directory | **Authorized for implementation November 2; proposed, not released.** See `GRANT_RESOURCES.md`; no production promotion is implied |
+| Grant information directory | **Implemented in PR #26; source validation passed, not deployed.** See `GRANT_RESOURCES.md`; no production promotion is implied |
 | Content Machine release scope (Issue #8 and the approved closeout) | **GO — VERIFIED COMPLETE** (unchanged since 2 October) |
 | Production environment | **LIVE on `main` `6d9f488`** (PR #23 merge, which includes the PR #22 security headers). Health, readiness, SHA parity, anonymous rejection and security headers verified anonymously on 26 October |
 | Production GO | **NO-GO — pending authenticated verification only.** No code, merge or deploy step remains; the `ADMIN_PASSWORD`-authenticated smoke test and Render log review have not been recorded |

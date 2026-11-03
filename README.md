@@ -11,11 +11,11 @@ Delivered capabilities:
 - Automation API with scoped keys and signed webhooks (`docs/automation-api.md`).
 - One dark command-center design system across every screen (`docs/DESIGN_SYSTEM.md`), accessibility-gated in CI.
 
-A curated grant resource directory at `/grants` is added in the current proposal: funding types, eligibility summaries, permitted uses, timing and official sources. See [`docs/GRANT_RESOURCES.md`](docs/GRANT_RESOURCES.md). Automated grant matching, proposal generation and submissions remain deferred.
+A curated grant resource directory at `/grants` is implemented: funding types, eligibility summaries, permitted uses, timing and official sources. See [`docs/GRANT_RESOURCES.md`](docs/GRANT_RESOURCES.md). Automated grant matching, proposal generation and submissions remain deferred.
 
 ## Status
 
-**Existing Content Machine is deployed; authenticated production verification remains outstanding in the October 26 status record.** The grant directory is a separate proposed addition and is not yet released. The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
+**Existing Content Machine is deployed; authenticated production verification remains outstanding in the October 26 status record.** The grant directory is implemented in PR #26 and is not yet deployed. The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
 
 - Recorded production URL: `https://agency-content-grants.onrender.com` (sign-in at `/`); consult the status record for verified deployment identity.
 - Access model: one workspace account protected by the `ADMIN_PASSWORD` secret; no self-registration ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)).
