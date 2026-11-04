@@ -520,7 +520,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
           <PanelHeader title="Package" description="A DOCX with every section, the budget, the compliance checklist and the approval record." />
           <div className="space-y-3 px-5 py-4">
             {ws.compliance.readyToExport ? (
-              <Notice tone="ok" title="Approved for submission">Export the final package, then submit it through Grants.gov Workspace before the deadline.</Notice>
+              <Notice tone="ok" title="Approved for submission">{ws.opportunity.federal ? 'Export the final package, then submit it through Grants.gov Workspace before the deadline.' : "Export the final package, then submit it through the state program's application portal before the deadline."}</Notice>
             ) : ws.compliance.readyForApproval ? (
               <Notice tone="ok" title="Every check passes">The authorized representative can now approve the package.</Notice>
             ) : (

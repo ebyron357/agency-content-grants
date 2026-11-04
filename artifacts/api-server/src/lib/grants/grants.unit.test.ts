@@ -11,6 +11,7 @@ import { broadTopics, hasTopics, isNewFor, newSince, scoreMatches, summarizeAler
 import { MAX_FACTS_PER_DRAFT, factLine, factsForSection, factsMappedToSection, isFactCategory } from "./facts";
 import { demoScaffold } from "./draftScaffold";
 import { buildDeadlineCalendar, dueReminder, escapeIcsText, fileStem, foldIcsLine } from "./calendar";
+import { caAmountRange, caDate, caMatching, normalizeCaRecord } from "./california";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
 
 // Shapes recorded from api.grants.gov on 3 November 2026 (public notice data, trimmed).
@@ -439,5 +440,78 @@ describe("deadline calendar", () => {
     expect(dueReminder(-1, null)).toBeNull();
     expect(dueReminder(null, null)).toBeNull();
     expect(fileStem("Readers Rising / HRSA-27-022")).toBe("Readers-Rising-HRSA-27-022");
+  });
+});
+
+describe("California Grants Portal connector", () => {
+  // Shape recorded from data.ca.gov on 4 November 2026 (public listing, trimmed).
+  const RECORD = {
+    _id: 1, PortalID: "194241", GrantID: "None", Status: "active", LastUpdated: "2026-10-30T17:18:33.000",
+    AgencyDept: "CA Department of Food and Agriculture", Title: "2027 CNIP Expansion", Type: "Grant",
+    Categories: "Agriculture; Food & Nutrition; Health & Human Services",
+    Purpose: "CNIP encourages purchases of California-grown produce.", Description: "CDFA seeks project proposals.",
+    ApplicantType: "Nonprofit; Business; Public Agency", ApplicantTypeNotes: "Eligibility is limited to certified farmers\u2019 markets.",
+    Geography: "Low-access areas", FundingSource: "State", MatchingFunds: "Not Required", MatchingFundsNotes: "None",
+    EstAvailFunds: "$750,000.00", EstAmounts: "Between $10,000.00 and $300,000.00", FundingMethod: "Reimbursement(s)",
+    OpenDate: "2026-10-30 15:00:00", ApplicationDeadline: "2026-12-04 17:00:00",
+    GrantURL: "https://cafarmtofork.cdfa.ca.gov/farm_to_fork/grants/cnip.html", AgencyURL: "https://www.cdfa.ca.gov",
+  };
+
+  it("parses dates, award ranges and matching rules in the portal's formats", () => {
+    expect(caDate("2026-12-04 17:00:00")).toBe("2026-12-04");
+    expect(caDate("Ongoing")).toBeNull();
+    expect(caAmountRange("Between $10,000.00 and $300,000.00")).toEqual([10000, 300000]);
+    expect(caAmountRange("$50,000.00")).toEqual([50000, 50000]);
+    expect(caAmountRange("Dependant on number of submissions received, application process, etc.")).toEqual([null, null]);
+    expect(caMatching("Not Required")).toEqual({ costSharing: false, costSharePercent: null });
+    expect(caMatching("25%")).toEqual({ costSharing: true, costSharePercent: 25 });
+    expect(caMatching("Varies")).toEqual({ costSharing: true, costSharePercent: null });
+  });
+
+  it("normalizes a record into a gated, state-scoped opportunity", () => {
+    const n = normalizeCaRecord(RECORD)!;
+    expect(n).toMatchObject({
+      sourceRef: "194241", number: null, status: "posted", openDate: "2026-10-30", closeDate: "2026-12-04", rollingDeadline: false,
+      awardFloor: 10000, awardCeiling: 300000, estimatedFunding: 750000, costSharing: false, jurisdiction: "CA",
+      officialUrl: "https://cafarmtofork.cdfa.ca.gov/farm_to_fork/grants/cnip.html",
+    });
+    expect(n.eligibilityCodes).toEqual(["12", "13", "22", "23"]);
+    expect(n.categories).toEqual(["Agriculture", "Food & Nutrition", "Health & Human Services"]);
+    expect(n.eligibilityText).toMatch(/California applicant types: Nonprofit; Business; Public Agency/);
+    const rolling = normalizeCaRecord({ ...RECORD, ApplicationDeadline: "Ongoing", GrantURL: "http://insecure.example", Status: "forecasted" })!;
+    expect(rolling).toMatchObject({ closeDate: null, rollingDeadline: true, status: "forecasted", officialUrl: "https://www.cdfa.ca.gov" });
+    expect(normalizeCaRecord({ ...RECORD, Title: "None" })).toBeNull();
+  });
+
+  it("publishes a posted record with a stated rolling deadline, but not one with no deadline at all", () => {
+    const base = { title: "T", officialUrl: "https://x.ca.gov", fetchedAt: NOW, status: "posted", closeDate: null };
+    expect(evaluateGate({ ...base, rollingDeadline: true }, NOW).publishable).toBe(true);
+    expect(evaluateGate(base, NOW).missing).toContain("closing date");
+  });
+
+  it("matches state programs on residency and stated match percentage, without federal registrations", () => {
+    const opp = { title: "Community Literacy for Youth Development", description: "Supports literacy programs.", categories: ["Education"], eligibilityCodes: ["12", "13"], eligibilityText: null, status: "posted", closeDate: null, awardFloor: 10000, awardCeiling: 200000, costSharing: true, costSharePercent: 25, rollingDeadline: true, jurisdiction: "CA" };
+    const ca: MatchApplicant = { applicantType: "nonprofit_501c3", mission: "Youth literacy", focusAreas: ["literacy"], state: "ca", annualBudget: 400000, maxCostSharePercent: 30 };
+    const irs = [{ kind: "irs_determination", status: "ready", expiresOn: null }];
+    const inCa = matchOpportunity(ca, opp, irs, NOW);
+    expect(inCa.eligible).toBe(true);
+    expect(inCa.gaps.join(" ")).not.toMatch(/SAM|Grants\.gov/);
+    expect(inCa.reasons.join(" ")).toMatch(/Rolling deadline/);
+    expect(inCa.reasons.join(" ")).toMatch(/Eligibility includes nonprofits/);
+    expect(inCa.reasons.join(" ")).not.toMatch(/501\(c\)\(3\)/);
+    expect(inCa.reasons.join(" ")).toMatch(/25% match, within the 30%/);
+    expect(matchOpportunity({ ...ca, state: "NC" }, opp, irs, NOW).exclusions[0]).toMatch(/CA state program; this organization is recorded in NC/);
+    expect(matchOpportunity({ ...ca, state: null }, opp, irs, NOW).gaps.join(" ")).toMatch(/Add the organization's state/);
+    expect(matchOpportunity({ ...ca, maxCostSharePercent: 10 }, opp, irs, NOW).exclusions.join(" ")).toMatch(/requires a 25% match; this organization can commit up to 10%/);
+    // A federal opportunity still requires the federal registrations.
+    expect(matchOpportunity(ca, { ...opp, jurisdiction: null, costSharing: false }, irs, NOW).gaps.join(" ")).toMatch(/SAM\.gov/);
+  });
+
+  it("uses a state template without federal forms, and compliance skips federal registrations", () => {
+    expect(chooseTemplate("nonprofit_501c3", "CNIP", "CA")).toBe("state_nonprofit");
+    expect(chooseTemplate("small_business", "SBIR Phase I", "CA")).toBe("state_business");
+    const labels = TEMPLATES.state_nonprofit.requirements.map((r) => r.label).join(" ");
+    expect(labels).not.toMatch(/SF-424|SAM\.gov/);
+    expect(labels).toMatch(/State application portal/);
   });
 });

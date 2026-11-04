@@ -46,6 +46,7 @@ import { buildApplicationPackage } from "../lib/grants/packageExport";
 import { isGrantSyncRunning, refreshOpportunityDetail, runGrantSyncOnce } from "../lib/grants/ingest";
 import { daysUntil } from "../lib/grants/gate";
 import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
+import { CA_SOURCE } from "../lib/grants/california";
 import { FACT_CATEGORIES, SECTION_FACT_CATEGORIES, factLine, factsForSection, isFactCategory } from "../lib/grants/facts";
 
 /**
@@ -195,10 +196,24 @@ function readinessView(applicant: GrantApplicant, items: (typeof grantReadinessI
   return { items: rows, score: rows.length ? Math.round((ready / rows.length) * 100) : 0, blockingOpen };
 }
 
+/** Display names for each source, and California's own wording for the eligibility codes it maps to. */
+const SOURCE_LABELS: Record<string, string> = { grants_gov: "Grants.gov", [CA_SOURCE]: "California Grants Portal" };
+const CA_CODE_LABELS: Record<string, string> = { "12": "Nonprofit", "13": "Nonprofit", "22": "Business", "23": "Business", "25": "Other legal entity" };
+
+function eligibilityLabels(o: GrantOpportunity): string[] {
+  if (o.source === CA_SOURCE) return [...new Set(o.eligibilityCodes.map((c) => CA_CODE_LABELS[c] ?? `Code ${c}`))];
+  return o.eligibilityCodes.map((c) => GRANTS_GOV_CODE_LABELS[c] ?? `Code ${c}`);
+}
+
 function opportunityView(o: GrantOpportunity) {
   return {
     id: o.id,
     source: o.source,
+    sourceLabel: SOURCE_LABELS[o.source] ?? o.source,
+    jurisdiction: o.jurisdiction,
+    federal: !o.jurisdiction,
+    rollingDeadline: o.rollingDeadline,
+    costSharePercent: o.costSharePercent,
     sourceRef: o.sourceRef,
     number: o.number,
     title: o.title,
@@ -213,7 +228,7 @@ function opportunityView(o: GrantOpportunity) {
     estimatedFunding: o.estimatedFunding,
     costSharing: o.costSharing,
     eligibilityCodes: o.eligibilityCodes,
-    eligibilityLabels: o.eligibilityCodes.map((c) => GRANTS_GOV_CODE_LABELS[c] ?? `Code ${c}`),
+    eligibilityLabels: eligibilityLabels(o),
     eligibilityText: o.eligibilityText,
     categories: o.categories,
     assistanceListings: o.assistanceListings,
@@ -231,6 +246,7 @@ function opportunityView(o: GrantOpportunity) {
 
 router.get("/grants/meta", async (_req, res): Promise<void> => {
   const [opps] = await db.select({ total: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true));
+  const bySource = await db.select({ source: grantOpportunitiesTable.source, n: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true)).groupBy(grantOpportunitiesTable.source);
   const [lastRun] = await db.select().from(grantSyncRunsTable).orderBy(desc(grantSyncRunsTable.startedAt)).limit(1);
   res.json({
     applicantTypes: Object.entries(APPLICANT_TYPES).map(([key, v]) => ({ key, label: v.label, kind: v.kind })),
@@ -241,6 +257,7 @@ router.get("/grants/meta", async (_req, res): Promise<void> => {
     aiProvider: getActiveProvider().name,
     aiDemo: getActiveProvider().name === "demo",
     opportunities: Number(opps.total),
+    sources: bySource.map((b) => ({ source: b.source, label: SOURCE_LABELS[b.source] ?? b.source, opportunities: Number(b.n) })),
     lastSync: lastRun ?? null,
     syncRunning: isGrantSyncRunning(),
   });
@@ -554,7 +571,8 @@ router.get("/grants/opportunities/:id", async (req, res): Promise<void> => {
   let [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, id)).limit(1);
   if (!opp) return fail(res, 404, "Opportunity not found");
   let detailError: string | null = null;
-  const stale = !opp.detailFetchedAt || Date.now() - opp.detailFetchedAt.getTime() > 24 * 60 * 60_000;
+  // Only Grants.gov has a separate detail record; state records are complete when synced.
+  const stale = opp.source === "grants_gov" && (!opp.detailFetchedAt || Date.now() - opp.detailFetchedAt.getTime() > 24 * 60 * 60_000);
   if (stale) {
     try {
       await refreshOpportunityDetail(opp.id);
@@ -599,7 +617,7 @@ router.post("/grants/applications", async (req, res): Promise<void> => {
     res.status(200).json({ id: existing.id, existing: true });
     return;
   }
-  const templateKey: TemplateKey = (body.template as TemplateKey) ?? chooseTemplate(applicant.applicantType as ApplicantType, opp.title);
+  const templateKey: TemplateKey = (body.template as TemplateKey) ?? chooseTemplate(applicant.applicantType as ApplicantType, opp.title, opp.jurisdiction);
   const template = TEMPLATES[templateKey];
   const username = await usernameOf(req.session.userId!);
   const id = randomUUID();
@@ -652,6 +670,7 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   const packageApproved = approvals.some((a) => a.scope === "package");
   const compliance = evaluateCompliance({
     applicantType: applicant.applicantType as ApplicantType,
+    federal: !opp.jurisdiction,
     eligibilityConfirmed: Boolean(app.eligibilityConfirmedAt),
     closeDate: opp.closeDate,
     requirements,
@@ -1063,7 +1082,7 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
     applicantTypeLabel: ws.applicant.applicantTypeLabel,
     ein: owned.applicant.ein,
     uei: owned.applicant.uei,
-    opportunity: { title: ws.opportunity.title, number: ws.opportunity.number, agency: ws.opportunity.agency, closeDate: ws.opportunity.closeDate, officialUrl: ws.opportunity.officialUrl },
+    opportunity: { title: ws.opportunity.title, number: ws.opportunity.number, agency: ws.opportunity.agency, closeDate: ws.opportunity.closeDate, officialUrl: ws.opportunity.officialUrl, federal: ws.opportunity.federal },
     requestedAmount: ws.budget.requested,
     sections: ws.sections.map((s) => ({ title: s.title, content: s.content })),
     budgetLines: ws.budgetLines,

@@ -73,6 +73,12 @@ export const grantOpportunitiesTable = pgTable("grant_opportunities", {
   awardCeiling: doublePrecision("award_ceiling"),
   estimatedFunding: doublePrecision("estimated_funding"),
   costSharing: boolean("cost_sharing"),
+  /** Required match as a percentage, when the source states one (California lists "25%"). */
+  costSharePercent: integer("cost_share_percent"),
+  /** The source states the program accepts applications on a rolling basis ("Ongoing"), so there is no closing date. */
+  rollingDeadline: boolean("rolling_deadline").notNull().default(false),
+  /** Null for federal programs; a state code ("CA") for state programs, which generally serve applicants or projects in that state. */
+  jurisdiction: text("jurisdiction"),
   /** Grants.gov applicant-type codes, e.g. "12", "23". */
   eligibilityCodes: jsonb("eligibility_codes").$type<string[]>().notNull().default([]),
   eligibilityText: text("eligibility_text"),

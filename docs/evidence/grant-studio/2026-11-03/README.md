@@ -79,3 +79,19 @@ Branch `feat/grant-studio-deadlines` (stacked on `feat/grant-studio-library`). M
   - at 10 days left, the 14-day reminder event fires once across two runs, and moving the closing date to 5 days left fires the 7-day one.
 - Unit tests: RFC 5545 text escaping, 75-octet line folding that never splits a UTF-8 character, three alarms per event, unreadable dates skipped, and the threshold sequence.
 - Local checks: API unit tests 40 Grant Studio; integration 7; Playwright under the CI condition and against the live-data demo (results in the pull request).
+
+## Addendum, 4 November 2026: California Grants Portal
+
+Branch `feat/grant-studio-california` (stacked on `feat/grant-studio-deadlines`). Migration `0020_grant_state_sources`.
+
+**Source check:** data.ca.gov dataset `california-grants-portal`, "Grants Offered" (keyless, updated daily by the State). All 2,027 records were profiled on 4 November: 154 active, 3 forecast and 1,870 closed. Of the 157 open records, 125 have an "Ongoing" deadline. SBIR.gov's API answered 403 "Forbidden" from its own gateway, not from the network proxy, so it stays unconnected.
+
+**Live sync (demo database):** 157 open California records fetched and stored. 150 passed the publication gate: 121 rolling and 29 dated. The other 7 were held back: 6 have no https program or agency link, and 1 deadline has passed although the portal still lists it as active. Of the published records, 112 are open to nonprofits, 22 to businesses, and 25 state a match percentage.
+
+| Check | Result | Screenshot |
+|---|---|---|
+| Hub | "1,492 open opportunities from California Grants Portal (150) and Grants.gov (1,342)" | `17-hub-sources.png` |
+| California nonprofit's matches (synthetic, state CA, food access) | CA state program badges; 1,236 eligible of 1,492 | `18-ca-matches.png` |
+| California opportunity | "California Grants Portal · CA state program"; fit reasons say "Eligibility includes nonprofits" (the portal's own term) and "A CA state program, and this organization is in CA"; no SAM.gov or Grants.gov gaps | `19-ca-opportunity.png` |
+
+axe found no serious or critical violations, and the mobile Matches page had no horizontal scroll. The integration test runs a fake portal through to a state application: rolling records published, an insecure link held back, residency and match-percentage exclusions, the `state_nonprofit` template with no SF-424 or SAM.gov rows, a readiness check that passes without federal registrations, closing of records that leave the open set, and failure recording.

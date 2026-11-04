@@ -127,7 +127,7 @@ export default function GrantStudio() {
     setSyncMessage('');
     try {
       const result = await grantsApi.sync();
-      setSyncMessage(result.status === 'running' ? 'A refresh is already running.' : 'Refreshing from Grants.gov. New opportunities appear in a few minutes.');
+      setSyncMessage(result.status === 'running' ? 'A refresh is already running.' : 'Refreshing from Grants.gov and the California Grants Portal. New opportunities appear in a few minutes.');
       setTimeout(() => invalidate(), 4000);
     } catch (err) {
       setSyncMessage(errorMessage(err));
@@ -168,7 +168,7 @@ export default function GrantStudio() {
       <div className="mb-6 grid gap-3 lg:grid-cols-2">
         <Notice
           tone={lastSync?.status === 'failed' ? 'error' : 'info'}
-          title={`${(meta.data?.opportunities ?? 0).toLocaleString('en-US')} open federal opportunities from Grants.gov`}
+          title={`${(meta.data?.opportunities ?? 0).toLocaleString('en-US')} open opportunities from ${meta.data?.sources?.length ? meta.data.sources.map((s) => `${s.label} (${s.opportunities.toLocaleString('en-US')})`).join(' and ') : 'official sources'}`}
           action={
             <Button variant="outline" size="sm" onClick={refresh} disabled={meta.data?.syncRunning} className="gap-2">
               <RefreshCw className={cn('h-3.5 w-3.5', meta.data?.syncRunning && 'animate-spin')} aria-hidden="true" />

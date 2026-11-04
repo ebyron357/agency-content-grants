@@ -66,7 +66,7 @@ export default function GrantOpportunity() {
       <PageHeader
         eyebrow={o.agency ?? 'Federal opportunity'}
         title={o.title}
-        description={o.number ? `Opportunity ${o.number} · Grants.gov` : 'Grants.gov'}
+        description={[o.number ? `Opportunity ${o.number}` : null, o.sourceLabel, o.jurisdiction ? `${o.jurisdiction} state program` : 'Federal program'].filter(Boolean).join(' · ')}
         actions={
           <Button asChild variant="outline" className="gap-2">
             <a href={o.officialUrl} target="_blank" rel="noreferrer">Official listing <ExternalLink className="h-4 w-4" aria-hidden="true" /></a>
@@ -78,7 +78,7 @@ export default function GrantOpportunity() {
       <dl className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Fact label="Closing date" value={deadlineLabel(o)} />
         <Fact label="Award" value={awardRange(o)} />
-        <Fact label="Cost sharing" value={o.costSharing == null ? 'Not stated' : o.costSharing ? 'Required' : 'Not required'} />
+        <Fact label="Cost sharing" value={o.costSharing == null ? 'Not stated' : o.costSharing ? (o.costSharePercent ? `Required: ${o.costSharePercent}% match` : 'Required') : 'Not required'} />
         <Fact label="Status" value={o.status === 'forecasted' ? 'Forecast' : 'Posted'} />
       </dl>
 
@@ -112,7 +112,7 @@ export default function GrantOpportunity() {
                 {orgs.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </Field>
-            {orgs.length === 0 && <p className="text-xs text-muted-foreground">Add an organization in Grant Studio first.</p>}
+            {applicants.data && orgs.length === 0 && <p className="text-xs text-muted-foreground">Add an organization in Grant Studio first.</p>}
             {match && (
               <>
                 {match.eligible ? <ScoreBadge score={match.score} /> : <Notice tone="error" title="Not eligible on the record">{match.exclusions.join(' ')}</Notice>}

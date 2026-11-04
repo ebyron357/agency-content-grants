@@ -13,11 +13,12 @@ import session from "express-session";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, grantApplicantsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
-import { syncGrantsGov } from "../lib/grants/ingest";
+import { syncCalifornia, syncGrantsGov } from "../lib/grants/ingest";
+import type { CaFetchLike } from "../lib/grants/california";
 import { emitDeadlineReminders, emitMatchAlerts } from "../lib/grants/alerts";
 import type { FetchLike } from "../lib/grants/grantsgov";
 
@@ -411,6 +412,71 @@ describe("Grant Studio end to end", () => {
     await db.update(grantOpportunitiesTable).set({ closeDate: inDays(5) }).where(eq(grantOpportunitiesTable.id, DUE_OPP));
     await emitDeadlineReminders();
     expect((await reminders()).map((e) => (e.payload as any).reminderDays).sort()).toEqual([14, 7]);
+  }, 30_000);
+
+  it("syncs the California Grants Portal and takes a California nonprofit to a state application", async () => {
+    const close = inDays(30);
+    const base = { Status: "active", AgencyDept: "CA Test Agency", Categories: "Education", Purpose: "Supports seed library programs in California.", Description: "Test listing.", ApplicantType: "Nonprofit", MatchingFunds: "Not Required", EstAmounts: "Between $5,000.00 and $50,000.00", EstAvailFunds: "$200,000.00", OpenDate: "2026-10-01 09:00:00", GrantURL: "https://grants.ca.gov/test" };
+    let records: Record<string, string>[] = [
+      { ...base, PortalID: "ca-test-1", Title: "California Seed Library Grants", ApplicationDeadline: `${close} 17:00:00` },
+      { ...base, PortalID: "ca-test-2", Title: "California Seed Library Rolling Fund", ApplicationDeadline: "Ongoing", MatchingFunds: "25%" },
+      { ...base, PortalID: "ca-test-3", Title: "California insecure link", ApplicationDeadline: `${close} 17:00:00`, GrantURL: "http://grants.ca.gov/insecure", AgencyURL: "None" },
+    ];
+    const urls: string[] = [];
+    const fake: CaFetchLike = async (url) => {
+      urls.push(url);
+      return { ok: true, status: 200, json: async () => ({ success: true, result: { records, total: records.length } }) };
+    };
+    const result = await syncCalifornia(fake);
+    expect(result.status).toBe("succeeded");
+    expect(result.fetched).toBe(3);
+    expect(decodeURIComponent(urls[0])).toContain('"Status":["active","forecasted"]');
+    const rows = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "ca_grants_portal"));
+    const byRef = new Map(rows.map((r) => [r.sourceRef, r]));
+    expect(byRef.get("ca-test-1")).toMatchObject({ publishable: true, jurisdiction: "CA", closeDate: close, awardCeiling: 50000, rollingDeadline: false });
+    expect(byRef.get("ca-test-2")).toMatchObject({ publishable: true, rollingDeadline: true, closeDate: null, costSharePercent: 25 });
+    expect(byRef.get("ca-test-3")!.publishable).toBe(false);
+    expect(byRef.get("ca-test-3")!.gateMissing).toContain("official https source");
+
+    const api = client(await login(OWNER));
+    const caOrg = (await api("POST", "/grants/applicants", { name: "Sacramento Seed Savers", applicantType: "nonprofit_501c3", state: "CA", focusAreas: ["seed library"], maxCostSharePercent: 0 })).data;
+    const ncOrg = (await api("POST", "/grants/applicants", { name: "Raleigh Seed Savers", applicantType: "nonprofit_501c3", state: "NC", focusAreas: ["seed library"] })).data;
+    const caMatches = (await api("GET", `/grants/applicants/${caOrg.id}/matches?relevantOnly=1`)).data.matches;
+    const ids = caMatches.map((m: any) => m.opportunity.sourceRef);
+    expect(ids).toContain("ca-test-1");
+    // The rolling fund requires a 25% match this organization cannot commit.
+    expect(ids).not.toContain("ca-test-2");
+    const first = caMatches.find((m: any) => m.opportunity.sourceRef === "ca-test-1");
+    expect(first.opportunity).toMatchObject({ sourceLabel: "California Grants Portal", federal: false, eligibilityLabels: ["Nonprofit"] });
+    expect(first.match.gaps.join(" ")).not.toMatch(/SAM/);
+    const ncIds = (await api("GET", `/grants/applicants/${ncOrg.id}/matches`)).data.matches.map((m: any) => m.opportunity.sourceRef);
+    expect(ncIds).not.toContain("ca-test-1");
+
+    // A state application: state template, no SAM row, and compliance does not ask for federal registrations.
+    await api("PUT", `/grants/applicants/${caOrg.id}/readiness/irs_determination`, { status: "ready" });
+    const app = (await api("POST", "/grants/applications", { applicantId: caOrg.id, opportunityId: first.opportunity.id, eligibilityConfirmed: true })).data;
+    const ws = (await api("GET", `/grants/applications/${app.id}`)).data;
+    expect(ws.application.template).toBe("state_nonprofit");
+    expect(ws.requirements.map((r: any) => r.label).join(" ")).not.toMatch(/SAM\.gov|SF-424/);
+    expect(ws.compliance.checks.find((c: any) => c.id === "readiness").ok).toBe(true);
+    // Opening the opportunity does not try a Grants.gov detail refresh.
+    const detail = await api("GET", `/grants/opportunities/${first.opportunity.id}?applicantId=${caOrg.id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.data.detailError ?? null).toBeNull();
+
+    // A record that leaves the open set is closed and unpublished.
+    records = records.filter((r) => r.PortalID !== "ca-test-1");
+    await syncCalifornia(fake);
+    const [gone] = await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.source, "ca_grants_portal"), eq(grantOpportunitiesTable.sourceRef, "ca-test-1")));
+    expect(gone).toMatchObject({ status: "closed", publishable: false });
+
+    // A failing portal is recorded, not hidden.
+    const down: CaFetchLike = async () => ({ ok: false, status: 503, json: async () => ({}) });
+    const failed = await syncCalifornia(down);
+    expect(failed.status).toBe("failed");
+    expect(failed.error).toMatch(/503/);
+    await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.id, [caOrg.id, ncOrg.id]));
+    await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "ca_grants_portal"));
   }, 30_000);
 
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {

@@ -15,7 +15,7 @@ export interface PackageInput {
   applicantTypeLabel: string;
   ein: string | null;
   uei: string | null;
-  opportunity: { title: string; number: string | null; agency: string | null; closeDate: string | null; officialUrl: string };
+  opportunity: { title: string; number: string | null; agency: string | null; closeDate: string | null; officialUrl: string; federal?: boolean };
   requestedAmount: number;
   sections: { title: string; content: string }[];
   budgetLines: BudgetLineInput[];
@@ -123,7 +123,10 @@ export async function buildApplicationPackage(input: PackageInput): Promise<Buff
     ["Requirement", "Type", "Status", "Where in the notice"],
     ...input.requirements.map((r) => [r.label, r.kind, r.status.replace("_", " "), r.sourceRef ?? ""]),
   ]));
-  children.push(new Paragraph({ children: [new TextRun({ text: "Confirm the exact form set and attachments in the opportunity's package in Grants.gov Workspace before submitting.", italics: true })], spacing: { before: 120, after: 120 } }));
+  const formsNote = input.opportunity.federal === false
+    ? "Confirm the exact forms, attachments and submission method on the state program's page and application portal before submitting."
+    : "Confirm the exact form set and attachments in the opportunity's package in Grants.gov Workspace before submitting.";
+  children.push(new Paragraph({ children: [new TextRun({ text: formsNote, italics: true })], spacing: { before: 120, after: 120 } }));
 
   children.push(new Paragraph({ text: "Approvals", heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 120 } }));
   if (input.approvals.length === 0) children.push(new Paragraph({ text: "No approvals recorded." }));

@@ -34,6 +34,12 @@ export interface MatchOpportunity {
   awardFloor: number | null;
   awardCeiling: number | null;
   costSharing: boolean | null;
+  /** Required match percentage, when the source states it. */
+  costSharePercent?: number | null;
+  /** Accepts applications on a rolling basis (no closing date). */
+  rollingDeadline?: boolean | null;
+  /** Null for federal; a state code for state programs. */
+  jurisdiction?: string | null;
 }
 
 export interface MatchResult {
@@ -107,7 +113,10 @@ export function matchOpportunity(
   const others = opportunity.eligibilityCodes.includes(GRANTS_GOV_OTHERS_CODE);
   if (exact) {
     score += 30;
-    reasons.push(`Eligibility lists ${APPLICANT_TYPES[applicant.applicantType].label.toLowerCase()} applicants.`);
+    // State sources use broader categories ("Nonprofit", "Business"), so say only what the source says.
+    reasons.push(opportunity.jurisdiction
+      ? `Eligibility includes ${APPLICANT_TYPES[applicant.applicantType].kind === "business" ? "businesses" : "nonprofits"}; check the program's eligibility notes for specifics.`
+      : `Eligibility lists ${APPLICANT_TYPES[applicant.applicantType].label.toLowerCase()} applicants.`);
   } else if (unrestricted) {
     score += 22;
     reasons.push("Eligibility is unrestricted, subject to the notice's clarifications.");
@@ -118,12 +127,26 @@ export function matchOpportunity(
     exclusions.push(`Eligibility does not list ${APPLICANT_TYPES[applicant.applicantType].label.toLowerCase()} applicants.`);
   }
 
+  const sharePct = opportunity.costSharePercent ?? null;
   if (opportunity.costSharing === true && applicant.maxCostSharePercent <= 0) {
-    exclusions.push("The notice requires cost sharing, and this organization recorded that it cannot commit any.");
+    exclusions.push(sharePct ? `The program requires a ${sharePct}% match, and this organization recorded that it cannot commit any.` : "The notice requires cost sharing, and this organization recorded that it cannot commit any.");
+  } else if (opportunity.costSharing === true && sharePct !== null && sharePct > applicant.maxCostSharePercent) {
+    exclusions.push(`The program requires a ${sharePct}% match; this organization can commit up to ${applicant.maxCostSharePercent}%.`);
+  } else if (opportunity.costSharing === true && sharePct !== null) {
+    reasons.push(`Requires a ${sharePct}% match, within the ${applicant.maxCostSharePercent}% this organization can commit.`);
   } else if (opportunity.costSharing === true) {
     gaps.push(`Cost sharing is required; this organization can commit up to ${applicant.maxCostSharePercent}%. Check the notice's required share.`);
   } else if (opportunity.costSharing === null) {
     gaps.push("The record does not yet say whether cost sharing is required. Check the notice.");
+  }
+
+  // State programs generally serve organizations or projects in that state.
+  const jurisdiction = opportunity.jurisdiction ?? null;
+  if (jurisdiction) {
+    const state = applicant.state?.trim().toUpperCase() || null;
+    if (state && state !== jurisdiction) exclusions.push(`This is a ${jurisdiction} state program; this organization is recorded in ${state}.`);
+    else if (!state) gaps.push(`This is a ${jurisdiction} state program. Add the organization's state to the profile and confirm the program's geography.`);
+    else reasons.push(`A ${jurisdiction} state program, and this organization is in ${jurisdiction}.`);
   }
 
   // ── Fit ────────────────────────────────────────────────────────────────
@@ -159,8 +182,13 @@ export function matchOpportunity(
   }
 
   if (daysLeft === null) {
-    score += status === "forecasted" ? 6 : 0;
-    if (status === "forecasted") reasons.push("Forecast: time to prepare before it opens.");
+    if (status === "forecasted") {
+      score += 6;
+      reasons.push("Forecast: time to prepare before it opens.");
+    } else if (opportunity.rollingDeadline) {
+      score += 8;
+      reasons.push("Rolling deadline: applications are accepted until funds run out, so earlier is better.");
+    }
   } else if (daysLeft >= 30) {
     score += 10;
     reasons.push(`${daysLeft} days until the closing date.`);
@@ -178,6 +206,8 @@ export function matchOpportunity(
   for (const kind of readinessKindsFor(applicant.applicantType)) {
     const spec = READINESS_KINDS[kind as ReadinessKind];
     if (!spec.blocking) continue;
+    // Federal registrations (SAM.gov, the Grants.gov representative) do not apply to state programs.
+    if (spec.federal && jurisdiction) continue;
     const item = byKind.get(kind);
     if (!item || item.status !== "ready") {
       blockingMissing++;

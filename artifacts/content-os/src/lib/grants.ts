@@ -50,6 +50,13 @@ export interface Applicant {
 export interface Opportunity {
   id: string;
   source: string;
+  /** Display name of the source, for example "Grants.gov" or "California Grants Portal". */
+  sourceLabel: string;
+  /** Null for federal programs; a state code for state programs. */
+  jurisdiction: string | null;
+  federal: boolean;
+  rollingDeadline: boolean;
+  costSharePercent: number | null;
   number: string | null;
   title: string;
   agency: string | null;
@@ -215,6 +222,7 @@ export interface GrantMeta {
   applicantTypes: { key: ApplicantType; label: string; kind: 'nonprofit' | 'business' }[];
   budgetCategories: { key: string; label: string }[];
   aiProvider: string;
+  sources?: { source: string; label: string; opportunities: number }[];
   aiDemo: boolean;
   opportunities: number;
   lastSync: { status: string; startedAt: string; finishedAt: string | null; fetched: number; error: string | null } | null;
@@ -358,8 +366,11 @@ export function awardRange(o: Pick<Opportunity, 'awardFloor' | 'awardCeiling'>):
   return 'Award amount not stated';
 }
 
-export function deadlineLabel(o: Pick<Opportunity, 'closeDate' | 'daysLeft' | 'status'>): string {
-  if (!o.closeDate) return o.status === 'forecasted' ? 'Forecast: date to be announced' : 'Closing date not stated';
+export function deadlineLabel(o: Pick<Opportunity, 'closeDate' | 'daysLeft' | 'status'> & { rollingDeadline?: boolean }): string {
+  if (!o.closeDate) {
+    if (o.rollingDeadline) return 'Rolling: open until funds run out';
+    return o.status === 'forecasted' ? 'Forecast: date to be announced' : 'Closing date not stated';
+  }
   if (o.daysLeft === 0) return `Closes today (${o.closeDate})`;
   if (o.daysLeft != null && o.daysLeft > 0) return `Closes in ${o.daysLeft} day${o.daysLeft === 1 ? '' : 's'} · ${o.closeDate}`;
   return `Closed ${o.closeDate}`;
