@@ -18,6 +18,7 @@ export const EVENT_TYPES = [
   "publication.scheduled",
   "publication.published",
   "publication.failed",
+  "grant.new_matches",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

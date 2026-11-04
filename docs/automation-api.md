@@ -245,6 +245,7 @@ old, to guard against a captured request being replayed later.
 | `publication.scheduled` | A publish is scheduled (immediate or future) |
 | `publication.published` | A publish succeeds and is confirmed live |
 | `publication.failed` | A publish fails permanently (all retries exhausted, or the platform rejected it) |
+| `grant.new_matches` | After the daily Grants.gov refresh, a Grant Studio organization has eligible, on-topic opportunities stored since its last alert. One event per organization per refresh; `data` has `applicantId`, `applicantName`, `count`, `matchesPath` and up to five `top` opportunities (title, agency, number, closing date, days left, score, official URL and Grant Studio path). Opportunities it already has an application for are left out |
 
 `GET /api/webhooks/event-types` returns this list programmatically, so a
 dynamic UI (or your own tooling) never has to hardcode it.

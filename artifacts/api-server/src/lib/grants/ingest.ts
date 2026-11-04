@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { INGEST_ELIGIBILITY_CODES } from "./eligibility";
 import { evaluateGate } from "./gate";
+import { emitMatchAlerts } from "./alerts";
 import {
   GRANTS_GOV_CONNECTOR_VERSION,
   GRANTS_GOV_SOURCE,
@@ -37,6 +38,8 @@ export interface SyncResult {
   fetched: number;
   upserted: number;
   details: number;
+  /** grant.new_matches events emitted after the sync. */
+  alerts?: number;
   status: "succeeded" | "failed";
   error?: string;
 }
@@ -209,7 +212,14 @@ export async function syncGrantsGov(fetchImpl?: FetchLike): Promise<SyncResult> 
     };
     await Promise.all(Array.from({ length: DETAIL_CONCURRENCY }, worker));
     await db.update(grantSyncRunsTable).set({ status: "succeeded", finishedAt: new Date(), fetched, upserted }).where(eq(grantSyncRunsTable.id, runId));
-    return { runId, fetched, upserted, details, status: "succeeded" };
+    // Alerts are best-effort: a failure here must not mark a good sync as failed.
+    let alerts = 0;
+    try {
+      alerts = (await emitMatchAlerts()).events;
+    } catch (err) {
+      console.warn("[grants-sync] match alerts failed", (err as Error).message);
+    }
+    return { runId, fetched, upserted, details, alerts, status: "succeeded" };
   } catch (err) {
     const message = (err as Error).message.slice(0, 500);
     await db.update(grantSyncRunsTable).set({ status: "failed", finishedAt: new Date(), fetched, upserted, error: message }).where(eq(grantSyncRunsTable.id, runId));
@@ -233,7 +243,7 @@ export async function runGrantSyncOnce(fetchImpl?: FetchLike): Promise<SyncResul
   running = true;
   try {
     const result = await syncGrantsGov(fetchImpl);
-    console.log(`[grants-sync] status=${result.status} fetched=${result.fetched} upserted=${result.upserted} details=${result.details}`);
+    console.log(`[grants-sync] status=${result.status} fetched=${result.fetched} upserted=${result.upserted} details=${result.details} alerts=${result.alerts ?? 0}`);
     return result;
   } finally {
     running = false;

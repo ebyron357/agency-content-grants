@@ -127,6 +127,13 @@
       "when": 1788000000000,
       "tag": "0016_add_grant_studio",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788086400000,
+      "tag": "0017_grant_match_alerts",
+      "breakpoints": true
     }
   ]
 }

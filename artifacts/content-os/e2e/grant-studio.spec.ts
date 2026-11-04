@@ -60,6 +60,11 @@ test("Grant Studio: add an organization, record readiness and see matches", asyn
     page.getByRole("status").filter({ hasText: /eligible of/ }),
   ).toBeVisible({ timeout: 30_000 });
   await expect(page.getByLabel("Only my topics")).toBeChecked();
+  // A new organization starts with nothing marked new.
+  await expect(page.getByLabel("Only new")).not.toBeChecked();
+  await page.getByLabel("Only new").check();
+  await expect(page.getByText("Nothing new since you last looked")).toBeVisible();
+  await page.getByLabel("Only new").uncheck();
   await expectNoSeriousViolations(page, "organization matches");
 
   await page.getByRole("tab", { name: "Readiness" }).click();

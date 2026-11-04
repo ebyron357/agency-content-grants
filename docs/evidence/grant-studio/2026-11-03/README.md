@@ -41,3 +41,17 @@ The first run ranked a cancer R01 first for the literacy nonprofit: broad focus 
 | `pnpm run build` | Pass (existing chunk-size warning only) |
 
 Hosted CI on the pull request is authoritative for the merge decision.
+
+## Addendum, 4 November 2026: match alerts and broad focus areas
+
+Branch `feat/grant-studio-alerts` (stacked on `feat/grant-studio-clean`). Migration `0017_grant_match_alerts`.
+
+| Check | Result | Screenshot |
+|---|---|---|
+| Hub alert badges | New-match and closing-within-14-days counts per organization | `12-hub-alerts.png` |
+| Matches with **Only new** | "162 new · 162 on your topics · 1,054 eligible of 1,342"; New chips; **Mark all as seen** stored the seen time | `13-matches-new.png` |
+| Broad focus areas | The organization with "health, education, research, community" is told that "health" and "research" appear in most eligible opportunities | `14-broad-focus-areas.png` |
+
+**Simulated:** every demo opportunity was stored before the demo organizations were added, so none would be new. For screenshots 12 and 13, the literacy organization's `matches_seen_at` was set to just before the first sync in the demo database. The integration test checks the real path against a real database: an opportunity stored after the organization is added, one `grant.new_matches` webhook event and then none, mark as seen, and isolation.
+
+axe found no serious or critical violations. Local checks: API unit tests 171 passed (34 Grant Studio); database-backed API tests 352 passed (5 Grant Studio integration); Content OS 27 passed; Playwright 6 passed under the CI condition and 3 against the live-data demo; format, typecheck and build pass.

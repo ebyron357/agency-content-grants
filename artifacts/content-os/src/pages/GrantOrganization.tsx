@@ -14,7 +14,21 @@ function MatchesTab({ applicant }: { applicant: Applicant }) {
   const [submitted, setSubmitted] = useState('');
   const hasTopics = applicant.focusAreas.length > 0 || Boolean(applicant.mission);
   const [relevantOnly, setRelevantOnly] = useState(hasTopics);
-  const matches = useMatches(applicant.id, submitted, relevantOnly && hasTopics);
+  const [newOnly, setNewOnly] = useState(false);
+  const [marking, setMarking] = useState(false);
+  const invalidate = useInvalidateGrants();
+  const matches = useMatches(applicant.id, submitted, relevantOnly && hasTopics, newOnly);
+
+  async function markSeen() {
+    setMarking(true);
+    try {
+      await grantsApi.markMatchesSeen(applicant.id);
+      setNewOnly(false);
+      await invalidate();
+    } finally {
+      setMarking(false);
+    }
+  }
   const meta = useGrantMeta();
 
   return (
@@ -45,17 +59,38 @@ function MatchesTab({ applicant }: { applicant: Applicant }) {
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p role="status" className="text-sm text-muted-foreground">
+              {matches.data.newTotal > 0 && <span className="font-medium text-brand">{`${matches.data.newTotal.toLocaleString('en-US')} new · `}</span>}
               {hasTopics && `${matches.data.relevantTotal.toLocaleString('en-US')} on your topics · `}
               {matches.data.total.toLocaleString('en-US')} eligible of {matches.data.considered.toLocaleString('en-US')} open opportunities
               {matches.data.excluded > 0 && ` · ${matches.data.excluded.toLocaleString('en-US')} excluded by eligibility, deadline or cost share`}
             </p>
-            {hasTopics && (
-              <label className="inline-flex shrink-0 items-center gap-2 text-sm text-foreground">
-                <input type="checkbox" checked={relevantOnly} onChange={(e) => setRelevantOnly(e.target.checked)} className="h-4 w-4 accent-primary" />
-                Only my topics
+            <div className="flex shrink-0 flex-wrap items-center gap-4">
+              {hasTopics && (
+                <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                  <input type="checkbox" checked={relevantOnly} onChange={(e) => setRelevantOnly(e.target.checked)} className="h-4 w-4 accent-primary" />
+                  Only my topics
+                </label>
+              )}
+              <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                <input type="checkbox" checked={newOnly} onChange={(e) => setNewOnly(e.target.checked)} className="h-4 w-4 accent-primary" />
+                Only new
               </label>
-            )}
+              {matches.data.newTotal > 0 && (
+                <Button size="sm" variant="outline" onClick={markSeen} disabled={marking}>{marking ? 'Saving…' : 'Mark all as seen'}</Button>
+              )}
+            </div>
           </div>
+          {matches.data.broadTopics.length > 0 && (
+            <Notice tone="info" title="Some focus areas are very broad">
+              {matches.data.broadTopics.map((t) => `“${t}”`).join(', ')} appear{matches.data.broadTopics.length === 1 ? 's' : ''} in most eligible opportunities, so {matches.data.broadTopics.length === 1 ? 'it does' : 'they do'} little to narrow your matches. Add specific areas on the Profile tab, for example “adult literacy” or “rural broadband”.
+            </Notice>
+          )}
+          {matches.data.closingSoonTotal > 0 && !newOnly && (
+            <Notice tone="warn" title={`${matches.data.closingSoonTotal} match${matches.data.closingSoonTotal === 1 ? '' : 'es'} close within 14 days`}>Federal applications usually take weeks. Start these now or skip them.</Notice>
+          )}
+          {newOnly && matches.data.matches.length === 0 && (
+            <Notice tone="info" title="Nothing new since you last looked">New opportunities from the daily refresh appear here. Clear Only new to see every match.</Notice>
+          )}
           {relevantOnly && hasTopics && matches.data.relevantTotal === 0 && matches.data.total > 0 && (
             <Notice tone="info" title="Nothing on your topics yet">No eligible opportunity uses your focus areas or mission words. Clear Only my topics to see every eligible opportunity, or broaden the focus areas on the Profile tab.</Notice>
           )}
@@ -67,7 +102,7 @@ function MatchesTab({ applicant }: { applicant: Applicant }) {
             />
           )}
           <ul className="space-y-3">
-            {matches.data.matches.map(({ opportunity: o, match }) => (
+            {matches.data.matches.map(({ opportunity: o, match, isNew }) => (
               <li key={o.id}>
                 <article className="rounded-2xl border border-border bg-card p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -80,6 +115,7 @@ function MatchesTab({ applicant }: { applicant: Applicant }) {
                     <ScoreBadge score={match.score} />
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
+                    {isNew && <span className="inline-flex items-center rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">New</span>}
                     <DeadlineChip daysLeft={o.daysLeft} label={deadlineLabel(o)} />
                     <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground">{awardRange(o)}</span>
                     {o.status === 'forecasted' && <span className="inline-flex items-center rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-xs text-amber-300">Forecast</span>}

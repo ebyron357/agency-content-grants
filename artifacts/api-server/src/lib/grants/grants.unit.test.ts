@@ -7,6 +7,7 @@ import { checkLimit, countText } from "./text";
 import { evaluateCompliance } from "./compliance";
 import { TEMPLATES, chooseTemplate } from "./templates";
 import { readinessKindsFor } from "./eligibility";
+import { broadTopics, hasTopics, isNewFor, newSince, scoreMatches, summarizeAlerts } from "./matchSet";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
 
 // Shapes recorded from api.grants.gov on 3 November 2026 (public notice data, trimmed).
@@ -320,5 +321,42 @@ describe("package export", () => {
     });
     expect(buffer.subarray(0, 2).toString()).toBe("PK");
     expect(buffer.length).toBeGreaterThan(2000);
+  });
+});
+
+describe("match alerts", () => {
+  const base = { title: "Community Literacy for Youth Development", description: "Supports literacy programs.", categories: ["Education"], eligibilityCodes: ["12"], eligibilityText: null, status: "posted", awardFloor: 50000, awardCeiling: 250000, costSharing: false };
+  const opp = (id: string, createdAt: string, extra: Record<string, unknown> = {}) => ({ id, closeDate: "2026-12-20", createdAt: new Date(createdAt), ...base, ...extra }) as any;
+  const applicant = (extra: Record<string, unknown> = {}) => ({ id: "a1", applicantType: "nonprofit_501c3", mission: "Youth literacy", focusAreas: ["literacy"], state: "NC", annualBudget: 400000, maxCostSharePercent: 0, createdAt: new Date("2026-11-01T00:00:00Z"), matchesSeenAt: null, ...extra }) as any;
+
+  it("counts as new only what was stored after the organization was added or last marked seen", () => {
+    expect(newSince(applicant())).toEqual(new Date("2026-11-01T00:00:00Z"));
+    expect(newSince(applicant({ matchesSeenAt: new Date("2026-11-02T00:00:00Z") }))).toEqual(new Date("2026-11-02T00:00:00Z"));
+    expect(isNewFor({ createdAt: new Date("2026-11-03T00:00:00Z") }, new Date("2026-11-02T00:00:00Z"))).toBe(true);
+    expect(isNewFor({ createdAt: new Date("2026-11-01T00:00:00Z") }, new Date("2026-11-02T00:00:00Z"))).toBe(false);
+  });
+
+  it("orders on-topic matches first and summarizes new and closing-soon on-topic matches", () => {
+    const opps = [
+      opp("off", "2026-11-03T00:00:00Z", { title: "Cancer biology R01", description: "Tumor studies.", categories: ["Health"] }),
+      opp("old", "2026-10-01T00:00:00Z"),
+      opp("new", "2026-11-03T00:00:00Z", { closeDate: "2026-11-10" }),
+      opp("closed-to-us", "2026-11-03T00:00:00Z", { eligibilityCodes: ["23"] }),
+    ];
+    const { scored, excluded } = scoreMatches(applicant(), opps, [], NOW);
+    expect(excluded).toBe(1);
+    expect(scored.map((s) => s.opp.id).slice(-1)).toEqual(["off"]);
+    // On-topic only: "new" is new and closes in 7 days; "off" is new but off-topic; "old" predates the organization.
+    expect(summarizeAlerts(applicant(), scored)).toEqual({ newMatches: 1, closingSoon: 1 });
+    // Without topics every eligible match counts.
+    expect(summarizeAlerts(applicant({ focusAreas: [], mission: null }), scored)).toEqual({ newMatches: 2, closingSoon: 1 });
+    expect(hasTopics(applicant({ focusAreas: [], mission: "  " }))).toBe(false);
+  });
+
+  it("flags a focus area that matches most eligible opportunities as broad", () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({ opp: { id: `o${i}` }, match: { matchedTopics: i < 40 ? ["health"] : i < 45 ? ["literacy"] : [] } })) as any;
+    expect(broadTopics(["health", "literacy"], many)).toEqual(["health"]);
+    // Too few matches to judge.
+    expect(broadTopics(["health"], many.slice(0, 10))).toEqual([]);
   });
 });

@@ -42,6 +42,8 @@ export interface Applicant {
   maxCostSharePercent: number;
   readiness: Readiness;
   applicationCount?: number;
+  /** New on-topic matches since last marked seen, and on-topic matches closing within 14 days. */
+  alerts?: { newMatches: number; closingSoon: number };
   applications?: ApplicationSummary[];
 }
 
@@ -214,14 +216,24 @@ export interface MatchesResponse {
   total: number;
   relevantTotal: number;
   relevantOnly: boolean;
+  newOnly: boolean;
+  newTotal: number;
+  closingSoonTotal: number;
+  hasTopics: boolean;
+  /** Focus areas found in most eligible opportunities: too broad to narrow matches. */
+  broadTopics: string[];
+  newSince: string;
   excluded: number;
   considered: number;
-  matches: { opportunity: Opportunity; match: Match }[];
+  matches: { opportunity: Opportunity; match: Match; isNew: boolean }[];
 }
-export const useMatches = (id: string, q: string, relevantOnly = false) =>
+export const useMatches = (id: string, q: string, relevantOnly = false, newOnly = false) =>
   useQuery({
-    queryKey: [...keys.matches(id, q), relevantOnly],
-    queryFn: () => apiGet<MatchesResponse>(`/grants/applicants/${id}/matches?limit=100${relevantOnly ? '&relevantOnly=1' : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+    queryKey: [...keys.matches(id, q), relevantOnly, newOnly],
+    queryFn: () =>
+      apiGet<MatchesResponse>(
+        `/grants/applicants/${id}/matches?limit=100${relevantOnly ? '&relevantOnly=1' : ''}${newOnly ? '&newOnly=1' : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+      ),
   });
 export const useOpportunity = (id: string, applicantId?: string) =>
   useQuery({
@@ -234,6 +246,7 @@ export const grantsApi = {
   createApplicant: (body: Partial<Applicant>) => apiPost('/grants/applicants', body) as Promise<Applicant>,
   updateApplicant: (id: string, body: Partial<Applicant>) => apiPatch(`/grants/applicants/${id}`, body) as Promise<Applicant>,
   deleteApplicant: (id: string) => apiDelete(`/grants/applicants/${id}`),
+  markMatchesSeen: (id: string) => apiPost(`/grants/applicants/${id}/matches/seen`, {}) as Promise<{ matchesSeenAt: string }>,
   setReadiness: (id: string, kind: string, body: { status: string; expiresOn: string | null; note: string | null }) => apiPut(`/grants/applicants/${id}/readiness/${kind}`, body) as Promise<Readiness>,
   startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,
   updateApplication: (id: string, body: Record<string, unknown>) => apiPatch(`/grants/applications/${id}`, body) as Promise<Workspace>,
