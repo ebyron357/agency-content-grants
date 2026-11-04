@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, integer, jsonb, boolean, doublePrecision, uni
 import { usersTable } from "./users";
 
 /**
- * Grant Studio (docs/GRANT_PLATFORM_PLAN.md).
+ * Grant Studio (docs/GRANT_STUDIO.md).
  *
  * Every applicant record belongs to the signed-in operator (`user_id`), and every
  * child record belongs to an applicant. Routes check that chain on every request,
@@ -28,6 +28,10 @@ export const grantApplicantsTable = pgTable("grant_applicants", {
   annualBudget: integer("annual_budget"),
   /** The largest cost share or match the organization can commit, as a percentage (0 = none). */
   maxCostSharePercent: integer("max_cost_share_percent").notNull().default(0),
+  /** When the user last marked this organization's matches as seen; later opportunities count as new. */
+  matchesSeenAt: timestamp("matches_seen_at", { withTimezone: true }),
+  /** When the last new-matches webhook event was emitted for this organization. */
+  alertedAt: timestamp("alerted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [index("idx_grant_applicants_user").on(table.userId)]);

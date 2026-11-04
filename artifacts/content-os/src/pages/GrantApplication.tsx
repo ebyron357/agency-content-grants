@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'wouter';
+import { Link, useLocation, useParams } from 'wouter';
 import { ArrowLeft, Check, CheckCircle2, Circle, Download, ExternalLink, FileText, Plus, Sparkles, Trash2, Wand2, XCircle } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
@@ -553,6 +553,8 @@ export default function GrantApplication() {
   const { id } = useParams<{ id: string }>();
   const ws = useWorkspace(id);
   const [step, setStep] = useState('requirements');
+  const [, navigate] = useLocation();
+  const invalidateAll = useInvalidateGrants();
 
   if (ws.isLoading) return <LoadingState label="Loading the application…" />;
   if (ws.isError || !ws.data) {
@@ -584,6 +586,19 @@ export default function GrantApplication() {
           <div className="flex flex-wrap items-center gap-2">
             <DeadlineChip daysLeft={w.opportunity.daysLeft} label={deadlineLabel(w.opportunity)} />
             <StatusPill status={w.application.status} />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 text-red-300"
+              onClick={async () => {
+                if (!window.confirm(`Delete the application "${w.application.title}" with its sections, budget and approvals? This cannot be undone.`)) return;
+                await grantsApi.deleteApplication(w.application.id);
+                await invalidateAll();
+                navigate(`/grant-studio/organizations/${w.applicant.id}`);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Delete
+            </Button>
           </div>
         }
       />

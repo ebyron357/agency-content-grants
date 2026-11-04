@@ -14,10 +14,11 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
 import { eq, inArray } from "drizzle-orm";
-import { db, grantApplicantsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable } from "@workspace/db";
+import { db, grantApplicantsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
 import { syncGrantsGov } from "../lib/grants/ingest";
+import { emitMatchAlerts } from "../lib/grants/alerts";
 import type { FetchLike } from "../lib/grants/grantsgov";
 
 const OWNER = `grant-owner-${randomUUID()}`;
@@ -25,6 +26,7 @@ const OTHER = `grant-other-${randomUUID()}`;
 const NONPROFIT_OPP = randomUUID();
 const BUSINESS_OPP = randomUUID();
 const CLOSED_OPP = randomUUID();
+const FRESH_OPP = randomUUID();
 
 let server: Server;
 let base = "";
@@ -105,7 +107,8 @@ beforeAll(async () => {
 afterAll(async () => {
   server?.close();
   await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.userId, [OWNER, OTHER]));
-  await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP]));
+  await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP]));
+  await db.delete(webhookEventsTable).where(inArray(webhookEventsTable.userId, [OWNER, OTHER]));
   await db.delete(usersTable).where(inArray(usersTable.id, [OWNER, OTHER]));
 });
 
@@ -292,6 +295,44 @@ describe("Grant Studio end to end", () => {
     expect(ws.application.template).toBe("federal_business");
     expect(ws.applicant.readiness.items.map((i: any) => i.kind)).toContain("capability_statement");
     expect(ws.applicant.readiness.items.map((i: any) => i.kind)).not.toContain("irs_determination");
+  }, 30_000);
+
+  it("flags opportunities stored after an organization was added, alerts once, and clears on mark-as-seen", async () => {
+    const api = client(await login(OWNER));
+    const created = await api("POST", "/grants/applicants", { name: "Harbor Seed Library", applicantType: "nonprofit_501c3", focusAreas: ["seed library"], annualBudget: 120000 });
+    const id = created.data.id;
+    const before = await api("GET", `/grants/applicants/${id}/matches?relevantOnly=1`);
+    expect(before.data.newTotal).toBe(0);
+
+    await db.insert(grantOpportunitiesTable).values(opportunity(FRESH_OPP, { title: "Community Seed Library Grants", description: "Supports seed library programs.", closeDate: inDays(10), awardCeiling: 50000 }));
+    const after = await api("GET", `/grants/applicants/${id}/matches?relevantOnly=1`);
+    expect(after.data.newTotal).toBe(1);
+    expect(after.data.closingSoonTotal).toBe(1);
+    expect(after.data.broadTopics).toEqual([]);
+    const fresh = after.data.matches.find((m: any) => m.opportunity.id === FRESH_OPP);
+    expect(fresh.isNew).toBe(true);
+    expect((await api("GET", `/grants/applicants/${id}/matches?newOnly=1`)).data.matches.map((m: any) => m.opportunity.id)).toEqual([FRESH_OPP]);
+    const listed = (await api("GET", "/grants/applicants")).data.find((a: any) => a.id === id);
+    expect(listed.alerts).toEqual({ newMatches: 1, closingSoon: 1 });
+
+    // One webhook event for the new match, carrying public facts and paths only, then none on the next run.
+    await emitMatchAlerts();
+    const events = (await db.select().from(webhookEventsTable).where(eq(webhookEventsTable.userId, OWNER))).filter((e) => e.type === "grant.new_matches" && (e.payload as any).applicantId === id);
+    expect(events).toHaveLength(1);
+    const payload = events[0].payload as any;
+    expect(payload.count).toBe(1);
+    expect(payload.top[0]).toMatchObject({ opportunityId: FRESH_OPP, studioPath: `/grant-studio/opportunities/${FRESH_OPP}?org=${id}` });
+    expect(Object.keys(payload).sort()).toEqual(["applicantId", "applicantName", "count", "matchesPath", "top"]);
+    await emitMatchAlerts();
+    const again = (await db.select().from(webhookEventsTable).where(eq(webhookEventsTable.userId, OWNER))).filter((e) => e.type === "grant.new_matches" && (e.payload as any).applicantId === id);
+    expect(again).toHaveLength(1);
+
+    // Mark as seen clears the new count; another operator cannot.
+    expect((await client(await login(OTHER))("POST", `/grants/applicants/${id}/matches/seen`)).status).toBe(404);
+    expect((await api("POST", `/grants/applicants/${id}/matches/seen`)).status).toBe(200);
+    const seen = await api("GET", `/grants/applicants/${id}/matches?relevantOnly=1`);
+    expect(seen.data.newTotal).toBe(0);
+    expect(seen.data.matches.find((m: any) => m.opportunity.id === FRESH_OPP).isNew).toBe(false);
   }, 30_000);
 
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {

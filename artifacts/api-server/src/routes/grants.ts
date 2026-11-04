@@ -34,6 +34,7 @@ import {
   type ApplicantType,
 } from "../lib/grants/eligibility";
 import { matchOpportunity, type MatchResult } from "../lib/grants/matching";
+import { alertSummaries, broadTopics, hasTopics, isNewFor, matchInput, newSince, scoreMatches, summarizeAlerts } from "../lib/grants/alerts";
 import { TEMPLATES, chooseTemplate, isTemplateKey, type TemplateKey } from "../lib/grants/templates";
 import { summarizeBudget, lineTotal } from "../lib/grants/budget";
 import { checkLimit } from "../lib/grants/text";
@@ -44,7 +45,7 @@ import { isGrantSyncRunning, refreshOpportunityDetail, runGrantSyncOnce } from "
 import { daysUntil } from "../lib/grants/gate";
 
 /**
- * Grant Studio API (docs/GRANT_PLATFORM_PLAN.md, docs/GRANT_STUDIO.md).
+ * Grant Studio API (docs/GRANT_STUDIO.md).
  *
  * Ownership: applicant.user_id = session user. Every child record is reached
  * through its applicant, and a record the user does not own is a 404, so ids
@@ -221,16 +222,6 @@ function opportunityView(o: GrantOpportunity) {
   };
 }
 
-function matchInput(applicant: GrantApplicant) {
-  return {
-    applicantType: applicant.applicantType as ApplicantType,
-    mission: applicant.mission,
-    focusAreas: applicant.focusAreas,
-    state: applicant.state,
-    annualBudget: applicant.annualBudget,
-    maxCostSharePercent: applicant.maxCostSharePercent,
-  };
-}
 
 // ── Meta and sync ──────────────────────────────────────────────────────────
 
@@ -321,10 +312,12 @@ router.get("/grants/applicants", async (req, res): Promise<void> => {
   const items = ids.length ? await db.select().from(grantReadinessItemsTable).where(inArray(grantReadinessItemsTable.applicantId, ids)) : [];
   const apps = ids.length ? await db.select({ applicantId: grantApplicationsTable.applicantId, n: count() }).from(grantApplicationsTable).where(inArray(grantApplicationsTable.applicantId, ids)).groupBy(grantApplicationsTable.applicantId) : [];
   const appCounts = new Map(apps.map((a) => [a.applicantId, Number(a.n)]));
+  const alerts = await alertSummaries(applicants);
   res.json(applicants.map((a) => ({
     ...applicantSummary(a),
     readiness: readinessView(a, items.filter((i) => i.applicantId === a.id)),
     applicationCount: appCounts.get(a.id) ?? 0,
+    alerts: alerts.get(a.id) ?? { newMatches: 0, closingSoon: 0 },
   })));
 });
 
@@ -414,33 +407,36 @@ router.get("/grants/applicants/:id/matches", async (req, res): Promise<void> => 
   const filters = [eq(grantOpportunitiesTable.publishable, true)];
   if (q) filters.push(or(ilike(grantOpportunitiesTable.title, `%${q}%`), ilike(grantOpportunitiesTable.agency, `%${q}%`), ilike(grantOpportunitiesTable.number, `%${q}%`))!);
   const opps = await db.select().from(grantOpportunitiesTable).where(and(...filters));
-  const scored: { opp: GrantOpportunity; match: MatchResult }[] = [];
-  let excluded = 0;
-  for (const opp of opps) {
-    const match = matchOpportunity(matchInput(applicant), opp, items);
-    if (match.eligible) scored.push({ opp, match });
-    else excluded++;
-  }
-  // Relevant (on-topic) first, then score, then the most focus areas, then the nearest deadline.
-  scored.sort(
-    (a, b) =>
-      Number(b.match.relevant) - Number(a.match.relevant) ||
-      b.match.score - a.match.score ||
-      b.match.matchedTopics.length - a.match.matchedTopics.length ||
-      (a.match.daysLeft ?? 9999) - (b.match.daysLeft ?? 9999),
-  );
+  const { scored, excluded } = scoreMatches(applicant, opps, items);
+  const since = newSince(applicant);
   const relevantTotal = scored.filter((s) => s.match.relevant).length;
+  const alerts = summarizeAlerts(applicant, scored);
   const relevantOnly = req.query.relevantOnly === "1" || req.query.relevantOnly === "true";
-  const shown = relevantOnly ? scored.filter((s) => s.match.relevant) : scored;
+  const newOnly = req.query.newOnly === "1" || req.query.newOnly === "true";
+  let shown = relevantOnly ? scored.filter((s) => s.match.relevant) : scored;
+  if (newOnly) shown = shown.filter((s) => isNewFor(s.opp, since));
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
   res.json({
     total: scored.length,
     relevantTotal,
     relevantOnly,
+    newOnly,
+    newTotal: alerts.newMatches,
+    closingSoonTotal: alerts.closingSoon,
+    hasTopics: hasTopics(applicant),
+    broadTopics: q ? [] : broadTopics(applicant.focusAreas, scored),
+    newSince: since,
     excluded,
     considered: opps.length,
-    matches: shown.slice(0, limit).map(({ opp, match }) => ({ opportunity: opportunityView(opp), match })),
+    matches: shown.slice(0, limit).map(({ opp, match }) => ({ opportunity: opportunityView(opp), match, isNew: isNewFor(opp, since) })),
   });
+});
+
+router.post("/grants/applicants/:id/matches/seen", async (req, res): Promise<void> => {
+  const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
+  if (!applicant) return;
+  const [row] = await db.update(grantApplicantsTable).set({ matchesSeenAt: new Date() }).where(eq(grantApplicantsTable.id, applicant.id)).returning();
+  res.json({ matchesSeenAt: row.matchesSeenAt });
 });
 
 router.get("/grants/opportunities", async (req, res): Promise<void> => {

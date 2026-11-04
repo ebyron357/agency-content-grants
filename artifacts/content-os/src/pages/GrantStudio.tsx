@@ -225,6 +225,12 @@ export default function GrantStudio() {
                         {org.state ? ` · ${org.state}` : ''}
                         {` · ${org.applicationCount ?? 0} application${org.applicationCount === 1 ? '' : 's'}`}
                       </p>
+                      {(org.alerts?.newMatches || org.alerts?.closingSoon) ? (
+                        <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                          {org.alerts.newMatches > 0 && <span className="rounded-full border border-brand/30 bg-brand/10 px-2 py-0.5 font-medium text-brand">{org.alerts.newMatches} new match{org.alerts.newMatches === 1 ? '' : 'es'}</span>}
+                          {org.alerts.closingSoon > 0 && <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-amber-300">{org.alerts.closingSoon} closing within 14 days</span>}
+                        </p>
+                      ) : null}
                       {org.readiness.blockingOpen > 0 && (
                         <p className="mt-1 text-xs text-amber-300">{org.readiness.blockingOpen} required registration{org.readiness.blockingOpen === 1 ? '' : 's'} or document{org.readiness.blockingOpen === 1 ? '' : 's'} not ready</p>
                       )}
