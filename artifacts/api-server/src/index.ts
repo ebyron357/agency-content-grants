@@ -5,7 +5,9 @@ import { adoptOrphanedData } from "./lib/adoptData";
 import { startPublishingScheduler } from "./lib/publishing/scheduler";
 import { startPerformanceScheduler } from "./lib/performance/scheduler";
 import { startWebhookScheduler } from "./lib/webhooks/scheduler";
-import { startGrantSyncScheduler } from "./lib/grants/ingest";
+import "./lib/jobs/definitions";
+import { startJobWorker, stopJobWorker } from "./lib/jobs/worker";
+import { startSchedules, stopSchedules } from "./lib/jobs/schedules";
 
 const rawPort = process.env["PORT"];
 
@@ -35,10 +37,27 @@ runMigrations()
       startPublishingScheduler();
       startPerformanceScheduler();
       startWebhookScheduler();
-      startGrantSyncScheduler();
+      // Durable background jobs (docs/BACKGROUND_JOBS.md): the worker and the recurring schedules.
+      const worker = startJobWorker();
+      if (worker) {
+        startSchedules();
+        logger.info({ worker: worker.id }, "Background job worker started");
+      }
     });
   })
   .catch((err: unknown) => {
     logger.error({ err }, "Startup failed — refusing to start");
     process.exit(1);
   });
+
+// On deploy, Render sends SIGTERM: let running jobs finish briefly, then exit.
+// Anything still running is put back in the queue by the next worker.
+let shuttingDown = false;
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    stopSchedules();
+    void stopJobWorker().finally(() => process.exit(0));
+  });
+}

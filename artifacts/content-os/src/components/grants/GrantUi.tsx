@@ -42,6 +42,11 @@ const STATUS_STYLES: Record<string, string> = {
   open: 'border-border bg-muted text-muted-foreground',
   covered: 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300',
   not_applicable: 'border-border bg-muted text-muted-foreground',
+  queued: 'border-border bg-muted text-muted-foreground',
+  running: 'border-sky-400/25 bg-sky-400/10 text-sky-300',
+  succeeded: 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300',
+  failed: 'border-red-400/30 bg-red-500/10 text-red-300',
+  cancelled: 'border-border bg-muted text-muted-foreground',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -61,6 +66,11 @@ const STATUS_LABELS: Record<string, string> = {
   open: 'Open',
   covered: 'Covered',
   not_applicable: 'Not applicable',
+  queued: 'Queued',
+  running: 'Running',
+  succeeded: 'Succeeded',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
 };
 
 export function StatusPill({ status }: { status: string }) {

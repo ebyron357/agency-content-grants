@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { apiGet, apiPost } from '@/lib/api';
 import AutomationTab from './AutomationTab';
+import JobsTab from './JobsTab';
 import { PageHeader, PageShell } from '@/components/layout/Page';
 
 /** True when an error came back as an admin-gate 403 */
@@ -20,7 +21,10 @@ function isAdminRequired(e: unknown): boolean {
 }
 
 function AdminAccessCard() {
+  const queryClient = useQueryClient();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  // Screens that depend on admin access (Team → Client workspaces, Jobs) read it from /auth/me.
+  const refreshAccess = () => void queryClient.invalidateQueries({ queryKey: ['account'] });
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +44,7 @@ function AdminAccessCard() {
       await apiPost('/auth/admin-unlock', { password });
       setIsAdmin(true);
       setPassword('');
+      refreshAccess();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg.includes('403') ? 'Invalid admin password' : 'Unlock failed — try again');
@@ -53,6 +58,7 @@ function AdminAccessCard() {
     try {
       await apiPost('/auth/admin-lock');
       setIsAdmin(false);
+      refreshAccess();
     } catch { /* ignore */ } finally {
       setBusy(false);
     }
@@ -95,7 +101,7 @@ function AdminAccessCard() {
   );
 }
 
-const TABS = ['Team', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation'] as const;
+const TABS = ['Team', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation', 'Jobs'] as const;
 type Tab = typeof TABS[number];
 
 const PROVIDER_ENV_KEYS: Record<string, { key: string; docs: string }> = {
@@ -411,6 +417,7 @@ export default function Settings() {
       {activeTab === 'Model Configuration' && <ModelConfigTab />}
       {activeTab === 'Dependencies' && <DependenciesTab />}
       {activeTab === 'Automation' && <AutomationTab />}
+      {activeTab === 'Jobs' && <JobsTab />}
     </PageShell>
   );
 }

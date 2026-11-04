@@ -107,6 +107,9 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { method: "*", path: "/api-keys/*", needs: "automation.manage" },
   { method: "*", path: "/webhooks/*", needs: "automation.manage" },
 
+  // Background jobs: retry and cancel (the handlers also require an admin unlock).
+  ...writes("/jobs/*", "workspace.configure"),
+
   // Workspace configuration (the handlers also require an admin unlock).
   { method: "POST", path: "/providers", needs: "workspace.configure" },
   { method: "POST", path: "/providers/*", needs: "workspace.configure" },

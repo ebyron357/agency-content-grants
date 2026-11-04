@@ -54,7 +54,7 @@ Grant Studio helps nonprofits and businesses take a federal grant from discovery
 
 | Setting | Effect |
 |---|---|
-| `GRANTS_SYNC_DISABLED=true` | Turns off the daily sync (first run 60 seconds after start). The sync is also off under `NODE_ENV=test` unless `GRANTS_SYNC_ENABLED=true` |
+| `GRANTS_SYNC_DISABLED=true` | Turns off the daily sync, which runs as the `grant_sync` background job (`BACKGROUND_JOBS.md`): once a day, the first run 60 seconds after start if the day has none, retried with backoff. The schedule is also off under `NODE_ENV=test` unless `GRANTS_SYNC_ENABLED=true` |
 | `GRANTS_GOV_API_BASE` | Overrides the Grants.gov API base URL (tests use a fake fetch) |
 | `GRANTS_DETAIL_MAX_PER_RUN` | Upper bound on detail fetches per sync |
 | `GRANTS_CA_DISABLED=true` | Skips the California Grants Portal in the daily sync. `CA_GRANTS_API_BASE` and `CA_GRANTS_RESOURCE_ID` override the endpoint and resource |

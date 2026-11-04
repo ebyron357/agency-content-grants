@@ -60,6 +60,7 @@ Without an AI provider key, generation returns clearly labelled demo output.
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | one required in production | AI providers; production readiness fails without one |
 | `UPLOAD_DIR`, `SOURCE_UPLOAD_DIR`, `EXPORT_DIR` | production | Durable storage paths, checked by `/api/readyz` |
 | `TYPEFULLY_API_KEY` | optional | Real social publishing |
+| `JOBS_CONCURRENCY`, `JOBS_POLL_MS`, `JOBS_WORKER_DISABLED` | optional | Background job worker tuning ([`docs/BACKGROUND_JOBS.md`](docs/BACKGROUND_JOBS.md)) |
 | `RENDER_GIT_COMMIT` / `GIT_COMMIT` | automatic / optional | Commit reported by `/api/healthz` |
 | `ALLOWED_ORIGINS`, `AI_PROVIDER_TIMEOUT_MS`, `LOG_LEVEL`, `FRONTEND_DIST_PATH` | optional | Tuning |
 
@@ -85,7 +86,7 @@ Render blueprint [`render.yaml`](render.yaml): web service + managed PostgreSQL 
 
 ## Operating limits
 
-- Single instance (persistent disk; in-process schedulers). Deploys have a short restart window.
+- Single instance (persistent disk). Slow work runs on a durable PostgreSQL job queue with an in-process worker ([`docs/BACKGROUND_JOBS.md`](docs/BACKGROUND_JOBS.md)); jobs survive deploys. Deploys have a short restart window.
 - Media, source PDFs and exports are stored on the Render disk, not object storage.
 - Workspaces with personal accounts, invitations and roles ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)). Each role's permissions are enforced on every request (writers draft, reviewers approve sections, the authorized representative approves the package). Two-factor sign-in (authenticator app with recovery codes, optionally required per workspace), sign-out everywhere and an audit log are in Settings → Team. Email delivery (invitations, password reset) is not built yet; the team password still signs in to the agency workspace.
 - Projects, brands, sources and images are deleted through the API, not the UI ([`docs/DATA_LIFECYCLE_AND_OFFBOARDING.md`](docs/DATA_LIFECYCLE_AND_OFFBOARDING.md)).

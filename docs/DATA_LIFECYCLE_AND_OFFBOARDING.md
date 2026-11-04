@@ -21,6 +21,7 @@ All workspace content belongs to the owner (`ebyron357`) or the client the owner
 | API keys (hashes), webhook subscriptions and delivery history | PostgreSQL | Admin |
 | Grant Studio organizations, fact library, saved writing, readiness items, applications, requirements, sections, budget lines and approvals | PostgreSQL | Users and AI drafting |
 | Grant Studio opportunities and sync runs (public Grants.gov records) | PostgreSQL | System (daily sync) |
+| Background jobs (kind, payload, status, attempts, progress, result, last error) | PostgreSQL; finished jobs pruned after 30 days | System |
 | Workspaces; members (name, email, scrypt password hash, last sign-in); memberships and roles; invitations (email, role, token hash) | PostgreSQL | Owners, admins and the people invited |
 | Sessions, sign-in rate-limit counters, activity log | PostgreSQL | System |
 | Application logs | Render logs (retention per Render plan) | System |

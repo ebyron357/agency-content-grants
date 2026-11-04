@@ -31,6 +31,7 @@ Set in **Render → service `agency-content-grants` → Environment**. Never com
 | `RENDER_GIT_COMMIT` | automatic | Render | Reported by `/api/healthz` as `commit` for SHA parity |
 | `TYPEFULLY_API_KEY` | optional | owner | Enables the Typefully publishing provider |
 | `AI_PROVIDER_TIMEOUT_MS`, `LOG_LEVEL`, `ALLOWED_ORIGINS` | optional | owner | Tuning; the app is same-origin so CORS origins are rarely needed |
+| `JOBS_CONCURRENCY`, `JOBS_POLL_MS`, `JOBS_WORKER_DISABLED` | optional | owner | Background job worker (`BACKGROUND_JOBS.md`). Defaults suit the single instance |
 
 `PORT` is provided by Render. Do not set `ALLOW_TEST_DATABASE_RESET` or `MIGRATIONS_DIR` in production.
 

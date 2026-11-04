@@ -46,7 +46,11 @@ import { OUTCOMES, isOutcome, outcomeTransitionError, summarizePipeline } from "
 import { evaluateCompliance } from "../lib/grants/compliance";
 import { draftSection, extractRequirements, reviewSection, type DraftContext } from "../lib/grants/ai";
 import { buildApplicationPackage } from "../lib/grants/packageExport";
-import { isGrantSyncRunning, refreshOpportunityDetail, runGrantSyncOnce } from "../lib/grants/ingest";
+import { refreshOpportunityDetail } from "../lib/grants/ingest";
+import { enqueue } from "../lib/jobs/registry";
+import { GRANT_SYNC_KEY, grantSyncJob } from "../lib/jobs/definitions";
+import { activeJob } from "../lib/jobs/queue";
+import { currentWorker } from "../lib/jobs/worker";
 import { daysUntil } from "../lib/grants/gate";
 import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
 import { CA_SOURCE } from "../lib/grants/california";
@@ -255,6 +259,7 @@ router.get("/grants/meta", async (_req, res): Promise<void> => {
   const [opps] = await db.select({ total: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true));
   const bySource = await db.select({ source: grantOpportunitiesTable.source, n: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true)).groupBy(grantOpportunitiesTable.source);
   const [lastRun] = await db.select().from(grantSyncRunsTable).orderBy(desc(grantSyncRunsTable.startedAt)).limit(1);
+  const sync = await activeJob(GRANT_SYNC_KEY);
   res.json({
     applicantTypes: Object.entries(APPLICANT_TYPES).map(([key, v]) => ({ key, label: v.label, kind: v.kind })),
     readinessKinds: Object.entries(READINESS_KINDS).map(([key, v]) => ({ key, label: v.label, blocking: v.blocking })),
@@ -266,18 +271,23 @@ router.get("/grants/meta", async (_req, res): Promise<void> => {
     opportunities: Number(opps.total),
     sources: bySource.map((b) => ({ source: b.source, label: SOURCE_LABELS[b.source] ?? b.source, opportunities: Number(b.n) })),
     lastSync: lastRun ?? null,
-    syncRunning: isGrantSyncRunning(),
+    syncRunning: sync !== null,
+    /** The queued or running refresh, for progress. */
+    syncJob: sync ? { id: sync.id, status: sync.status, progress: sync.progress, runAt: sync.runAt, attempts: sync.attempts, lastError: sync.lastError } : null,
   });
 });
 
+/**
+ * POST /grants/sync: queues a refresh of every source. While one is queued or
+ * running, returns that one instead of adding another.
+ */
 router.post("/grants/sync", syncLimiter, async (req, res): Promise<void> => {
-  if (isGrantSyncRunning()) {
-    res.status(202).json({ status: "running" });
-    return;
+  const { job, created } = await enqueue(grantSyncJob, {}, { dedupeKey: GRANT_SYNC_KEY, requestedBy: req.session.actorName ?? "operator" });
+  if (created) {
+    currentWorker()?.nudge();
+    await logActivity("grants_sync_requested", "Grant opportunity refresh requested", { userId: req.session.userId }).catch(() => {});
   }
-  void runGrantSyncOnce().catch((err) => console.error("[grants-sync] manual run failed:", err));
-  await logActivity("grants_sync_requested", "Grant opportunity refresh requested", { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
-  res.status(202).json({ status: "started" });
+  res.status(202).json({ status: created ? "queued" : job.status, jobId: job.id });
 });
 
 // ── Applicants (organizations) ─────────────────────────────────────────────
