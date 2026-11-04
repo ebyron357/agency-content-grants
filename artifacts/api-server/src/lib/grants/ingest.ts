@@ -3,7 +3,8 @@ import { and, asc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { INGEST_ELIGIBILITY_CODES } from "./eligibility";
 import { evaluateGate } from "./gate";
-import { emitMatchAlerts } from "./alerts";
+import { emitDeadlineReminders, emitMatchAlerts } from "./alerts";
+import { CA_CONNECTOR_VERSION, CA_SOURCE, caChecksum, fetchOpenCaRecords, normalizeCaRecord, type CaFetchLike } from "./california";
 import {
   GRANTS_GOV_CONNECTOR_VERSION,
   GRANTS_GOV_SOURCE,
@@ -38,7 +39,7 @@ export interface SyncResult {
   fetched: number;
   upserted: number;
   details: number;
-  /** grant.new_matches events emitted after the sync. */
+  /** grant.new_matches and grant.deadline_approaching events emitted after the sync. */
   alerts?: number;
   status: "succeeded" | "failed";
   error?: string;
@@ -212,18 +213,69 @@ export async function syncGrantsGov(fetchImpl?: FetchLike): Promise<SyncResult> 
     };
     await Promise.all(Array.from({ length: DETAIL_CONCURRENCY }, worker));
     await db.update(grantSyncRunsTable).set({ status: "succeeded", finishedAt: new Date(), fetched, upserted }).where(eq(grantSyncRunsTable.id, runId));
-    // Alerts are best-effort: a failure here must not mark a good sync as failed.
-    let alerts = 0;
-    try {
-      alerts = (await emitMatchAlerts()).events;
-    } catch (err) {
-      console.warn("[grants-sync] match alerts failed", (err as Error).message);
-    }
-    return { runId, fetched, upserted, details, alerts, status: "succeeded" };
+    return { runId, fetched, upserted, details, status: "succeeded" };
   } catch (err) {
     const message = (err as Error).message.slice(0, 500);
     await db.update(grantSyncRunsTable).set({ status: "failed", finishedAt: new Date(), fetched, upserted, error: message }).where(eq(grantSyncRunsTable.id, runId));
     return { runId, fetched, upserted, details, status: "failed", error: message };
+  }
+}
+
+/**
+ * California Grants Portal sync: every open record is complete, so it is
+ * upserted with its detail, gated, and records that leave the open set are
+ * marked closed. Recorded as its own sync run.
+ */
+export async function syncCalifornia(fetchImpl?: CaFetchLike): Promise<SyncResult> {
+  const runId = randomUUID();
+  const startedAt = new Date();
+  await db.insert(grantSyncRunsTable).values({ id: runId, source: CA_SOURCE, startedAt, status: "running" });
+  let fetched = 0;
+  let upserted = 0;
+  try {
+    const records = await fetchOpenCaRecords(fetchImpl);
+    const seen: string[] = [];
+    for (const raw of records) {
+      const rec = normalizeCaRecord(raw);
+      if (!rec) continue;
+      fetched++;
+      seen.push(rec.sourceRef);
+      const checksum = caChecksum(rec);
+      const gate = evaluateGate({ title: rec.title, officialUrl: rec.officialUrl, fetchedAt: startedAt, status: rec.status, closeDate: rec.closeDate, rollingDeadline: rec.rollingDeadline }, startedAt);
+      const { sourceRef, ...fields } = rec;
+      const [existing] = await db
+        .select({ id: grantOpportunitiesTable.id, checksum: grantOpportunitiesTable.checksum })
+        .from(grantOpportunitiesTable)
+        .where(and(eq(grantOpportunitiesTable.source, CA_SOURCE), eq(grantOpportunitiesTable.sourceRef, sourceRef)))
+        .limit(1);
+      const common = { fetchedAt: startedAt, detailFetchedAt: startedAt, publishable: gate.publishable, gateMissing: gate.missing };
+      if (existing && existing.checksum === checksum) {
+        await db.update(grantOpportunitiesTable).set(common).where(eq(grantOpportunitiesTable.id, existing.id));
+        continue;
+      }
+      if (existing) {
+        await db.update(grantOpportunitiesTable).set({ ...fields, ...common, checksum, connectorVersion: CA_CONNECTOR_VERSION }).where(eq(grantOpportunitiesTable.id, existing.id));
+      } else {
+        await db.insert(grantOpportunitiesTable).values({ id: randomUUID(), source: CA_SOURCE, sourceRef, ...fields, ...common, checksum, connectorVersion: CA_CONNECTOR_VERSION });
+      }
+      upserted++;
+    }
+    if (seen.length > 0) {
+      await db
+        .update(grantOpportunitiesTable)
+        .set({ status: "closed", publishable: false, gateMissing: ["open status (posted or forecasted)"] })
+        .where(and(
+          eq(grantOpportunitiesTable.source, CA_SOURCE),
+          inArray(grantOpportunitiesTable.status, ["posted", "forecasted"]),
+          sql`${grantOpportunitiesTable.sourceRef} NOT IN (${sql.join(seen.map((v) => sql`${v}`), sql`, `)})`,
+        ));
+    }
+    await db.update(grantSyncRunsTable).set({ status: "succeeded", finishedAt: new Date(), fetched, upserted }).where(eq(grantSyncRunsTable.id, runId));
+    return { runId, fetched, upserted, details: fetched, status: "succeeded" };
+  } catch (err) {
+    const message = (err as Error).message.slice(0, 500);
+    await db.update(grantSyncRunsTable).set({ status: "failed", finishedAt: new Date(), fetched, upserted, error: message }).where(eq(grantSyncRunsTable.id, runId));
+    return { runId, fetched, upserted, details: 0, status: "failed", error: message };
   }
 }
 
@@ -238,12 +290,22 @@ export function isGrantSyncRunning(): boolean {
 }
 
 /** Runs a sync unless one is already running. Returns null when skipped. */
-export async function runGrantSyncOnce(fetchImpl?: FetchLike): Promise<SyncResult | null> {
+export async function runGrantSyncOnce(fetchImpl?: FetchLike, caFetch?: CaFetchLike): Promise<SyncResult | null> {
   if (running) return null;
   running = true;
   try {
     const result = await syncGrantsGov(fetchImpl);
-    console.log(`[grants-sync] status=${result.status} fetched=${result.fetched} upserted=${result.upserted} details=${result.details} alerts=${result.alerts ?? 0}`);
+    console.log(`[grants-sync] grants.gov status=${result.status} fetched=${result.fetched} upserted=${result.upserted} details=${result.details}`);
+    if (process.env.GRANTS_CA_DISABLED !== "true") {
+      const ca = await syncCalifornia(caFetch);
+      console.log(`[grants-sync] california status=${ca.status} fetched=${ca.fetched} upserted=${ca.upserted}${ca.error ? ` error=${ca.error}` : ""}`);
+    }
+    // Alerts are best-effort: a failure here must not mark a good sync as failed.
+    try {
+      result.alerts = (await emitMatchAlerts()).events + (await emitDeadlineReminders());
+    } catch (err) {
+      console.warn("[grants-sync] alerts failed", (err as Error).message);
+    }
     return result;
   } finally {
     running = false;

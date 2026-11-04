@@ -55,3 +55,43 @@ Branch `feat/grant-studio-alerts` (stacked on `feat/grant-studio-clean`). Migrat
 **Simulated:** every demo opportunity was stored before the demo organizations were added, so none would be new. For screenshots 12 and 13, the literacy organization's `matches_seen_at` was set to just before the first sync in the demo database. The integration test checks the real path against a real database: an opportunity stored after the organization is added, one `grant.new_matches` webhook event and then none, mark as seen, and isolation.
 
 axe found no serious or critical violations. Local checks: API unit tests 171 passed (34 Grant Studio); database-backed API tests 352 passed (5 Grant Studio integration); Content OS 27 passed; Playwright 6 passed under the CI condition and 3 against the live-data demo; format, typecheck and build pass.
+
+## Addendum, 4 November 2026: fact library
+
+Branch `feat/grant-studio-library` (stacked on `feat/grant-studio-alerts`). Migration `0018_grant_fact_library`.
+
+| Check | Result | Screenshot |
+|---|---|---|
+| Fact library tab | Three synthetic facts, labelled synthetic: two confirmed, one unconfirmed and marked "Not confirmed, so drafting does not use it" | `15-fact-library.png` |
+| Write step | The Statement of need lists only its confirmed need fact, with source, date and **Copy**; the programs fact stays with its own sections | `16-write-facts.png` |
+
+axe found no serious or critical violations on either page. The integration test shows that the demo draft includes the confirmed fact with its source and leaves out the unconfirmed one. Local checks: API unit tests 37 Grant Studio; integration 6; Playwright 6 under the CI condition (now including adding a confirmed fact) and 3 against the live-data demo.
+
+## Addendum, 4 November 2026: deadline calendars and reminders
+
+Branch `feat/grant-studio-deadlines` (stacked on `feat/grant-studio-library`). Migration `0019_grant_deadline_reminders`.
+
+- Integration test against a real database:
+  - the application and opportunity `.ics` files carry the right all-day date, and come back as `text/calendar` attachments;
+  - the combined calendar holds only the operator's own open applications;
+  - another operator gets 404;
+  - a closed opportunity gets 404;
+  - at 10 days left, the 14-day reminder event fires once across two runs, and moving the closing date to 5 days left fires the 7-day one.
+- Unit tests: RFC 5545 text escaping, 75-octet line folding that never splits a UTF-8 character, three alarms per event, unreadable dates skipped, and the threshold sequence.
+- Local checks: API unit tests 40 Grant Studio; integration 7; Playwright under the CI condition and against the live-data demo (results in the pull request).
+
+## Addendum, 4 November 2026: California Grants Portal
+
+Branch `feat/grant-studio-california` (stacked on `feat/grant-studio-deadlines`). Migration `0020_grant_state_sources`.
+
+**Source check:** data.ca.gov dataset `california-grants-portal`, "Grants Offered" (keyless, updated daily by the State). All 2,027 records were profiled on 4 November: 154 active, 3 forecast and 1,870 closed. Of the 157 open records, 125 have an "Ongoing" deadline. SBIR.gov's API answered 403 "Forbidden" from its own gateway, not from the network proxy, so it stays unconnected.
+
+**Live sync (demo database):** 157 open California records fetched and stored. 150 passed the publication gate: 121 rolling and 29 dated. The other 7 were held back: 6 have no https program or agency link, and 1 deadline has passed although the portal still lists it as active. Of the published records, 112 are open to nonprofits, 22 to businesses, and 25 state a match percentage.
+
+| Check | Result | Screenshot |
+|---|---|---|
+| Hub | "1,492 open opportunities from California Grants Portal (150) and Grants.gov (1,342)" | `17-hub-sources.png` |
+| California nonprofit's matches (synthetic, state CA, food access) | CA state program badges; 1,236 eligible of 1,492 | `18-ca-matches.png` |
+| California opportunity | "California Grants Portal · CA state program"; fit reasons say "Eligibility includes nonprofits" (the portal's own term) and "A CA state program, and this organization is in CA"; no SAM.gov or Grants.gov gaps | `19-ca-opportunity.png` |
+
+axe found no serious or critical violations, and the mobile Matches page had no horizontal scroll. The integration test runs a fake portal through to a state application: rolling records published, an insecure link held back, residency and match-percentage exclusions, the `state_nonprofit` template with no SF-424 or SAM.gov rows, a readiness check that passes without federal registrations, closing of records that leave the open set, and failure recording.

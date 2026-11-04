@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
-import { ArrowLeft, Check, CheckCircle2, Circle, Download, ExternalLink, FileText, Plus, Sparkles, Trash2, Wand2, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Check, CheckCircle2, Circle, Download, ExternalLink, FileText, Plus, Sparkles, Trash2, Wand2, XCircle } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { RichEditor } from '@/components/RichEditor';
 import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
-import { deadlineLabel, errorMessage, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
+import { calendarUrl, deadlineLabel, errorMessage, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
 
 const KIND_LABELS: Record<string, string> = {
   section: 'Section',
@@ -218,6 +218,17 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
   const counts = useMemo(() => countHtml(draft), [draft]);
   const dirty = draft !== section.content;
   const mapped = ws.requirements.filter((r) => r.sectionKey === section.key || (r.kind === 'criterion' && !r.sectionKey));
+  const wanted = ws.library.sectionCategories[section.key];
+  const sectionFacts = ws.library.confirmed.filter((f) => !wanted || wanted.includes(f.category));
+  const [copied, setCopied] = useState('');
+  async function copyFact(text: string, id: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(id);
+    } catch {
+      setCopied('');
+    }
+  }
   const live: Section = { ...section, limitType: (limitType || null) as Section['limitType'], limitValue: limitValue ? Number(limitValue) : null };
 
   return (
@@ -311,6 +322,34 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
           </form>
         </Panel>
       </div>
+      <Panel>
+        <PanelHeader
+          title="Facts on file for this section"
+          description={sectionFacts.length ? 'Confirmed facts from the fact library. Drafting uses them; copy one to quote it yourself.' : undefined}
+        />
+        {sectionFacts.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-muted-foreground">
+            No confirmed facts fit this section yet.{' '}
+            <Link href={`/grant-studio/organizations/${ws.applicant.id}`} className="font-medium text-brand hover:underline">Add them in the fact library</Link>{' '}
+            so drafting can cite them.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {sectionFacts.map((f) => (
+              <li key={f.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{f.label}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{f.body}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{f.source ? `Source: ${f.source}` : 'No source recorded'}{f.asOf ? ` · as of ${f.asOf}` : ''}</p>
+                </div>
+                <Button size="sm" variant="ghost" className="shrink-0" onClick={() => copyFact(f.source ? `${f.body} (${f.source})` : f.body, f.id)}>
+                  {copied === f.id ? 'Copied' : 'Copy'}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
     </div>
   );
 }
@@ -481,7 +520,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
           <PanelHeader title="Package" description="A DOCX with every section, the budget, the compliance checklist and the approval record." />
           <div className="space-y-3 px-5 py-4">
             {ws.compliance.readyToExport ? (
-              <Notice tone="ok" title="Approved for submission">Export the final package, then submit it through Grants.gov Workspace before the deadline.</Notice>
+              <Notice tone="ok" title="Approved for submission">{ws.opportunity.federal ? 'Export the final package, then submit it through Grants.gov Workspace before the deadline.' : "Export the final package, then submit it through the state program's application portal before the deadline."}</Notice>
             ) : ws.compliance.readyForApproval ? (
               <Notice tone="ok" title="Every check passes">The authorized representative can now approve the package.</Notice>
             ) : (
@@ -585,6 +624,11 @@ export default function GrantApplication() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <DeadlineChip daysLeft={w.opportunity.daysLeft} label={deadlineLabel(w.opportunity)} />
+            {w.opportunity.closeDate && (
+              <Button asChild size="sm" variant="ghost" className="gap-1.5">
+                <a href={calendarUrl('application', w.application.id)} download><CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add to calendar</a>
+              </Button>
+            )}
             <StatusPill status={w.application.status} />
             <Button
               size="sm"

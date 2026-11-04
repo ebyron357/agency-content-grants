@@ -12,6 +12,8 @@ export interface ComplianceInput {
   applicantType: ApplicantType;
   eligibilityConfirmed: boolean;
   closeDate: string | null;
+  /** False for state programs: federal-only readiness items are not required. */
+  federal?: boolean;
   requirements: { label: string; status: string; confirmed: boolean }[];
   sections: { title: string; content: string; limitType: string | null; limitValue: number | null; status: string; demoContent: boolean }[];
   budget: BudgetSummary;
@@ -112,6 +114,7 @@ export function evaluateCompliance(input: ComplianceInput): ComplianceReport {
   for (const kind of readinessKindsFor(input.applicantType)) {
     const spec = READINESS_KINDS[kind as ReadinessKind];
     if (!spec.blocking) continue;
+    if (spec.federal && input.federal === false) continue;
     const item = byKind.get(kind);
     if (!item || item.status !== "ready") notReady.push(spec.label);
     else if (item.expiresOn && input.closeDate && item.expiresOn < input.closeDate) notReady.push(`${spec.label} (expires before the closing date)`);

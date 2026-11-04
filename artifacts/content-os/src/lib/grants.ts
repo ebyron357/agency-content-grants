@@ -50,6 +50,13 @@ export interface Applicant {
 export interface Opportunity {
   id: string;
   source: string;
+  /** Display name of the source, for example "Grants.gov" or "California Grants Portal". */
+  sourceLabel: string;
+  /** Null for federal programs; a state code for state programs. */
+  jurisdiction: string | null;
+  federal: boolean;
+  rollingDeadline: boolean;
+  costSharePercent: number | null;
   number: string | null;
   title: string;
   agency: string | null;
@@ -162,6 +169,27 @@ export interface ComplianceCheck {
   detail: string;
 }
 
+export interface FactCategoryInfo {
+  key: string;
+  label: string;
+  hint: string;
+}
+
+export interface Fact {
+  id: string;
+  applicantId: string;
+  category: string;
+  categoryLabel: string;
+  label: string;
+  body: string;
+  source: string | null;
+  asOf: string | null;
+  confirmed: boolean;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+  updatedAt: string;
+}
+
 export interface Workspace {
   application: {
     id: string;
@@ -185,6 +213,8 @@ export interface Workspace {
   budget: BudgetSummary;
   approvals: { id: string; scope: string; role: string; approvedBy: string; note: string | null; createdAt: string }[];
   compliance: { checks: ComplianceCheck[]; readyForApproval: boolean; readyToExport: boolean };
+  /** The organization's fact library: confirmed facts and which categories each section draws on. */
+  library: { total: number; confirmed: Fact[]; sectionCategories: Record<string, string[]> };
   aiDemo: boolean;
 }
 
@@ -192,6 +222,7 @@ export interface GrantMeta {
   applicantTypes: { key: ApplicantType; label: string; kind: 'nonprofit' | 'business' }[];
   budgetCategories: { key: string; label: string }[];
   aiProvider: string;
+  sources?: { source: string; label: string; opportunities: number }[];
   aiDemo: boolean;
   opportunities: number;
   lastSync: { status: string; startedAt: string; finishedAt: string | null; fetched: number; error: string | null } | null;
@@ -206,11 +237,14 @@ export const keys = {
   opportunity: (id: string, applicantId?: string) => ['grants', 'opportunity', id, applicantId ?? ''] as const,
   applications: ['grants', 'applications'] as const,
   workspace: (id: string) => ['grants', 'workspace', id] as const,
+  facts: (id: string) => ['grants', 'facts', id] as const,
 };
 
 export const useGrantMeta = () => useQuery({ queryKey: keys.meta, queryFn: () => apiGet<GrantMeta>('/grants/meta') });
 export const useApplicants = () => useQuery({ queryKey: keys.applicants, queryFn: () => apiGet<Applicant[]>('/grants/applicants') });
 export const useApplicant = (id: string) => useQuery({ queryKey: keys.applicant(id), queryFn: () => apiGet<Applicant>(`/grants/applicants/${id}`) });
+export const useFacts = (id: string) =>
+  useQuery({ queryKey: keys.facts(id), queryFn: () => apiGet<{ categories: FactCategoryInfo[]; facts: Fact[] }>(`/grants/applicants/${id}/facts`) });
 export const useApplications = () => useQuery({ queryKey: keys.applications, queryFn: () => apiGet<ApplicationSummary[]>('/grants/applications') });
 export interface MatchesResponse {
   total: number;
@@ -246,6 +280,9 @@ export const grantsApi = {
   createApplicant: (body: Partial<Applicant>) => apiPost('/grants/applicants', body) as Promise<Applicant>,
   updateApplicant: (id: string, body: Partial<Applicant>) => apiPatch(`/grants/applicants/${id}`, body) as Promise<Applicant>,
   deleteApplicant: (id: string) => apiDelete(`/grants/applicants/${id}`),
+  createFact: (applicantId: string, body: Record<string, unknown>) => apiPost(`/grants/applicants/${applicantId}/facts`, body) as Promise<Fact>,
+  updateFact: (id: string, body: Record<string, unknown>) => apiPatch(`/grants/facts/${id}`, body) as Promise<Fact>,
+  deleteFact: (id: string) => apiDelete(`/grants/facts/${id}`),
   markMatchesSeen: (id: string) => apiPost(`/grants/applicants/${id}/matches/seen`, {}) as Promise<{ matchesSeenAt: string }>,
   setReadiness: (id: string, kind: string, body: { status: string; expiresOn: string | null; note: string | null }) => apiPut(`/grants/applicants/${id}/readiness/${kind}`, body) as Promise<Readiness>,
   startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,
@@ -282,6 +319,13 @@ async function apiPut(path: string, body: unknown) {
     throw new Error(`PUT ${path} failed: ${res.status} ${text}`);
   }
   return res.json();
+}
+
+/** Calendar (.ics) downloads: one application, one opportunity, or every open application. */
+export function calendarUrl(kind: 'application' | 'opportunity' | 'all', id?: string): string {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  if (kind === 'all') return `${BASE}/api/grants/calendar.ics`;
+  return `${BASE}/api/grants/${kind === 'application' ? 'applications' : 'opportunities'}/${id}/deadline.ics`;
 }
 
 export function packageUrl(id: string, draft: boolean): string {
@@ -322,8 +366,11 @@ export function awardRange(o: Pick<Opportunity, 'awardFloor' | 'awardCeiling'>):
   return 'Award amount not stated';
 }
 
-export function deadlineLabel(o: Pick<Opportunity, 'closeDate' | 'daysLeft' | 'status'>): string {
-  if (!o.closeDate) return o.status === 'forecasted' ? 'Forecast: date to be announced' : 'Closing date not stated';
+export function deadlineLabel(o: Pick<Opportunity, 'closeDate' | 'daysLeft' | 'status'> & { rollingDeadline?: boolean }): string {
+  if (!o.closeDate) {
+    if (o.rollingDeadline) return 'Rolling: open until funds run out';
+    return o.status === 'forecasted' ? 'Forecast: date to be announced' : 'Closing date not stated';
+  }
   if (o.daysLeft === 0) return `Closes today (${o.closeDate})`;
   if (o.daysLeft != null && o.daysLeft > 0) return `Closes in ${o.daysLeft} day${o.daysLeft === 1 ? '' : 's'} · ${o.closeDate}`;
   return `Closed ${o.closeDate}`;

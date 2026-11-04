@@ -4,7 +4,7 @@
  *
  * An opportunity reaches applicants only when it has an official https source,
  * a fetch time, an open status and, when posted, a closing date that has not
- * passed. Anything missing is listed, so the record can be fixed or left hidden.
+ * passed (or a source-stated rolling deadline). Anything missing is listed, so the record can be fixed or left hidden.
  */
 
 export interface GateInput {
@@ -13,6 +13,8 @@ export interface GateInput {
   fetchedAt: Date | string | null | undefined;
   status: string | null | undefined;
   closeDate: string | null | undefined;
+  /** The source states applications are accepted on a rolling basis. */
+  rollingDeadline?: boolean | null;
 }
 
 export interface GateResult {
@@ -43,7 +45,9 @@ export function evaluateGate(input: GateInput, now: Date = new Date()): GateResu
   const status = (input.status || "").toLowerCase();
   if (!OPEN_STATUSES.has(status)) missing.push("open status (posted or forecasted)");
   if (status === "posted") {
-    if (!input.closeDate) missing.push("closing date");
+    if (!input.closeDate) {
+      if (!input.rollingDeadline) missing.push("closing date");
+    }
     else if (input.closeDate < todayIso(now)) missing.push("closing date not passed");
   }
   return { publishable: missing.length === 0, missing };

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, Briefcase, Building2, HandHeart, Library, Plus, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowRight, Briefcase, Building2, CalendarPlus, HandHeart, Library, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReadinessRing, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
-import { deadlineLabel, errorMessage, grantsApi, useApplicants, useApplications, useGrantMeta, useInvalidateGrants, type ApplicantType } from '@/lib/grants';
+import { calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useApplications, useGrantMeta, useInvalidateGrants, type ApplicantType } from '@/lib/grants';
 
 const TYPE_CHOICES: { type: ApplicantType; title: string; body: string; icon: typeof HandHeart }[] = [
   { type: 'nonprofit_501c3', title: 'Nonprofit, 501(c)(3)', body: 'Tax-exempt charity with an IRS determination letter.', icon: HandHeart },
@@ -127,7 +127,7 @@ export default function GrantStudio() {
     setSyncMessage('');
     try {
       const result = await grantsApi.sync();
-      setSyncMessage(result.status === 'running' ? 'A refresh is already running.' : 'Refreshing from Grants.gov. New opportunities appear in a few minutes.');
+      setSyncMessage(result.status === 'running' ? 'A refresh is already running.' : 'Refreshing from Grants.gov and the California Grants Portal. New opportunities appear in a few minutes.');
       setTimeout(() => invalidate(), 4000);
     } catch (err) {
       setSyncMessage(errorMessage(err));
@@ -168,7 +168,7 @@ export default function GrantStudio() {
       <div className="mb-6 grid gap-3 lg:grid-cols-2">
         <Notice
           tone={lastSync?.status === 'failed' ? 'error' : 'info'}
-          title={`${(meta.data?.opportunities ?? 0).toLocaleString('en-US')} open federal opportunities from Grants.gov`}
+          title={`${(meta.data?.opportunities ?? 0).toLocaleString('en-US')} open opportunities from ${meta.data?.sources?.length ? meta.data.sources.map((s) => `${s.label} (${s.opportunities.toLocaleString('en-US')})`).join(' and ') : 'official sources'}`}
           action={
             <Button variant="outline" size="sm" onClick={refresh} disabled={meta.data?.syncRunning} className="gap-2">
               <RefreshCw className={cn('h-3.5 w-3.5', meta.data?.syncRunning && 'animate-spin')} aria-hidden="true" />
@@ -242,7 +242,15 @@ export default function GrantStudio() {
             </ul>
           </Panel>
           <Panel>
-            <PanelHeader title="Applications in progress" description="Closest deadline first." />
+            <PanelHeader
+              title="Applications in progress"
+              description="Closest deadline first."
+              actions={inProgress.length > 0 ? (
+                <Button asChild size="sm" variant="outline" className="gap-1.5">
+                  <a href={calendarUrl('all')} download><CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Deadline calendar</a>
+                </Button>
+              ) : undefined}
+            />
             {inProgress.length === 0 ? (
               <p className="px-5 py-6 text-sm text-muted-foreground">No applications yet. Open an organization’s matches and choose Start application.</p>
             ) : (

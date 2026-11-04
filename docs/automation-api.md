@@ -246,6 +246,7 @@ old, to guard against a captured request being replayed later.
 | `publication.published` | A publish succeeds and is confirmed live |
 | `publication.failed` | A publish fails permanently (all retries exhausted, or the platform rejected it) |
 | `grant.new_matches` | After the daily Grants.gov refresh, a Grant Studio organization has eligible, on-topic opportunities stored since its last alert. One event per organization per refresh; `data` has `applicantId`, `applicantName`, `count`, `matchesPath` and up to five `top` opportunities (title, agency, number, closing date, days left, score, official URL and Grant Studio path). Opportunities it already has an application for are left out |
+| `grant.deadline_approaching` | After the daily refresh, a Grant Studio application that has not been exported crosses 14, 7 or 2 days before its closing date (once per threshold). `data` has `applicationId`, `applicationTitle`, `applicantId`, `applicantName`, `status`, `closeDate`, `daysLeft`, `reminderDays`, `officialUrl` and `applicationPath` |
 
 `GET /api/webhooks/event-types` returns this list programmatically, so a
 dynamic UI (or your own tooling) never has to hardcode it.

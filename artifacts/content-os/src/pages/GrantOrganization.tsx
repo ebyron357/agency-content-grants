@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FactLibrary } from '@/components/grants/FactLibrary';
 import { DeadlineChip, Field, Notice, ReadinessRing, ReasonList, ScoreBadge, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { awardRange, deadlineLabel, errorMessage, grantsApi, useApplicant, useGrantMeta, useInvalidateGrants, useMatches, type Applicant, type ReadinessRow } from '@/lib/grants';
 
@@ -97,7 +98,7 @@ function MatchesTab({ applicant }: { applicant: Applicant }) {
           {matches.data.considered === 0 && (
             <StateMessage
               title="No opportunities stored yet"
-              description={meta.data?.syncRunning ? 'The first refresh from Grants.gov is running. Check back in a few minutes.' : 'Run Refresh now on the Grant Studio page to load open federal opportunities.'}
+              description={meta.data?.syncRunning ? 'The first refresh from Grants.gov and the California Grants Portal is running. Check back in a few minutes.' : 'Run Refresh now on the Grant Studio page to load open federal and California opportunities.'}
               action={<Button asChild variant="outline"><Link href="/grant-studio">Go to Grant Studio</Link></Button>}
             />
           )}
@@ -118,6 +119,7 @@ function MatchesTab({ applicant }: { applicant: Applicant }) {
                     {isNew && <span className="inline-flex items-center rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">New</span>}
                     <DeadlineChip daysLeft={o.daysLeft} label={deadlineLabel(o)} />
                     <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground">{awardRange(o)}</span>
+                    {o.jurisdiction && <span className="inline-flex items-center rounded-full border border-sky-400/25 bg-sky-400/10 px-2.5 py-1 text-xs text-sky-300">{o.jurisdiction} state program</span>}
                     {o.status === 'forecasted' && <span className="inline-flex items-center rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-xs text-amber-300">Forecast</span>}
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -194,7 +196,7 @@ function ReadinessTab({ applicant }: { applicant: Applicant }) {
     <Panel>
       <PanelHeader
         title="Readiness"
-        description="Federal awards need an active SAM.gov registration and UEI, and a Grants.gov Authorized Organization Representative to submit. Registration can take weeks: start early."
+        description="Federal awards need an active SAM.gov registration and UEI, and a Grants.gov Authorized Organization Representative to submit. Registration can take weeks: start early. State programs do not require them."
         icon={<ReadinessRing score={applicant.readiness.score} size={40} />}
       />
       <ul className="divide-y divide-border">
@@ -345,11 +347,13 @@ export default function GrantOrganization() {
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="readiness">Readiness</TabsTrigger>
           <TabsTrigger value="applications">Applications ({a.applications?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="library">Fact library</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
         </TabsList>
         <TabsContent value="matches"><MatchesTab applicant={a} /></TabsContent>
         <TabsContent value="readiness"><ReadinessTab applicant={a} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab applicant={a} /></TabsContent>
+        <TabsContent value="library"><FactLibrary applicantId={a.id} /></TabsContent>
         <TabsContent value="profile"><ProfileTab applicant={a} /></TabsContent>
       </Tabs>
     </PageShell>

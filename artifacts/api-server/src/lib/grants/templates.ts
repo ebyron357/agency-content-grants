@@ -7,7 +7,7 @@ import { APPLICANT_TYPES } from "./eligibility";
  * in the notice, and every template requirement starts unconfirmed.
  */
 
-export type TemplateKey = "federal_nonprofit" | "federal_business" | "sbir_sttr";
+export type TemplateKey = "federal_nonprofit" | "federal_business" | "sbir_sttr" | "state_nonprofit" | "state_business";
 
 export interface SectionTemplate {
   key: string;
@@ -126,6 +126,14 @@ const FEDERAL_COMMON: RequirementTemplate[] = [
   { kind: "attachment", label: "Letters of support or commitment", detail: "If the notice asks for them: who signs, what they commit and any limit on the number." },
 ];
 
+const STATE_COMMON: RequirementTemplate[] = [
+  { kind: "eligibility", label: "Applicant type and geography are eligible", detail: "State programs usually limit who can apply and where the project must be. Confirm both against the program's eligibility notes and guidelines." },
+  { kind: "form", label: "State application portal and forms", detail: "State agencies use their own portals and forms. Confirm the submission method, account requirements and required attachments on the program page." },
+  { kind: "deadline", label: "Submit before the deadline, or early for rolling programs", detail: "Confirm the closing time. Rolling programs fund applications as they arrive until the money runs out." },
+  { kind: "formatting", label: "Formatting rules", detail: "Font, page, file type and naming rules from the guidelines. Replace this row with the program's rules." },
+  { kind: "attachment", label: "Letters of support or commitment", detail: "If the guidelines ask for them: who signs, what they commit and any limit on the number." },
+];
+
 function sectionRequirements(sections: SectionTemplate[]): RequirementTemplate[] {
   return sections.map((section) => ({
     kind: "section" as const,
@@ -184,15 +192,29 @@ export const TEMPLATES: Record<TemplateKey, ApplicationTemplate> = {
       ...FEDERAL_FORMS,
     ],
   },
+  state_nonprofit: {
+    key: "state_nonprofit",
+    label: "State grant: nonprofit",
+    sections: NONPROFIT_SECTIONS,
+    requirements: [...sectionRequirements(NONPROFIT_SECTIONS), ...STATE_COMMON],
+  },
+  state_business: {
+    key: "state_business",
+    label: "State grant: business",
+    sections: BUSINESS_SECTIONS,
+    requirements: [...sectionRequirements(BUSINESS_SECTIONS), ...STATE_COMMON],
+  },
 };
 
 export function isTemplateKey(value: unknown): value is TemplateKey {
   return typeof value === "string" && value in TEMPLATES;
 }
 
-/** Picks a starting template from the applicant type and the opportunity. */
-export function chooseTemplate(applicantType: ApplicantType, opportunityTitle: string): TemplateKey {
-  if (APPLICANT_TYPES[applicantType].kind === "business") {
+/** Picks a starting template from the applicant type and the opportunity (state programs get a state template). */
+export function chooseTemplate(applicantType: ApplicantType, opportunityTitle: string, jurisdiction: string | null = null): TemplateKey {
+  const business = APPLICANT_TYPES[applicantType].kind === "business";
+  if (jurisdiction) return business ? "state_business" : "state_nonprofit";
+  if (business) {
     return /\b(SBIR|STTR)\b/i.test(opportunityTitle) ? "sbir_sttr" : "federal_business";
   }
   return "federal_nonprofit";

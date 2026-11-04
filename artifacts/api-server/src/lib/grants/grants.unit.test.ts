@@ -8,6 +8,10 @@ import { evaluateCompliance } from "./compliance";
 import { TEMPLATES, chooseTemplate } from "./templates";
 import { readinessKindsFor } from "./eligibility";
 import { broadTopics, hasTopics, isNewFor, newSince, scoreMatches, summarizeAlerts } from "./matchSet";
+import { MAX_FACTS_PER_DRAFT, factLine, factsForSection, factsMappedToSection, isFactCategory } from "./facts";
+import { demoScaffold } from "./draftScaffold";
+import { buildDeadlineCalendar, dueReminder, escapeIcsText, fileStem, foldIcsLine } from "./calendar";
+import { caAmountRange, caDate, caMatching, normalizeCaRecord } from "./california";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
 
 // Shapes recorded from api.grants.gov on 3 November 2026 (public notice data, trimmed).
@@ -358,5 +362,156 @@ describe("match alerts", () => {
     expect(broadTopics(["health", "literacy"], many)).toEqual(["health"]);
     // Too few matches to judge.
     expect(broadTopics(["health"], many.slice(0, 10))).toEqual([]);
+  });
+});
+
+describe("fact library", () => {
+  const fact = (id: string, category: string, confirmedAt: string | null, extra: Record<string, unknown> = {}) => ({ id, category, label: `Fact ${id}`, body: `Body ${id}`, source: null, asOf: null, confirmedAt, ...extra });
+
+  it("formats a fact with its source and date, or says the source is missing", () => {
+    expect(factLine(fact("a", "need", "2026-11-01", { source: "Census ACS 2024", asOf: "2024-12-31" }))).toBe("Fact a: Body a (source: Census ACS 2024, as of 2024-12-31)");
+    expect(factLine(fact("b", "need", "2026-11-01"))).toBe("Fact b: Body b (source not recorded)");
+    expect(isFactCategory("need")).toBe(true);
+    expect(isFactCategory("toString")).toBe(false);
+  });
+
+  it("gives drafting only confirmed facts, the section's categories first, within bounds", () => {
+    const facts = [
+      fact("staff1", "staff", "2026-11-02"),
+      fact("need1", "need", "2026-11-01"),
+      fact("need2", "need", null),
+      fact("need3", "need", "2026-11-03"),
+    ];
+    expect(factsForSection(facts, "need").map((f) => f.id)).toEqual(["need3", "need1", "staff1"]);
+    expect(factsMappedToSection(facts, "need").map((f) => f.id)).toEqual(["need1", "need3"]);
+    // An unmapped section uses every confirmed fact.
+    expect(factsMappedToSection(facts, "custom_section").map((f) => f.id)).toEqual(["staff1", "need1", "need3"]);
+    const many = Array.from({ length: 40 }, (_, i) => fact(`m${i}`, "need", "2026-11-01"));
+    expect(factsForSection(many, "need")).toHaveLength(MAX_FACTS_PER_DRAFT);
+    const huge = Array.from({ length: 10 }, (_, i) => fact(`h${i}`, "need", "2026-11-01", { body: "x".repeat(1900) }));
+    expect(factsForSection(huge, "need").length).toBeLessThan(10);
+  });
+
+  it("lists facts on file in the demo scaffold, escaped", () => {
+    const html = demoScaffold({
+      applicant: { name: "Org", applicantTypeLabel: "Nonprofit", mission: null, serviceArea: null, state: null, focusAreas: [] },
+      opportunity: { title: "Opp", agency: null, description: null },
+      section: { title: "Statement of need", guidance: null, limitType: null, limitValue: null, content: "" },
+      requirements: [],
+      facts: ["Child poverty: 31% <b>in</b> Halifax County (source: ACS 2024)"],
+    });
+    expect(html).toMatch(/Facts on file you can use here/);
+    expect(html).toContain("Child poverty: 31% &lt;b&gt;in&lt;/b&gt; Halifax County");
+  });
+});
+
+describe("deadline calendar", () => {
+  it("escapes text and folds long lines at 75 octets without splitting characters", () => {
+    expect(escapeIcsText("a,b;c\\d\ne")).toBe("a\\,b\\;c\\\\d\\ne");
+    const folded = foldIcsLine("SUMMARY:" + "é".repeat(60));
+    for (const part of folded.split("\r\n")) expect(Buffer.byteLength(part, "utf8")).toBeLessThanOrEqual(75);
+    expect(folded.split("\r\n ").join("")).toBe("SUMMARY:" + "é".repeat(60));
+  });
+
+  it("builds all-day events with three reminders and skips dates it cannot read", () => {
+    const ics = buildDeadlineCalendar("Grant deadlines", [
+      { uid: "a1", date: "2026-12-16", summary: "Grant due: Reading, writing", description: "Line one\nLine two", url: "https://www.grants.gov/search-results-detail/1" },
+      { uid: "bad", date: "12/16/2026", summary: "Skipped", description: "" },
+    ], new Date("2026-11-04T00:00:00Z"));
+    expect(ics.startsWith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n")).toBe(true);
+    expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
+    expect(ics).toContain("DTSTART;VALUE=DATE:20261216");
+    expect(ics).toContain("DTEND;VALUE=DATE:20261217");
+    expect(ics).toContain("SUMMARY:Grant due: Reading\\, writing");
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(3);
+    expect(ics).toContain("TRIGGER:-P14D");
+    expect(ics).not.toContain("Skipped");
+    expect(ics).toContain("Confirm the closing time and time zone");
+  });
+
+  it("fires each reminder threshold once as the deadline approaches", () => {
+    expect(dueReminder(30, null)).toBeNull();
+    expect(dueReminder(14, null)).toBe(14);
+    expect(dueReminder(10, 14)).toBeNull();
+    expect(dueReminder(7, 14)).toBe(7);
+    expect(dueReminder(5, null)).toBe(7);
+    expect(dueReminder(2, 7)).toBe(2);
+    expect(dueReminder(0, 2)).toBeNull();
+    expect(dueReminder(-1, null)).toBeNull();
+    expect(dueReminder(null, null)).toBeNull();
+    expect(fileStem("Readers Rising / HRSA-27-022")).toBe("Readers-Rising-HRSA-27-022");
+  });
+});
+
+describe("California Grants Portal connector", () => {
+  // Shape recorded from data.ca.gov on 4 November 2026 (public listing, trimmed).
+  const RECORD = {
+    _id: 1, PortalID: "194241", GrantID: "None", Status: "active", LastUpdated: "2026-10-30T17:18:33.000",
+    AgencyDept: "CA Department of Food and Agriculture", Title: "2027 CNIP Expansion", Type: "Grant",
+    Categories: "Agriculture; Food & Nutrition; Health & Human Services",
+    Purpose: "CNIP encourages purchases of California-grown produce.", Description: "CDFA seeks project proposals.",
+    ApplicantType: "Nonprofit; Business; Public Agency", ApplicantTypeNotes: "Eligibility is limited to certified farmers\u2019 markets.",
+    Geography: "Low-access areas", FundingSource: "State", MatchingFunds: "Not Required", MatchingFundsNotes: "None",
+    EstAvailFunds: "$750,000.00", EstAmounts: "Between $10,000.00 and $300,000.00", FundingMethod: "Reimbursement(s)",
+    OpenDate: "2026-10-30 15:00:00", ApplicationDeadline: "2026-12-04 17:00:00",
+    GrantURL: "https://cafarmtofork.cdfa.ca.gov/farm_to_fork/grants/cnip.html", AgencyURL: "https://www.cdfa.ca.gov",
+  };
+
+  it("parses dates, award ranges and matching rules in the portal's formats", () => {
+    expect(caDate("2026-12-04 17:00:00")).toBe("2026-12-04");
+    expect(caDate("Ongoing")).toBeNull();
+    expect(caAmountRange("Between $10,000.00 and $300,000.00")).toEqual([10000, 300000]);
+    expect(caAmountRange("$50,000.00")).toEqual([50000, 50000]);
+    expect(caAmountRange("Dependant on number of submissions received, application process, etc.")).toEqual([null, null]);
+    expect(caMatching("Not Required")).toEqual({ costSharing: false, costSharePercent: null });
+    expect(caMatching("25%")).toEqual({ costSharing: true, costSharePercent: 25 });
+    expect(caMatching("Varies")).toEqual({ costSharing: true, costSharePercent: null });
+  });
+
+  it("normalizes a record into a gated, state-scoped opportunity", () => {
+    const n = normalizeCaRecord(RECORD)!;
+    expect(n).toMatchObject({
+      sourceRef: "194241", number: null, status: "posted", openDate: "2026-10-30", closeDate: "2026-12-04", rollingDeadline: false,
+      awardFloor: 10000, awardCeiling: 300000, estimatedFunding: 750000, costSharing: false, jurisdiction: "CA",
+      officialUrl: "https://cafarmtofork.cdfa.ca.gov/farm_to_fork/grants/cnip.html",
+    });
+    expect(n.eligibilityCodes).toEqual(["12", "13", "22", "23"]);
+    expect(n.categories).toEqual(["Agriculture", "Food & Nutrition", "Health & Human Services"]);
+    expect(n.eligibilityText).toMatch(/California applicant types: Nonprofit; Business; Public Agency/);
+    const rolling = normalizeCaRecord({ ...RECORD, ApplicationDeadline: "Ongoing", GrantURL: "http://insecure.example", Status: "forecasted" })!;
+    expect(rolling).toMatchObject({ closeDate: null, rollingDeadline: true, status: "forecasted", officialUrl: "https://www.cdfa.ca.gov" });
+    expect(normalizeCaRecord({ ...RECORD, Title: "None" })).toBeNull();
+  });
+
+  it("publishes a posted record with a stated rolling deadline, but not one with no deadline at all", () => {
+    const base = { title: "T", officialUrl: "https://x.ca.gov", fetchedAt: NOW, status: "posted", closeDate: null };
+    expect(evaluateGate({ ...base, rollingDeadline: true }, NOW).publishable).toBe(true);
+    expect(evaluateGate(base, NOW).missing).toContain("closing date");
+  });
+
+  it("matches state programs on residency and stated match percentage, without federal registrations", () => {
+    const opp = { title: "Community Literacy for Youth Development", description: "Supports literacy programs.", categories: ["Education"], eligibilityCodes: ["12", "13"], eligibilityText: null, status: "posted", closeDate: null, awardFloor: 10000, awardCeiling: 200000, costSharing: true, costSharePercent: 25, rollingDeadline: true, jurisdiction: "CA" };
+    const ca: MatchApplicant = { applicantType: "nonprofit_501c3", mission: "Youth literacy", focusAreas: ["literacy"], state: "ca", annualBudget: 400000, maxCostSharePercent: 30 };
+    const irs = [{ kind: "irs_determination", status: "ready", expiresOn: null }];
+    const inCa = matchOpportunity(ca, opp, irs, NOW);
+    expect(inCa.eligible).toBe(true);
+    expect(inCa.gaps.join(" ")).not.toMatch(/SAM|Grants\.gov/);
+    expect(inCa.reasons.join(" ")).toMatch(/Rolling deadline/);
+    expect(inCa.reasons.join(" ")).toMatch(/Eligibility includes nonprofits/);
+    expect(inCa.reasons.join(" ")).not.toMatch(/501\(c\)\(3\)/);
+    expect(inCa.reasons.join(" ")).toMatch(/25% match, within the 30%/);
+    expect(matchOpportunity({ ...ca, state: "NC" }, opp, irs, NOW).exclusions[0]).toMatch(/CA state program; this organization is recorded in NC/);
+    expect(matchOpportunity({ ...ca, state: null }, opp, irs, NOW).gaps.join(" ")).toMatch(/Add the organization's state/);
+    expect(matchOpportunity({ ...ca, maxCostSharePercent: 10 }, opp, irs, NOW).exclusions.join(" ")).toMatch(/requires a 25% match; this organization can commit up to 10%/);
+    // A federal opportunity still requires the federal registrations.
+    expect(matchOpportunity(ca, { ...opp, jurisdiction: null, costSharing: false }, irs, NOW).gaps.join(" ")).toMatch(/SAM\.gov/);
+  });
+
+  it("uses a state template without federal forms, and compliance skips federal registrations", () => {
+    expect(chooseTemplate("nonprofit_501c3", "CNIP", "CA")).toBe("state_nonprofit");
+    expect(chooseTemplate("small_business", "SBIR Phase I", "CA")).toBe("state_business");
+    const labels = TEMPLATES.state_nonprofit.requirements.map((r) => r.label).join(" ");
+    expect(labels).not.toMatch(/SF-424|SAM\.gov/);
+    expect(labels).toMatch(/State application portal/);
   });
 });

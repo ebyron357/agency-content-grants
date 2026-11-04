@@ -73,6 +73,12 @@ export const grantOpportunitiesTable = pgTable("grant_opportunities", {
   awardCeiling: doublePrecision("award_ceiling"),
   estimatedFunding: doublePrecision("estimated_funding"),
   costSharing: boolean("cost_sharing"),
+  /** Required match as a percentage, when the source states one (California lists "25%"). */
+  costSharePercent: integer("cost_share_percent"),
+  /** The source states the program accepts applications on a rolling basis ("Ongoing"), so there is no closing date. */
+  rollingDeadline: boolean("rolling_deadline").notNull().default(false),
+  /** Null for federal programs; a state code ("CA") for state programs, which generally serve applicants or projects in that state. */
+  jurisdiction: text("jurisdiction"),
   /** Grants.gov applicant-type codes, e.g. "12", "23". */
   eligibilityCodes: jsonb("eligibility_codes").$type<string[]>().notNull().default([]),
   eligibilityText: text("eligibility_text"),
@@ -127,6 +133,8 @@ export const grantApplicationsTable = pgTable("grant_applications", {
   noticeText: text("notice_text"),
   indirectRatePercent: doublePrecision("indirect_rate_percent").notNull().default(0),
   exportedAt: timestamp("exported_at", { withTimezone: true }),
+  /** The last deadline reminder threshold (days before closing) sent as a webhook event. */
+  deadlineAlertDays: integer("deadline_alert_days"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [uniqueIndex("uq_grant_application").on(table.applicantId, table.opportunityId)]);
@@ -218,3 +226,27 @@ export type GrantRequirement = typeof grantRequirementsTable.$inferSelect;
 export type GrantSection = typeof grantSectionsTable.$inferSelect;
 export type GrantBudgetLine = typeof grantBudgetLinesTable.$inferSelect;
 export type GrantApproval = typeof grantApprovalsTable.$inferSelect;
+
+/**
+ * The organization's fact library: reusable, sourced statements (history,
+ * programs, outcomes, staff, partners, finances, community need). Only facts a
+ * person has confirmed are given to AI drafting, which may use nothing else.
+ */
+export const grantFactsTable = pgTable("grant_facts", {
+  id: text("id").primaryKey(),
+  applicantId: text("applicant_id").notNull().references(() => grantApplicantsTable.id, { onDelete: "cascade" }),
+  /** One of FACT_CATEGORIES in the API's grants/facts module. */
+  category: text("category").notNull(),
+  label: text("label").notNull(),
+  body: text("body").notNull(),
+  /** Where the fact comes from: a document, report or URL. */
+  source: text("source"),
+  /** ISO date the fact was true as of. */
+  asOf: text("as_of"),
+  confirmedBy: text("confirmed_by"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [index("idx_grant_facts_applicant").on(table.applicantId)]);
+
+export type GrantFact = typeof grantFactsTable.$inferSelect;

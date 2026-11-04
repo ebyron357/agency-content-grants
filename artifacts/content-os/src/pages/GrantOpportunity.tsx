@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation, useParams, useSearch } from 'wouter';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, ExternalLink } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReasonList, ScoreBadge, selectClass } from '@/components/grants/GrantUi';
-import { awardRange, deadlineLabel, errorMessage, grantsApi, useApplicants, useInvalidateGrants, useOpportunity } from '@/lib/grants';
+import { awardRange, calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useInvalidateGrants, useOpportunity } from '@/lib/grants';
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -66,7 +66,7 @@ export default function GrantOpportunity() {
       <PageHeader
         eyebrow={o.agency ?? 'Federal opportunity'}
         title={o.title}
-        description={o.number ? `Opportunity ${o.number} · Grants.gov` : 'Grants.gov'}
+        description={[o.number ? `Opportunity ${o.number}` : null, o.sourceLabel, o.jurisdiction ? `${o.jurisdiction} state program` : 'Federal program'].filter(Boolean).join(' · ')}
         actions={
           <Button asChild variant="outline" className="gap-2">
             <a href={o.officialUrl} target="_blank" rel="noreferrer">Official listing <ExternalLink className="h-4 w-4" aria-hidden="true" /></a>
@@ -78,7 +78,7 @@ export default function GrantOpportunity() {
       <dl className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Fact label="Closing date" value={deadlineLabel(o)} />
         <Fact label="Award" value={awardRange(o)} />
-        <Fact label="Cost sharing" value={o.costSharing == null ? 'Not stated' : o.costSharing ? 'Required' : 'Not required'} />
+        <Fact label="Cost sharing" value={o.costSharing == null ? 'Not stated' : o.costSharing ? (o.costSharePercent ? `Required: ${o.costSharePercent}% match` : 'Required') : 'Not required'} />
         <Fact label="Status" value={o.status === 'forecasted' ? 'Forecast' : 'Posted'} />
       </dl>
 
@@ -112,7 +112,7 @@ export default function GrantOpportunity() {
                 {orgs.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </Field>
-            {orgs.length === 0 && <p className="text-xs text-muted-foreground">Add an organization in Grant Studio first.</p>}
+            {applicants.data && orgs.length === 0 && <p className="text-xs text-muted-foreground">Add an organization in Grant Studio first.</p>}
             {match && (
               <>
                 {match.eligible ? <ScoreBadge score={match.score} /> : <Notice tone="error" title="Not eligible on the record">{match.exclusions.join(' ')}</Notice>}
@@ -127,8 +127,13 @@ export default function GrantOpportunity() {
                 Start application
               </Button>
             )}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <DeadlineChip daysLeft={o.daysLeft} label={deadlineLabel(o)} />
+              {o.closeDate && (
+                <Button asChild size="sm" variant="ghost" className="gap-1.5">
+                  <a href={calendarUrl('opportunity', o.id)} download><CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add to calendar</a>
+                </Button>
+              )}
             </div>
           </div>
         </Panel>

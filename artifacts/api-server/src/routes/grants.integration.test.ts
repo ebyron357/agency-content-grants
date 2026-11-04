@@ -13,12 +13,13 @@ import session from "express-session";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, grantApplicantsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
-import { syncGrantsGov } from "../lib/grants/ingest";
-import { emitMatchAlerts } from "../lib/grants/alerts";
+import { syncCalifornia, syncGrantsGov } from "../lib/grants/ingest";
+import type { CaFetchLike } from "../lib/grants/california";
+import { emitDeadlineReminders, emitMatchAlerts } from "../lib/grants/alerts";
 import type { FetchLike } from "../lib/grants/grantsgov";
 
 const OWNER = `grant-owner-${randomUUID()}`;
@@ -27,6 +28,7 @@ const NONPROFIT_OPP = randomUUID();
 const BUSINESS_OPP = randomUUID();
 const CLOSED_OPP = randomUUID();
 const FRESH_OPP = randomUUID();
+const DUE_OPP = randomUUID();
 
 let server: Server;
 let base = "";
@@ -107,7 +109,7 @@ beforeAll(async () => {
 afterAll(async () => {
   server?.close();
   await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.userId, [OWNER, OTHER]));
-  await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP]));
+  await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP, DUE_OPP]));
   await db.delete(webhookEventsTable).where(inArray(webhookEventsTable.userId, [OWNER, OTHER]));
   await db.delete(usersTable).where(inArray(usersTable.id, [OWNER, OTHER]));
 });
@@ -333,6 +335,148 @@ describe("Grant Studio end to end", () => {
     const seen = await api("GET", `/grants/applicants/${id}/matches?relevantOnly=1`);
     expect(seen.data.newTotal).toBe(0);
     expect(seen.data.matches.find((m: any) => m.opportunity.id === FRESH_OPP).isNew).toBe(false);
+  }, 30_000);
+
+  it("keeps a confirmed, sourced fact library that drafting uses and editing re-opens", async () => {
+    const api = client(await login(OWNER));
+    const org = (await api("POST", "/grants/applicants", { name: "Pine Street Readers", applicantType: "nonprofit_501c3", focusAreas: ["literacy"] })).data;
+    const meta = await api("GET", `/grants/applicants/${org.id}/facts`);
+    expect(meta.data.categories.map((c: any) => c.key)).toContain("need");
+    expect((await api("POST", `/grants/applicants/${org.id}/facts`, { category: "bogus", label: "x", body: "y" })).status).toBe(400);
+    expect((await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "", body: "y" })).status).toBe(400);
+    expect((await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "x", body: "y", asOf: "soon" })).status).toBe(400);
+
+    const confirmed = await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "Third-grade reading", body: "41% of third graders read at grade level.", source: "State report card 2025", asOf: "2025-08-01", confirmed: true });
+    expect(confirmed.status).toBe(201);
+    expect(confirmed.data.confirmed).toBe(true);
+    expect(confirmed.data.confirmedBy).toBeTruthy();
+    const draftOnly = await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "Unverified claim", body: "Most families lack books." });
+    expect(draftOnly.data.confirmed).toBe(false);
+
+    // Another operator can neither read nor change the library.
+    const other = client(await login(OTHER));
+    expect((await other("GET", `/grants/applicants/${org.id}/facts`)).status).toBe(404);
+    expect((await other("PATCH", `/grants/facts/${confirmed.data.id}`, { body: "hijack" })).status).toBe(404);
+    expect((await other("DELETE", `/grants/facts/${confirmed.data.id}`)).status).toBe(404);
+
+    // Drafting (demo provider) lists confirmed facts only.
+    const app = await api("POST", "/grants/applications", { applicantId: org.id, opportunityId: NONPROFIT_OPP, eligibilityConfirmed: true });
+    const ws = (await api("GET", `/grants/applications/${app.data.id}`)).data;
+    expect(ws.library.total).toBe(2);
+    expect(ws.library.confirmed.map((f: any) => f.id)).toEqual([confirmed.data.id]);
+    expect(ws.library.sectionCategories.need).toEqual(["need"]);
+    const need = ws.sections.find((sec: any) => sec.key === "need");
+    const drafted = await api("POST", `/grants/sections/${need.id}/draft`);
+    expect(drafted.status).toBe(200);
+    const content = (await api("GET", `/grants/applications/${app.data.id}`)).data.sections.find((sec: any) => sec.key === "need").content;
+    expect(content).toContain("41% of third graders read at grade level.");
+    expect(content).toContain("State report card 2025");
+    expect(content).not.toContain("Most families lack books.");
+
+    // Editing a confirmed fact withdraws its confirmation; confirming again restores it.
+    const edited = await api("PATCH", `/grants/facts/${confirmed.data.id}`, { body: "43% of third graders read at grade level." });
+    expect(edited.data.confirmed).toBe(false);
+    const reconfirmed = await api("PATCH", `/grants/facts/${confirmed.data.id}`, { confirmed: true });
+    expect(reconfirmed.data.confirmed).toBe(true);
+    expect((await api("DELETE", `/grants/facts/${draftOnly.data.id}`)).status).toBe(204);
+    expect((await api("GET", `/grants/applicants/${org.id}/facts`)).data.facts).toHaveLength(1);
+  }, 30_000);
+
+  it("exports deadline calendars and sends each deadline reminder once", async () => {
+    const api = client(await login(OWNER));
+    await db.insert(grantOpportunitiesTable).values(opportunity(DUE_OPP, { title: "Due soon literacy grant", closeDate: inDays(10), eligibilityCodes: ["12"] }));
+    const org = (await api("POST", "/grants/applicants", { name: "Calendar Test Readers", applicantType: "nonprofit_501c3" })).data;
+    const app = (await api("POST", "/grants/applications", { applicantId: org.id, opportunityId: DUE_OPP, eligibilityConfirmed: true })).data;
+
+    const one = await api("GET", `/grants/applications/${app.id}/deadline.ics`);
+    expect(one.status).toBe(200);
+    expect(one.headers.get("content-type")).toMatch(/text\/calendar/);
+    expect(one.headers.get("content-disposition")).toMatch(/attachment; filename=".+\.ics"/);
+    const text = one.data.toString("utf8");
+    expect(text).toContain(`DTSTART;VALUE=DATE:${inDays(10).replace(/-/g, "")}`);
+    expect(text).toContain("Grant due: ");
+    expect((await api("GET", `/grants/opportunities/${DUE_OPP}/deadline.ics`)).status).toBe(200);
+    expect((await api("GET", `/grants/opportunities/${CLOSED_OPP}/deadline.ics`)).status).toBe(404);
+    const all = (await api("GET", "/grants/calendar.ics")).data.toString("utf8");
+    expect(all).toContain(`UID:application-${app.id}@grant-studio`);
+    const other = client(await login(OTHER));
+    expect((await other("GET", `/grants/applications/${app.id}/deadline.ics`)).status).toBe(404);
+    expect((await other("GET", "/grants/calendar.ics")).data.toString("utf8")).not.toContain(app.id);
+
+    // 10 days left: the 14-day reminder fires once; at 5 days the 7-day one fires.
+    const reminders = async () => (await db.select().from(webhookEventsTable).where(eq(webhookEventsTable.userId, OWNER))).filter((e) => e.type === "grant.deadline_approaching" && (e.payload as any).applicationId === app.id);
+    await emitDeadlineReminders();
+    await emitDeadlineReminders();
+    expect((await reminders()).map((e) => (e.payload as any).reminderDays)).toEqual([14]);
+    expect((await reminders())[0].payload).toMatchObject({ daysLeft: 10, applicationPath: `/grant-studio/applications/${app.id}` });
+    await db.update(grantOpportunitiesTable).set({ closeDate: inDays(5) }).where(eq(grantOpportunitiesTable.id, DUE_OPP));
+    await emitDeadlineReminders();
+    expect((await reminders()).map((e) => (e.payload as any).reminderDays).sort()).toEqual([14, 7]);
+  }, 30_000);
+
+  it("syncs the California Grants Portal and takes a California nonprofit to a state application", async () => {
+    const close = inDays(30);
+    const base = { Status: "active", AgencyDept: "CA Test Agency", Categories: "Education", Purpose: "Supports seed library programs in California.", Description: "Test listing.", ApplicantType: "Nonprofit", MatchingFunds: "Not Required", EstAmounts: "Between $5,000.00 and $50,000.00", EstAvailFunds: "$200,000.00", OpenDate: "2026-10-01 09:00:00", GrantURL: "https://grants.ca.gov/test" };
+    let records: Record<string, string>[] = [
+      { ...base, PortalID: "ca-test-1", Title: "California Seed Library Grants", ApplicationDeadline: `${close} 17:00:00` },
+      { ...base, PortalID: "ca-test-2", Title: "California Seed Library Rolling Fund", ApplicationDeadline: "Ongoing", MatchingFunds: "25%" },
+      { ...base, PortalID: "ca-test-3", Title: "California insecure link", ApplicationDeadline: `${close} 17:00:00`, GrantURL: "http://grants.ca.gov/insecure", AgencyURL: "None" },
+    ];
+    const urls: string[] = [];
+    const fake: CaFetchLike = async (url) => {
+      urls.push(url);
+      return { ok: true, status: 200, json: async () => ({ success: true, result: { records, total: records.length } }) };
+    };
+    const result = await syncCalifornia(fake);
+    expect(result.status).toBe("succeeded");
+    expect(result.fetched).toBe(3);
+    expect(decodeURIComponent(urls[0])).toContain('"Status":["active","forecasted"]');
+    const rows = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "ca_grants_portal"));
+    const byRef = new Map(rows.map((r) => [r.sourceRef, r]));
+    expect(byRef.get("ca-test-1")).toMatchObject({ publishable: true, jurisdiction: "CA", closeDate: close, awardCeiling: 50000, rollingDeadline: false });
+    expect(byRef.get("ca-test-2")).toMatchObject({ publishable: true, rollingDeadline: true, closeDate: null, costSharePercent: 25 });
+    expect(byRef.get("ca-test-3")!.publishable).toBe(false);
+    expect(byRef.get("ca-test-3")!.gateMissing).toContain("official https source");
+
+    const api = client(await login(OWNER));
+    const caOrg = (await api("POST", "/grants/applicants", { name: "Sacramento Seed Savers", applicantType: "nonprofit_501c3", state: "CA", focusAreas: ["seed library"], maxCostSharePercent: 0 })).data;
+    const ncOrg = (await api("POST", "/grants/applicants", { name: "Raleigh Seed Savers", applicantType: "nonprofit_501c3", state: "NC", focusAreas: ["seed library"] })).data;
+    const caMatches = (await api("GET", `/grants/applicants/${caOrg.id}/matches?relevantOnly=1`)).data.matches;
+    const ids = caMatches.map((m: any) => m.opportunity.sourceRef);
+    expect(ids).toContain("ca-test-1");
+    // The rolling fund requires a 25% match this organization cannot commit.
+    expect(ids).not.toContain("ca-test-2");
+    const first = caMatches.find((m: any) => m.opportunity.sourceRef === "ca-test-1");
+    expect(first.opportunity).toMatchObject({ sourceLabel: "California Grants Portal", federal: false, eligibilityLabels: ["Nonprofit"] });
+    expect(first.match.gaps.join(" ")).not.toMatch(/SAM/);
+    const ncIds = (await api("GET", `/grants/applicants/${ncOrg.id}/matches`)).data.matches.map((m: any) => m.opportunity.sourceRef);
+    expect(ncIds).not.toContain("ca-test-1");
+
+    // A state application: state template, no SAM row, and compliance does not ask for federal registrations.
+    await api("PUT", `/grants/applicants/${caOrg.id}/readiness/irs_determination`, { status: "ready" });
+    const app = (await api("POST", "/grants/applications", { applicantId: caOrg.id, opportunityId: first.opportunity.id, eligibilityConfirmed: true })).data;
+    const ws = (await api("GET", `/grants/applications/${app.id}`)).data;
+    expect(ws.application.template).toBe("state_nonprofit");
+    expect(ws.requirements.map((r: any) => r.label).join(" ")).not.toMatch(/SAM\.gov|SF-424/);
+    expect(ws.compliance.checks.find((c: any) => c.id === "readiness").ok).toBe(true);
+    // Opening the opportunity does not try a Grants.gov detail refresh.
+    const detail = await api("GET", `/grants/opportunities/${first.opportunity.id}?applicantId=${caOrg.id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.data.detailError ?? null).toBeNull();
+
+    // A record that leaves the open set is closed and unpublished.
+    records = records.filter((r) => r.PortalID !== "ca-test-1");
+    await syncCalifornia(fake);
+    const [gone] = await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.source, "ca_grants_portal"), eq(grantOpportunitiesTable.sourceRef, "ca-test-1")));
+    expect(gone).toMatchObject({ status: "closed", publishable: false });
+
+    // A failing portal is recorded, not hidden.
+    const down: CaFetchLike = async () => ({ ok: false, status: 503, json: async () => ({}) });
+    const failed = await syncCalifornia(down);
+    expect(failed.status).toBe("failed");
+    expect(failed.error).toMatch(/503/);
+    await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.id, [caOrg.id, ncOrg.id]));
+    await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "ca_grants_portal"));
   }, 30_000);
 
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {

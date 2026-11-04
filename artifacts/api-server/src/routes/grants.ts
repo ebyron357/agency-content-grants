@@ -8,6 +8,7 @@ import {
   grantApplicationsTable,
   grantApprovalsTable,
   grantBudgetLinesTable,
+  grantFactsTable,
   grantOpportunitiesTable,
   grantReadinessItemsTable,
   grantRequirementsTable,
@@ -16,6 +17,7 @@ import {
   usersTable,
   type GrantApplicant,
   type GrantApplication,
+  type GrantFact,
   type GrantOpportunity,
 } from "@workspace/db";
 import { getActiveProvider } from "../lib/ai/router";
@@ -43,6 +45,9 @@ import { draftSection, extractRequirements, reviewSection, type DraftContext } f
 import { buildApplicationPackage } from "../lib/grants/packageExport";
 import { isGrantSyncRunning, refreshOpportunityDetail, runGrantSyncOnce } from "../lib/grants/ingest";
 import { daysUntil } from "../lib/grants/gate";
+import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
+import { CA_SOURCE } from "../lib/grants/california";
+import { FACT_CATEGORIES, SECTION_FACT_CATEGORIES, factLine, factsForSection, isFactCategory } from "../lib/grants/facts";
 
 /**
  * Grant Studio API (docs/GRANT_STUDIO.md).
@@ -191,10 +196,24 @@ function readinessView(applicant: GrantApplicant, items: (typeof grantReadinessI
   return { items: rows, score: rows.length ? Math.round((ready / rows.length) * 100) : 0, blockingOpen };
 }
 
+/** Display names for each source, and California's own wording for the eligibility codes it maps to. */
+const SOURCE_LABELS: Record<string, string> = { grants_gov: "Grants.gov", [CA_SOURCE]: "California Grants Portal" };
+const CA_CODE_LABELS: Record<string, string> = { "12": "Nonprofit", "13": "Nonprofit", "22": "Business", "23": "Business", "25": "Other legal entity" };
+
+function eligibilityLabels(o: GrantOpportunity): string[] {
+  if (o.source === CA_SOURCE) return [...new Set(o.eligibilityCodes.map((c) => CA_CODE_LABELS[c] ?? `Code ${c}`))];
+  return o.eligibilityCodes.map((c) => GRANTS_GOV_CODE_LABELS[c] ?? `Code ${c}`);
+}
+
 function opportunityView(o: GrantOpportunity) {
   return {
     id: o.id,
     source: o.source,
+    sourceLabel: SOURCE_LABELS[o.source] ?? o.source,
+    jurisdiction: o.jurisdiction,
+    federal: !o.jurisdiction,
+    rollingDeadline: o.rollingDeadline,
+    costSharePercent: o.costSharePercent,
     sourceRef: o.sourceRef,
     number: o.number,
     title: o.title,
@@ -209,7 +228,7 @@ function opportunityView(o: GrantOpportunity) {
     estimatedFunding: o.estimatedFunding,
     costSharing: o.costSharing,
     eligibilityCodes: o.eligibilityCodes,
-    eligibilityLabels: o.eligibilityCodes.map((c) => GRANTS_GOV_CODE_LABELS[c] ?? `Code ${c}`),
+    eligibilityLabels: eligibilityLabels(o),
     eligibilityText: o.eligibilityText,
     categories: o.categories,
     assistanceListings: o.assistanceListings,
@@ -227,6 +246,7 @@ function opportunityView(o: GrantOpportunity) {
 
 router.get("/grants/meta", async (_req, res): Promise<void> => {
   const [opps] = await db.select({ total: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true));
+  const bySource = await db.select({ source: grantOpportunitiesTable.source, n: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true)).groupBy(grantOpportunitiesTable.source);
   const [lastRun] = await db.select().from(grantSyncRunsTable).orderBy(desc(grantSyncRunsTable.startedAt)).limit(1);
   res.json({
     applicantTypes: Object.entries(APPLICANT_TYPES).map(([key, v]) => ({ key, label: v.label, kind: v.kind })),
@@ -237,6 +257,7 @@ router.get("/grants/meta", async (_req, res): Promise<void> => {
     aiProvider: getActiveProvider().name,
     aiDemo: getActiveProvider().name === "demo",
     opportunities: Number(opps.total),
+    sources: bySource.map((b) => ({ source: b.source, label: SOURCE_LABELS[b.source] ?? b.source, opportunities: Number(b.n) })),
     lastSync: lastRun ?? null,
     syncRunning: isGrantSyncRunning(),
   });
@@ -396,6 +417,98 @@ router.put("/grants/applicants/:id/readiness/:kind", async (req, res): Promise<v
   res.json(readinessView(applicant, items));
 });
 
+// ── Fact library ───────────────────────────────────────────────────────────
+
+const FACT_FIELDS = ["category", "label", "body", "source", "asOf", "confirmed"] as const;
+const MAX_FACTS_PER_APPLICANT = 300;
+
+async function ownedFact(id: string, userId: string, res: Response): Promise<{ fact: GrantFact; applicant: GrantApplicant } | null> {
+  const [row] = await db
+    .select({ fact: grantFactsTable, applicant: grantApplicantsTable })
+    .from(grantFactsTable)
+    .innerJoin(grantApplicantsTable, eq(grantFactsTable.applicantId, grantApplicantsTable.id))
+    .where(and(eq(grantFactsTable.id, id), eq(grantApplicantsTable.userId, userId)))
+    .limit(1);
+  if (!row) fail(res, 404, "Fact not found");
+  return row ?? null;
+}
+
+function factValues(body: Record<string, unknown>, creating: boolean): Record<string, unknown> | string {
+  const values: Record<string, unknown> = {};
+  if (creating || body.category !== undefined) {
+    if (!isFactCategory(body.category)) return `category must be one of: ${Object.keys(FACT_CATEGORIES).join(", ")}`;
+    values.category = body.category;
+  }
+  for (const [field, max, required] of [["label", 160, true], ["body", 2000, true], ["source", 500, false]] as const) {
+    if (!creating && body[field] === undefined) continue;
+    const text = optionalText(body[field], max);
+    if (text === false) return `${field} must be text`;
+    if (required && !text) return `${field} is required`;
+    values[field] = text ?? null;
+  }
+  if (body.asOf !== undefined) {
+    const date = isoDate(body.asOf);
+    if (date === false) return "asOf must be a date (YYYY-MM-DD)";
+    values.asOf = date ?? null;
+  }
+  if (body.confirmed !== undefined && typeof body.confirmed !== "boolean") return "confirmed must be true or false";
+  return values;
+}
+
+function factView(f: GrantFact) {
+  return { ...f, confirmed: Boolean(f.confirmedAt), categoryLabel: FACT_CATEGORIES[f.category as keyof typeof FACT_CATEGORIES]?.label ?? f.category };
+}
+
+router.get("/grants/applicants/:id/facts", async (req, res): Promise<void> => {
+  const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
+  if (!applicant) return;
+  const facts = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id)).orderBy(asc(grantFactsTable.category), desc(grantFactsTable.updatedAt));
+  res.json({
+    categories: Object.entries(FACT_CATEGORIES).map(([key, c]) => ({ key, ...c })),
+    facts: facts.map(factView),
+  });
+});
+
+router.post("/grants/applicants/:id/facts", async (req, res): Promise<void> => {
+  const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
+  if (!applicant) return;
+  const body = pick(req.body, FACT_FIELDS);
+  if (typeof body === "string") return fail(res, 400, body);
+  const values = factValues(body, true);
+  if (typeof values === "string") return fail(res, 400, values);
+  const [{ n }] = await db.select({ n: count() }).from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
+  if (Number(n) >= MAX_FACTS_PER_APPLICANT) return fail(res, 400, `An organization can hold at most ${MAX_FACTS_PER_APPLICANT} facts.`);
+  const confirmation = body.confirmed === true ? { confirmedBy: await usernameOf(req.session.userId!), confirmedAt: new Date() } : {};
+  const [row] = await db.insert(grantFactsTable).values({ id: randomUUID(), applicantId: applicant.id, ...(values as any), ...confirmation }).returning();
+  res.status(201).json(factView(row));
+});
+
+router.patch("/grants/facts/:fid", async (req, res): Promise<void> => {
+  const owned = await ownedFact(param(req, "fid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, FACT_FIELDS);
+  if (typeof body === "string") return fail(res, 400, body);
+  const values = factValues(body, false);
+  if (typeof values === "string") return fail(res, 400, values);
+  const contentChanged = ["category", "label", "body", "source", "asOf"].some((k) => values[k] !== undefined && values[k] !== (owned.fact as any)[k]);
+  // Editing a confirmed fact withdraws the confirmation unless the same request confirms it again.
+  if (body.confirmed === true) Object.assign(values, { confirmedBy: await usernameOf(req.session.userId!), confirmedAt: new Date() });
+  else if (body.confirmed === false || contentChanged) Object.assign(values, { confirmedBy: null, confirmedAt: null });
+  if (Object.keys(values).length === 0) {
+    res.json(factView(owned.fact));
+    return;
+  }
+  const [row] = await db.update(grantFactsTable).set(values).where(eq(grantFactsTable.id, owned.fact.id)).returning();
+  res.json(factView(row));
+});
+
+router.delete("/grants/facts/:fid", async (req, res): Promise<void> => {
+  const owned = await ownedFact(param(req, "fid"), req.session.userId!, res);
+  if (!owned) return;
+  await db.delete(grantFactsTable).where(eq(grantFactsTable.id, owned.fact.id));
+  res.status(204).end();
+});
+
 // ── Matches and opportunities ─────────────────────────────────────────────
 
 router.get("/grants/applicants/:id/matches", async (req, res): Promise<void> => {
@@ -458,7 +571,8 @@ router.get("/grants/opportunities/:id", async (req, res): Promise<void> => {
   let [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, id)).limit(1);
   if (!opp) return fail(res, 404, "Opportunity not found");
   let detailError: string | null = null;
-  const stale = !opp.detailFetchedAt || Date.now() - opp.detailFetchedAt.getTime() > 24 * 60 * 60_000;
+  // Only Grants.gov has a separate detail record; state records are complete when synced.
+  const stale = opp.source === "grants_gov" && (!opp.detailFetchedAt || Date.now() - opp.detailFetchedAt.getTime() > 24 * 60 * 60_000);
   if (stale) {
     try {
       await refreshOpportunityDetail(opp.id);
@@ -503,7 +617,7 @@ router.post("/grants/applications", async (req, res): Promise<void> => {
     res.status(200).json({ id: existing.id, existing: true });
     return;
   }
-  const templateKey: TemplateKey = (body.template as TemplateKey) ?? chooseTemplate(applicant.applicantType as ApplicantType, opp.title);
+  const templateKey: TemplateKey = (body.template as TemplateKey) ?? chooseTemplate(applicant.applicantType as ApplicantType, opp.title, opp.jurisdiction);
   const template = TEMPLATES[templateKey];
   const username = await usernameOf(req.session.userId!);
   const id = randomUUID();
@@ -551,10 +665,12 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     db.select().from(grantApprovalsTable).where(eq(grantApprovalsTable.applicationId, app.id)).orderBy(asc(grantApprovalsTable.createdAt)),
     db.select().from(grantReadinessItemsTable).where(eq(grantReadinessItemsTable.applicantId, applicant.id)),
   ]);
+  const libraryFacts = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id)).orderBy(desc(grantFactsTable.updatedAt));
   const budget = summarizeBudget(lines, app.indirectRatePercent, opp.awardCeiling);
   const packageApproved = approvals.some((a) => a.scope === "package");
   const compliance = evaluateCompliance({
     applicantType: applicant.applicantType as ApplicantType,
+    federal: !opp.jurisdiction,
     eligibilityConfirmed: Boolean(app.eligibilityConfirmedAt),
     closeDate: opp.closeDate,
     requirements,
@@ -575,6 +691,11 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     approvals,
     compliance,
     aiDemo: getActiveProvider().name === "demo",
+    library: {
+      total: libraryFacts.length,
+      confirmed: libraryFacts.filter((f) => f.confirmedAt).map(factView),
+      sectionCategories: SECTION_FACT_CATEGORIES,
+    },
   };
 }
 
@@ -772,10 +893,12 @@ async function draftContext(sectionId: string, app: GrantApplication, applicant:
   const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
   const reqs = await db.select().from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, app.id));
   const relevant = reqs.filter((r) => r.sectionKey === section.key || (r.kind === "criterion" && !r.sectionKey));
+  const library = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
   const facts = [
     applicant.annualBudget ? `Annual budget: $${applicant.annualBudget.toLocaleString("en-US")}` : null,
     applicant.ein ? `EIN on file: ${applicant.ein}` : null,
     app.requestedAmount ? `Amount requested: $${app.requestedAmount.toLocaleString("en-US")}` : null,
+    ...factsForSection(library, section.key).map(factLine),
   ].filter((f): f is string => Boolean(f));
   return {
     applicant: {
@@ -959,7 +1082,7 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
     applicantTypeLabel: ws.applicant.applicantTypeLabel,
     ein: owned.applicant.ein,
     uei: owned.applicant.uei,
-    opportunity: { title: ws.opportunity.title, number: ws.opportunity.number, agency: ws.opportunity.agency, closeDate: ws.opportunity.closeDate, officialUrl: ws.opportunity.officialUrl },
+    opportunity: { title: ws.opportunity.title, number: ws.opportunity.number, agency: ws.opportunity.agency, closeDate: ws.opportunity.closeDate, officialUrl: ws.opportunity.officialUrl, federal: ws.opportunity.federal },
     requestedAmount: ws.budget.requested,
     sections: ws.sections.map((s) => ({ title: s.title, content: s.content })),
     budgetLines: ws.budgetLines,
@@ -977,6 +1100,61 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
   res.setHeader("Content-Disposition", `attachment; filename="${name}.docx"`);
   res.setHeader("Cache-Control", "no-store");
   res.send(buffer);
+});
+
+// ── Deadline calendars ─────────────────────────────────────────────────────
+
+function sendCalendar(res: Response, name: string, body: string): void {
+  res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileStem(name)}.ics"`);
+  res.setHeader("Cache-Control", "no-store");
+  res.send(body);
+}
+
+router.get("/grants/applications/:id/deadline.ics", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, owned.app.opportunityId)).limit(1);
+  if (!opp?.closeDate) return fail(res, 409, "This opportunity has no closing date on record. Check the official notice.");
+  sendCalendar(res, `${owned.applicant.name} ${opp.number ?? "deadline"}`, buildDeadlineCalendar(`${owned.applicant.name}: grant deadlines`, [{
+    uid: `application-${owned.app.id}`,
+    date: opp.closeDate,
+    summary: `Grant due: ${owned.app.title}`,
+    description: `${owned.applicant.name} · ${opp.agency ?? "Funder not recorded"}${opp.number ? ` · ${opp.number}` : ""}\nOfficial listing: ${opp.officialUrl}`,
+    url: opp.officialUrl,
+  }]));
+});
+
+router.get("/grants/opportunities/:id/deadline.ics", async (req, res): Promise<void> => {
+  const [opp] = await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.id, param(req, "id")), eq(grantOpportunitiesTable.publishable, true))).limit(1);
+  if (!opp) return fail(res, 404, "Opportunity not found");
+  if (!opp.closeDate) return fail(res, 409, "This opportunity has no closing date on record. Check the official notice.");
+  sendCalendar(res, opp.number ?? opp.title, buildDeadlineCalendar("Grant deadlines", [{
+    uid: `opportunity-${opp.id}`,
+    date: opp.closeDate,
+    summary: `Grant closes: ${opp.title}`,
+    description: `${opp.agency ?? "Funder not recorded"}${opp.number ? ` · ${opp.number}` : ""}\nOfficial listing: ${opp.officialUrl}`,
+    url: opp.officialUrl,
+  }]));
+});
+
+router.get("/grants/calendar.ics", async (req, res): Promise<void> => {
+  const rows = await db
+    .select({ app: grantApplicationsTable, applicant: grantApplicantsTable, opp: grantOpportunitiesTable })
+    .from(grantApplicationsTable)
+    .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
+    .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
+    .where(eq(grantApplicantsTable.userId, req.session.userId!));
+  const deadlines = rows
+    .filter(({ app, opp }) => app.status !== "exported" && opp.closeDate && (daysUntil(opp.closeDate) ?? -1) >= 0)
+    .map(({ app, applicant, opp }) => ({
+      uid: `application-${app.id}`,
+      date: opp.closeDate!,
+      summary: `Grant due: ${app.title} (${applicant.name})`,
+      description: `${applicant.name} · ${opp.agency ?? "Funder not recorded"}${opp.number ? ` · ${opp.number}` : ""}\nOfficial listing: ${opp.officialUrl}`,
+      url: opp.officialUrl,
+    }));
+  sendCalendar(res, "grant-deadlines", buildDeadlineCalendar("Grant deadlines", deadlines));
 });
 
 export default router;
