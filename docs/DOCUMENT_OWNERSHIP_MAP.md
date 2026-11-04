@@ -29,7 +29,7 @@ Updated 4 November 2026. Every fact has one current home. If two documents disag
 | `docs/automation-api.md` | Automation API and webhook contract | Technical lead | Approved PR |
 | `docs/engineering-standards.md` | Access-first, reuse-first engineering rules | Technical lead | Approved PR |
 | `docs/decisions/*` | Recorded technical decisions | Technical lead | Approved PR |
-| `docs/evidence/release/2026-10-02/`, `docs/evidence/release/2026-11-04/`, `docs/evidence/ui/closeout-2026-10-02/`, `docs/evidence/grants/2026-11-02/`, `docs/evidence/grant-studio/2026-11-03/`, `docs/evidence/accounts/2026-11-04/`, `docs/evidence/jobs/2026-11-04/`, `docs/evidence/templates/2026-11-04/`, `docs/evidence/toolkit/2026-11-04/`, `docs/evidence/production/2026-11-04/`, `docs/evidence/security/*` | Closeout, release-candidate, feature and security evidence | Program lead | Append-only |
+| `docs/evidence/release/2026-10-02/`, `docs/evidence/release/2026-11-04/`, `docs/evidence/ui/closeout-2026-10-02/`, `docs/evidence/grants/2026-11-02/`, `docs/evidence/grant-studio/2026-11-03/`, `docs/evidence/accounts/2026-11-04/`, `docs/evidence/jobs/2026-11-04/`, `docs/evidence/templates/2026-11-04/`, `docs/evidence/toolkit/2026-11-04/`, `docs/evidence/production/2026-11-04/`, `docs/evidence/upgrade/2026-11-04/`, `docs/evidence/security/*` | Closeout, release-candidate, feature and security evidence | Program lead | Append-only |
 | `render.yaml`, `.env.example` | Deployment blueprint and configuration template | Technical lead | Approved PR |
 
 Section 40 of the completion standard names `docs/PROJECT_CLOSEOUT_STATUS.md`; that role is filled by `docs/PROJECT_STATUS.md` so there is only one status record.

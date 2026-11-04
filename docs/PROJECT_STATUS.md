@@ -1,13 +1,13 @@
 # Content Machine — current project status
 
-Status updated: **4 November 2026, 23:25 UTC**. Production observations come from the Render API between 23:00 and 23:25 UTC ([evidence](evidence/production/2026-11-04/README.md)). This session cannot reach the production URL directly, because the network proxy blocks it. Owner: Emmanuel Andre Byron (`ebyron357`). This is the single current status record. ClickUp control task: `86e2tjzyc`. Governing issue [#8](https://github.com/ebyron357/agency-content-grants/issues/8) is **closed** (24 October, by `ebyron357`), but no authenticated production smoke result was ever recorded on it.
+Status updated: **4 November 2026, 23:50 UTC**. Production observations come from the Render API between 23:00 and 23:25 UTC ([evidence](evidence/production/2026-11-04/README.md)). This session cannot reach the production URL directly, because the network proxy blocks it. Owner: Emmanuel Andre Byron (`ebyron357`). This is the single current status record. ClickUp control task: `86e2tjzyc`. Governing issue [#8](https://github.com/ebyron357/agency-content-grants/issues/8) is **closed** (24 October, by `ebyron357`), but no authenticated production smoke result was ever recorded on it.
 
 ## Current verdict
 
 | Area | Verified state | Next action and owner |
 |---|---|---|
 | Production | **LIVE on `d2250c3bf2c3d76492d3078b9d8deec79c83e131`** (merge of PR #42) since 16:18 UTC on 4 November. **Nobody triggered this deploy.** Render's Blueprint Auto Sync deployed it because PR #42 changed `render.yaml`, so it skipped the production gate (next section).<br>• Migrations `0016`–`0024` applied, and the service is live with `/api/readyz` returning 200.<br>• The first live Grants.gov sync (1,387 opportunities) and California sync (156) succeeded.<br>• Memory is about 280 MB of 512 MB.<br>• There was one transient readiness failure (storage) at 18:18 UTC.<br>• The authenticated smoke test has **never been run** on this commit, and `/api/healthz` was not checked over HTTP.<br>[Evidence](evidence/production/2026-11-04/README.md) | Owner: choose to deploy `fdb352c` (recommended) or roll back to `6d9f488` (blocker 1), and turn Blueprint Auto Sync off (blocker 2) |
-| Release candidate | **`main` `fdb352c7459239da8727ee290e32265e79d29dcd`** (merge of [PR #46](https://github.com/ebyron357/agency-content-grants/pull/46), 20:16 UTC on 4 November). It is four PRs ahead of production, adding migrations `0025`–`0029`:<br>• the job queue (#43);<br>• editable templates (#44);<br>• AI work as background jobs (#45);<br>• place designations, the writing toolkit and the competitiveness rating (#46).<br>CI passed on PR #46's head `9f09ac0`, whose tree is identical to `fdb352c`. The upgrade from `6d9f488` and the rollback to it were rehearsed on that tree, with the smoke test passing 75/75 both ways. [Evidence](evidence/toolkit/2026-11-04/README.md), [earlier candidate](evidence/release/2026-11-04/README.md) | Owner: approve, complete the prerequisites and deploy (blockers 1–4) |
+| Release candidate | **`main` `fdb352c7459239da8727ee290e32265e79d29dcd`** (merge of [PR #46](https://github.com/ebyron357/agency-content-grants/pull/46), 20:16 UTC on 4 November). It is four PRs ahead of production, adding migrations `0025`–`0029`:<br>• the job queue (#43);<br>• editable templates (#44);<br>• AI work as background jobs (#45);<br>• place designations, the writing toolkit and the competitiveness rating (#46).<br>CI passed on PR #46's head `9f09ac0`, whose tree is identical to `fdb352c`.<br>**The real upgrade path was rehearsed:** members, two-factor and Grant Studio data written by `d2250c3`, then `fdb352c`, then rollbacks to `d2250c3` and `6d9f488`, then forward to `fdb352c` again. Every data check passed, and so did every smoke run (75/75). [Upgrade evidence](evidence/upgrade/2026-11-04/README.md), [toolkit](evidence/toolkit/2026-11-04/README.md), [earlier candidate](evidence/release/2026-11-04/README.md) | Owner: approve, complete the prerequisites and deploy (blockers 1–4) |
 | Production GO | **NO-GO** | See the blockers below |
 | Content Machine release scope | **VERIFIED COMPLETE** (Issue #8 closeout, 2 October). The 4 November rehearsals re-ran the full smoke suite: 75/75 | Preserve |
 | Grant directory (PR #26) | Merged 2 November; **deployed 4 November in `d2250c3`, not verified there**. [Scope](GRANT_RESOURCES.md), [evidence](evidence/grants/2026-11-02/README.md) | Verify after the next deploy |
@@ -29,7 +29,7 @@ Full detail: [evidence/production/2026-11-04](evidence/production/2026-11-04/REA
   - A confirmed backup before migrations `0016`–`0024` ran.
   - The authenticated smoke test and log review.
 - **Risk today.**
-  - `d2250c3` was never rehearsed as a candidate. Its code passed CI on PR #42's head ([run 41861455142](https://github.com/ebyron357/agency-content-grants/actions/runs/41861455142)), and every later candidate that contains it passed the full gate.
+  - `d2250c3` was not a planned candidate. Its code passed CI on PR #42's head ([run 41861455142](https://github.com/ebyron357/agency-content-grants/actions/runs/41861455142)), and every later candidate that contains it passed the full gate. It passed the smoke test 75/75 in a local production-mode rehearsal ([upgrade evidence](evidence/upgrade/2026-11-04/README.md)), but never in production.
   - Rolling back to `6d9f488` was rehearsed on a newer schema (`0026`, and again on `0029`), so a rollback is available. `6d9f488` is listed in Render as a deactivated deploy.
   - Between 16:18 and 23:19 UTC the logs show only Render's health checks, so nobody appears to have used the new version yet.
 - **Records corrected.** `AGENTS.md`, `README.md` and the runbook said deploys happen only when someone triggers one manually. That is not true while Auto Sync is on. They now say so.
@@ -73,7 +73,11 @@ These do not invalidate the code, which passed the full gate (next section). But
 
 ## Release-candidate validation
 
-Full detail: [evidence/release/2026-11-04](evidence/release/2026-11-04/README.md) for `997b735`, and [evidence/toolkit/2026-11-04](evidence/toolkit/2026-11-04/README.md) for the PR #46 tree that became `fdb352c`.
+Full detail:
+
+- [evidence/upgrade/2026-11-04](evidence/upgrade/2026-11-04/README.md): the upgrade from production `d2250c3` to `fdb352c`.
+- [evidence/release/2026-11-04](evidence/release/2026-11-04/README.md): `997b735`.
+- [evidence/toolkit/2026-11-04](evidence/toolkit/2026-11-04/README.md): the PR #46 tree that became `fdb352c`.
 
 - **Hosted CI on `9f09ac0`** (PR #46's head; its tree is identical to `fdb352c`, and its base was `997b735`): "Format, typecheck, tests, build" and "Secret scan, dependency audit, SBOM" passed ([CI run 41901743511](https://github.com/ebyron357/agency-content-grants/actions/runs/41901743511)), and so did "validate" ([run 41901743565](https://github.com/ebyron357/agency-content-grants/actions/runs/41901743565)).
 - **Local gates on the PR #46 tree.**
@@ -87,8 +91,18 @@ Full detail: [evidence/release/2026-11-04](evidence/release/2026-11-04/README.md
 - **Local gates on `997b735`.** The same gates passed with 209 unit, 426 database-backed, 31 Content OS, 40 integration and 10 Playwright tests.
 - **Upgrade rehearsal passed on both.** Records were written by `6d9f488`, then the candidate started on the same database (production mode, TLS proxy). The migrations applied cleanly, the old records stayed readable, and `tests/production-smoke.sh` passed **75/75**. On the PR #46 tree the server reported its parent commit `44aac09`, because the build came from the working tree before the last commit; only documentation and evidence changed after it.
 - **Rollback rehearsal passed on both.** `6d9f488` restarted on the migrated schema, read the old records, and passed its own smoke test **75/75**.
+- **Upgrade from production `d2250c3` passed** (23:30–23:45 UTC, 4 November, built `fdb352c` and `d2250c3` themselves).
+  - **Setup.** `d2250c3` seeded data on an empty database: two members, one with two-factor on (an encrypted `v1:` secret), and a Grant Studio applicant with a confirmed fact, an application, an edited section and a budget line.
+  - **Upgrade.** `fdb352c` started on the same database: migrations `0025`–`0029` applied cleanly and the job worker started.
+    - Every record stayed readable.
+    - The writer signed in with a code from the secret `d2250c3` had sealed, and a `d2250c3` recovery code worked once.
+    - Roles held: a reviewer could not invite members.
+    - The new rating, format profile, designations, letters, templates and jobs all worked on the old records.
+  - **Round trip.** Rolling back to `d2250c3` and to `6d9f488` on the `0029` schema worked, and so did rolling forward to `fdb352c` again. Data checks passed at every step.
+  - **Smoke.** **75/75** on each of the five runs, including `d2250c3` itself.
+  - **Rate limit.** One run hit the two-factor brute-force limit (5 wrong codes per 15 minutes per address, kept in PostgreSQL across restarts). That is intended behavior; the run was repeated after clearing the rehearsal counter.
 - **Limits.**
-  - The real upgrade path is now `d2250c3` → `fdb352c` (migrations `0025`–`0029`) over data written by `d2250c3`, such as members and two-factor enrolments. That exact path was not rehearsed. The migrations themselves were rehearsed.
+  - Data volume was small in every rehearsal: one workspace, two members and one application.
   - Node 22 was used locally (CI and Render use 24.15).
   - Readiness was 503 locally only because no AI key was set.
   - The smoke script does not probe Grant Studio, member sign-in, two-factor or jobs.
@@ -98,17 +112,18 @@ Full detail: [evidence/release/2026-11-04](evidence/release/2026-11-04/README.md
 The runbook documents each of these ([`DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](DEPLOYMENT_AND_RECOVERY_RUNBOOK.md)).
 
 1. **Blueprint Auto Sync.** Render → Blueprints → the `agency-content-grants` Blueprint → Settings → **Auto Sync: No**. While it is on, any merge that changes `render.yaml` deploys at once. With it off, a `render.yaml` change takes effect only after **Manual Sync**.
-2. **`MFA_ENCRYPTION_KEY`.** Confirm it exists under Render → Environment. The Blueprint sync very probably generated it. If it is missing, add it (Add → Generate) before anyone turns on two-factor; without it two-factor secrets are stored unencrypted (`v0:`). Never rotate it together with `SESSION_SECRET`.
+2. **`MFA_ENCRYPTION_KEY`.** Confirm it exists under Render → Environment. The Blueprint sync very probably generated it. If it is missing, add it (Add → Generate) before anyone turns on two-factor; without it two-factor secrets are stored unencrypted (`v0:`). Keep the same value through the deploy. The rehearsal showed secrets sealed by `d2250c3` open on `fdb352c` only with the same key. Never rotate it together with `SESSION_SECRET`.
 3. **Database backup.** Five forward-only migrations (`0025`–`0029`) run at startup. Confirm Render point-in-time recovery is available, or take a logical backup (runbook §7), and download a copy of the disk. Also note whether a backup exists from before 16:16 UTC on 4 November, when `0016`–`0024` ran.
 4. **Outbound access.** Confirmed in production: the first Grants.gov and California syncs succeeded on 4 November. After the deploy the sync runs on the job queue; confirm it under Settings → Jobs.
 5. **Capacity.** About 280 MB of the 512 MB `0.5c-512mb` instance is in use after the first sync. Watch memory in Render metrics after the deploy.
 6. **Smoke variable name.** The script reads `SMOKE_ADMIN_PASSWORD`; set it to the value of `ADMIN_PASSWORD`.
+7. **Two-factor lockout.** Five wrong two-factor codes from one network address lock that address out of two-factor sign-in for 15 minutes, across restarts. During verification, avoid deliberate wrong codes from a shared office address.
 
 ## Blockers and required decisions
 
 | # | Item | Owner | Resolution criteria | Next action |
 |---|---|---|---|---|
-| 1 | Decide on the unplanned deploy, and record the approvals | Owner | A written owner statement on GitHub (a PR review or comment) and in ClickUp that either **(a)** accepts Grant Studio (#29 onward), the workspace, role and two-factor security model (#40–#42) and PR #46, and approves deploying `fdb352c`, or **(b)** asks for a rollback to `6d9f488` until specific changes are made | Owner writes it. Recommended: (a), because `fdb352c` is the tree that CI and both rehearsals covered and `d2250c3` is an unrehearsed midpoint. Both choices still need blocker 5 |
+| 1 | Decide on the unplanned deploy, and record the approvals | Owner | A written owner statement on GitHub (a PR review or comment) and in ClickUp that either **(a)** accepts Grant Studio (#29 onward), the workspace, role and two-factor security model (#40–#42) and PR #46, and approves deploying `fdb352c`, or **(b)** asks for a rollback to `6d9f488` until specific changes are made | Owner writes it. Recommended: (a). The upgrade from `d2250c3` to `fdb352c`, and the rollbacks from it, were rehearsed with production-shaped data. A rollback would remove Grant Studio, which the owner requested. Both choices still need blocker 5 |
 | 2 | Close the automatic deploy path | Owner | Blueprint Auto Sync set to **No**, or a written decision to keep it | Prerequisite 1 |
 | 3 | Deploy prerequisites | Owner | `MFA_ENCRYPTION_KEY` confirmed; backup taken | Prerequisites 2–3 |
 | 4 | Deploy the chosen commit | Owner | **(a)** Render manual deploy of `fdb352c` (or a later reviewed `main` commit), with logs showing `[migrate] Migrations complete` and `Server listening`; or **(b)** Render → Events → the `6d9f488` deploy → **Rollback** | Runbook §5 or §6 |
@@ -119,7 +134,6 @@ No agent triggers a production deploy or rollback, changes Render settings, crea
 
 ## Recommendations (not blockers)
 
-- Before deploying `fdb352c`, rehearse the real upgrade path: `d2250c3` writes members, a two-factor enrolment and Grant Studio records, then `fdb352c` starts on the same database. An agent can run this locally with synthetic data.
 - Turn on branch protection for `main`, requiring the `CI` checks and one approving review. Agents and the owner work under the same account, so the review is the only way to tell an owner decision apart from an agent merge.
 - Add a short Grant Studio and member-sign-in section to `tests/production-smoke.sh`, so production verification covers the new routes and not only CI. Use synthetic data and clean it up.
 - Close stale PR [#36](https://github.com/ebyron357/agency-content-grants/pull/36). It conflicts with `main`, and this record supersedes it.

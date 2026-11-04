@@ -1,0 +1,9 @@
+== Version
+  PASS  healthz reports 6d9f4887a28d8caec52e2e32c11e61d4a74059f4
+== Owner (team password) reads the old records
+  PASS  Team password sign-in
+  PASS  Brand readable
+  PASS  Project readable
+  PASS  Project title intact
+  PASS  Member sign-in not available on this version (team password only)
+RESULT: 6 passed, 0 failed

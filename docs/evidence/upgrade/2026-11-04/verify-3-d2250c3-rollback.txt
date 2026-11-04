@@ -1,0 +1,31 @@
+== Version
+  PASS  healthz reports d2250c3bf2c3d76492d3078b9d8deec79c83e131
+== Owner (team password) reads the old records
+  PASS  Team password sign-in
+  PASS  Brand readable
+  PASS  Project readable
+  PASS  Project title intact
+  PASS  Same workspace as before
+  PASS  Applicant readable
+  PASS  Confirmed fact intact
+  PASS  Application readable
+  PASS  Section text written on d2250c3 intact
+  PASS  Budget line intact
+  PASS  Opportunity readable
+  PASS  Both members listed with roles
+  PASS  Writer still shows two-factor on
+  PASS  Audit log readable, with the seed events
+== Writer signs in with password and two-factor
+  PASS  Password accepted, second factor required
+  PASS  Wrong code refused
+  PASS  Current authenticator code accepted (secret sealed by d2250c3 opens here)
+  PASS  Writer role
+  PASS  Writer reads the application
+  PASS  Writer can still edit the section
+== Reviewer (no two-factor) and role enforcement
+  PASS  Reviewer signs in with password only
+  PASS  Reviewer role
+  PASS  Reviewer reads the application
+  PASS  Reviewer cannot invite members
+  PASS  Anonymous request rejected
+RESULT: 26 passed, 0 failed
