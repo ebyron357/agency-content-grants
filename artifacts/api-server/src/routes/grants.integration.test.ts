@@ -19,7 +19,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
 import { syncCalifornia, syncGrantsGov } from "../lib/grants/ingest";
 import type { CaFetchLike } from "../lib/grants/california";
-import { emitDeadlineReminders, emitMatchAlerts } from "../lib/grants/alerts";
+import { alertSummaryStats, emitDeadlineReminders, emitMatchAlerts, resetAlertSummaryCache } from "../lib/grants/alerts";
 import type { FetchLike } from "../lib/grants/grantsgov";
 
 const OWNER = `grant-owner-${randomUUID()}`;
@@ -477,6 +477,29 @@ describe("Grant Studio end to end", () => {
     expect(failed.error).toMatch(/503/);
     await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.id, [caOrg.id, ncOrg.id]));
     await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "ca_grants_portal"));
+  }, 30_000);
+
+  it("reuses hub alert summaries until the organization, its readiness or the opportunity store changes", async () => {
+    const api = client(await login(OWNER));
+    const org = (await api("POST", "/grants/applicants", { name: "Cache Test Readers", applicantType: "nonprofit_501c3", focusAreas: ["literacy"] })).data;
+    resetAlertSummaryCache();
+    const first = (await api("GET", "/grants/applicants")).data;
+    const owned = first.length;
+    expect(alertSummaryStats()).toMatchObject({ hits: 0, misses: owned });
+    await api("GET", "/grants/applicants");
+    expect(alertSummaryStats()).toMatchObject({ hits: owned, misses: owned });
+    // A readiness change rescoring only that organization.
+    await api("PUT", `/grants/applicants/${org.id}/readiness/irs_determination`, { status: "ready" });
+    await api("GET", "/grants/applicants");
+    expect(alertSummaryStats()).toMatchObject({ hits: owned * 2 - 1, misses: owned + 1 });
+    // A new opportunity changes the store, so every summary is recomputed and the new match counts.
+    const extra = randomUUID();
+    await db.insert(grantOpportunitiesTable).values(opportunity(extra, { title: "Literacy cache test grant", eligibilityCodes: ["12"] }));
+    const after = (await api("GET", "/grants/applicants")).data.find((a: any) => a.id === org.id);
+    expect(alertSummaryStats().misses).toBe(owned * 2 + 1);
+    expect(after.alerts.newMatches).toBe(1);
+    await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, extra));
+    await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, org.id));
   }, 30_000);
 
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {

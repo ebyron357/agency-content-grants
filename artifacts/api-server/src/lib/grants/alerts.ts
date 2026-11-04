@@ -1,5 +1,5 @@
 import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantReadinessItemsTable, type GrantApplicant, type GrantOpportunity } from "@workspace/db";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { dueReminder } from "./calendar";
 import { emitEvent } from "../webhooks/events";
 import { isApplicantType } from "./eligibility";
@@ -24,18 +24,80 @@ async function loadPublishable(): Promise<GrantOpportunity[]> {
   return db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true));
 }
 
-/** Alert summaries for a set of organizations, computed against one read of the opportunity store. */
-export async function alertSummaries(applicants: GrantApplicant[]): Promise<Map<string, AlertSummary>> {
+/**
+ * Alert summaries are cached in process (the deployment is a single
+ * instance). An entry is reused only while nothing it depends on has changed:
+ * the organization (profile or "mark as seen"), its readiness items, the
+ * opportunity store (any row change or a change in the publishable count) and
+ * today's date (closing-soon counts and the gate move daily). Without the
+ * cache, each Grant Studio page load rescored every organization against every
+ * opportunity: about 2.5 s for 20 organizations on 4 November.
+ */
+const SUMMARY_CACHE_MAX = 1_000;
+const summaryCache = new Map<string, { key: string; summary: AlertSummary }>();
+let summaryStats = { hits: 0, misses: 0 };
+
+/** Cache counters, for tests and diagnostics. */
+export function alertSummaryStats(): { hits: number; misses: number; size: number } {
+  return { ...summaryStats, size: summaryCache.size };
+}
+
+export function resetAlertSummaryCache(): void {
+  summaryCache.clear();
+  summaryStats = { hits: 0, misses: 0 };
+}
+
+function stamp(value: Date | string | null | undefined): string {
+  return value ? new Date(value).toISOString() : "-";
+}
+
+/** The cache key for one organization: everything its summary depends on. */
+export function summaryKey(
+  applicant: Pick<GrantApplicant, "updatedAt" | "matchesSeenAt">,
+  readiness: { updatedAt: Date }[],
+  opportunityStamp: string,
+  today: string,
+): string {
+  const readinessStamp = readiness.reduce((max, r) => (r.updatedAt > max ? r.updatedAt : max), new Date(0));
+  return [stamp(applicant.updatedAt), stamp(applicant.matchesSeenAt), readiness.length, stamp(readinessStamp), opportunityStamp, today].join("|");
+}
+
+/** Alert summaries for a set of organizations; opportunities are read and scored only for organizations whose entry is stale. */
+export async function alertSummaries(applicants: GrantApplicant[], now: Date = new Date()): Promise<Map<string, AlertSummary>> {
   const result = new Map<string, AlertSummary>();
   const valid = applicants.filter((a) => isApplicantType(a.applicantType));
   if (valid.length === 0) return result;
-  const [opps, items] = await Promise.all([
-    loadPublishable(),
+  const [[store], items] = await Promise.all([
+    db
+      .select({ changed: sql<string | null>`max(${grantOpportunitiesTable.updatedAt})`, publishable: sql<number>`count(*) filter (where ${grantOpportunitiesTable.publishable})` })
+      .from(grantOpportunitiesTable),
     db.select().from(grantReadinessItemsTable).where(inArray(grantReadinessItemsTable.applicantId, valid.map((a) => a.id))),
   ]);
+  const opportunityStamp = `${stamp(store?.changed)}#${Number(store?.publishable ?? 0)}`;
+  const today = now.toISOString().slice(0, 10);
+  const stale: { applicant: GrantApplicant; key: string }[] = [];
   for (const applicant of valid) {
-    const { scored } = scoreMatches(applicant, opps, items.filter((i) => i.applicantId === applicant.id));
-    result.set(applicant.id, summarizeAlerts(applicant, scored));
+    const key = summaryKey(applicant, items.filter((i) => i.applicantId === applicant.id), opportunityStamp, today);
+    const cached = summaryCache.get(applicant.id);
+    if (cached && cached.key === key) {
+      summaryStats.hits++;
+      result.set(applicant.id, cached.summary);
+    } else {
+      stale.push({ applicant, key });
+    }
+  }
+  if (stale.length > 0) {
+    const opps = await loadPublishable();
+    for (const { applicant, key } of stale) {
+      summaryStats.misses++;
+      const { scored } = scoreMatches(applicant, opps, items.filter((i) => i.applicantId === applicant.id), now);
+      const summary = summarizeAlerts(applicant, scored);
+      summaryCache.delete(applicant.id);
+      summaryCache.set(applicant.id, { key, summary });
+      result.set(applicant.id, summary);
+    }
+    // Oldest entries go first once the cache is full.
+    while (summaryCache.size > SUMMARY_CACHE_MAX) summaryCache.delete(summaryCache.keys().next().value!);
   }
   return result;
 }
