@@ -279,50 +279,39 @@ export async function syncCalifornia(fetchImpl?: CaFetchLike): Promise<SyncResul
   }
 }
 
-// ── Scheduler (same guarded setInterval pattern as the other schedulers) ──────
+// ── The sync job ─────────────────────────────────────────────────────────────
+// Runs as the "grant_sync" background job (lib/jobs/definitions.ts): the queue
+// keeps one at a time, retries it with backoff, and schedules it daily.
 
-const DAY_MS = 24 * 60 * 60_000;
-let timer: ReturnType<typeof setInterval> | null = null;
-let running = false;
-
-export function isGrantSyncRunning(): boolean {
-  return running;
+export interface GrantSyncProgress {
+  step: "grants.gov" | "california" | "alerts" | "done";
+  [key: string]: unknown;
 }
 
-/** Runs a sync unless one is already running. Returns null when skipped. */
-export async function runGrantSyncOnce(fetchImpl?: FetchLike, caFetch?: CaFetchLike): Promise<SyncResult | null> {
-  if (running) return null;
-  running = true;
+/** Refreshes every source, then sends alerts. Throws when every source failed, so the job is retried. */
+export async function runGrantSync(opts: { fetchImpl?: FetchLike; caFetch?: CaFetchLike; onProgress?: (p: GrantSyncProgress) => Promise<void> | void; signal?: AbortSignal } = {}): Promise<{ grantsGov: SyncResult; california: SyncResult | null; alerts: number | null }> {
+  const report = async (p: GrantSyncProgress) => {
+    if (opts.signal?.aborted) throw opts.signal.reason ?? new Error("Aborted");
+    await opts.onProgress?.(p);
+  };
+  await report({ step: "grants.gov" });
+  const grantsGov = await syncGrantsGov(opts.fetchImpl);
+  console.log(`[grants-sync] grants.gov status=${grantsGov.status} fetched=${grantsGov.fetched} upserted=${grantsGov.upserted} details=${grantsGov.details}`);
+  let california: SyncResult | null = null;
+  if (process.env.GRANTS_CA_DISABLED !== "true") {
+    await report({ step: "california", grantsGov: { status: grantsGov.status, upserted: grantsGov.upserted } });
+    california = await syncCalifornia(opts.caFetch);
+    console.log(`[grants-sync] california status=${california.status} fetched=${california.fetched} upserted=${california.upserted}${california.error ? ` error=${california.error}` : ""}`);
+  }
+  // Alerts are best-effort: a failure here must not mark a good sync as failed.
+  let alerts: number | null = null;
+  await report({ step: "alerts" });
   try {
-    const result = await syncGrantsGov(fetchImpl);
-    console.log(`[grants-sync] grants.gov status=${result.status} fetched=${result.fetched} upserted=${result.upserted} details=${result.details}`);
-    if (process.env.GRANTS_CA_DISABLED !== "true") {
-      const ca = await syncCalifornia(caFetch);
-      console.log(`[grants-sync] california status=${ca.status} fetched=${ca.fetched} upserted=${ca.upserted}${ca.error ? ` error=${ca.error}` : ""}`);
-    }
-    // Alerts are best-effort: a failure here must not mark a good sync as failed.
-    try {
-      result.alerts = (await emitMatchAlerts()).events + (await emitDeadlineReminders());
-    } catch (err) {
-      console.warn("[grants-sync] alerts failed", (err as Error).message);
-    }
-    return result;
-  } finally {
-    running = false;
+    alerts = (await emitMatchAlerts()).events + (await emitDeadlineReminders());
+  } catch (err) {
+    console.warn("[grants-sync] alerts failed", (err as Error).message);
   }
-}
-
-export function startGrantSyncScheduler(): void {
-  // Off in tests (CI starts the API for integration and browser tests) unless enabled explicitly.
-  const disabled = process.env.GRANTS_SYNC_DISABLED === "true" || (process.env.NODE_ENV === "test" && process.env.GRANTS_SYNC_ENABLED !== "true");
-  if (timer || disabled) return;
-  timer = setInterval(() => { void runGrantSyncOnce().catch((err) => console.error("[grants-sync] failed:", err)); }, DAY_MS);
-  setTimeout(() => { void runGrantSyncOnce().catch((err) => console.error("[grants-sync] failed:", err)); }, 60_000);
-}
-
-export function stopGrantSyncScheduler(): void {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
+  const failed = [grantsGov, california].filter((r): r is SyncResult => r !== null && r.status === "failed");
+  if (failed.length === (california ? 2 : 1)) throw new Error(`Every grant source failed: ${failed.map((r) => r.error ?? "unknown error").join("; ")}`);
+  return { grantsGov, california, alerts };
 }

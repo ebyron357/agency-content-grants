@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReadinessRing, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
-import { calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useApplications, useGrantMeta, useInvalidateGrants, type ApplicantType, usePipeline, usd } from '@/lib/grants';
+import { calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useApplications, useGrantMeta, useInvalidateGrants, type ApplicantType, usePipeline, usd, syncStatusText } from '@/lib/grants';
 
 const TYPE_CHOICES: { type: ApplicantType; title: string; body: string; icon: typeof HandHeart }[] = [
   { type: 'nonprofit_501c3', title: 'Nonprofit, 501(c)(3)', body: 'Tax-exempt charity with an IRS determination letter.', icon: HandHeart },
@@ -128,8 +128,8 @@ export default function GrantStudio() {
     setSyncMessage('');
     try {
       const result = await grantsApi.sync();
-      setSyncMessage(result.status === 'running' ? 'A refresh is already running.' : 'Refreshing from Grants.gov and the California Grants Portal. New opportunities appear in a few minutes.');
-      setTimeout(() => invalidate(), 4000);
+      setSyncMessage(result.status === 'queued' ? '' : 'A refresh is already under way.');
+      invalidate();
     } catch (err) {
       setSyncMessage(errorMessage(err));
     }
@@ -197,7 +197,7 @@ export default function GrantStudio() {
           {lastSync?.status === 'failed'
             ? `The last refresh failed (${lastSync.error ?? 'unknown error'}). Showing the last stored opportunities.`
             : `Refreshed daily. Last refresh: ${formatWhen(lastSync?.finishedAt ?? lastSync?.startedAt)}. Every listing links to its official record.`}
-          {syncMessage && <span role="status" className="mt-1 block text-foreground">{syncMessage}</span>}
+          <span role="status" aria-live="polite" className="mt-1 block text-foreground">{syncStatusText(meta.data?.syncJob ?? null) ?? syncMessage}</span>
         </Notice>
         {meta.data?.aiDemo ? (
           <Notice tone="warn" title="Writing assistance is in demo mode">

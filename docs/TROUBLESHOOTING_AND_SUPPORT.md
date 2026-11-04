@@ -30,6 +30,7 @@ Security issues go privately to the owner, never in a public issue. Severity gui
 | Site does not load / Render shows deploy failed | Build failed or readiness never passed | Render → Events → open the failed deploy logs. If `configuration` failed, a provider key or `ADMIN_PASSWORD` is missing; if `database`, check the Render database status; if `storage`, check the disk is attached at `/var/data`. Roll back if needed (runbook §6) |
 | Brief outage during a deploy | Expected: services with a disk cannot do zero-downtime deploys | Wait about a minute |
 | Generated text starts with `[DEMO OUTPUT …]` / dashboard says demo mode | No AI provider key configured | Owner sets `OPENAI_API_KEY` (or another provider key) in Render and redeploys |
+| Grant opportunities stop updating, or Refresh stays on "queued" | The refresh job failed, or the worker is off | Settings → Jobs (admin unlock): read the error, then **Run again**. If the notice says the worker is off or not running, check `JOBS_WORKER_DISABLED` and restart the service (`BACKGROUND_JOBS.md` §6) |
 | Generation fails with a provider error | Provider outage, quota or invalid key | Check the provider status/billing; replace the key; retry |
 | Image upload rejected | Not JPEG/PNG/GIF/WebP, over 10 MB, missing alt text, or the section is locked/approved | Use a supported file with alt text; unlock or reopen the section |
 | Video rejected | Only YouTube and Vimeo HTTPS links are accepted | Use a supported link |

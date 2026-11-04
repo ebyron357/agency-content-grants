@@ -251,6 +251,8 @@ export interface GrantMeta {
   opportunities: number;
   lastSync: { status: string; startedAt: string; finishedAt: string | null; fetched: number; error: string | null } | null;
   syncRunning: boolean;
+  /** The queued or running refresh (background job), with its progress. */
+  syncJob?: { id: string; status: 'queued' | 'running'; progress: { step?: string } | null; runAt: string; attempts: number; lastError: string | null } | null;
 }
 
 export const keys = {
@@ -265,7 +267,18 @@ export const keys = {
   snippets: (id: string) => ['grants', 'snippets', id] as const,
 };
 
-export const useGrantMeta = () => useQuery({ queryKey: keys.meta, queryFn: () => apiGet<GrantMeta>('/grants/meta') });
+/** While a refresh is queued or running, re-reads every 5 seconds so progress and new results appear by themselves. */
+export const useGrantMeta = () =>
+  useQuery({ queryKey: keys.meta, queryFn: () => apiGet<GrantMeta>('/grants/meta'), refetchInterval: (query) => (query.state.data?.syncRunning ? 5000 : false) });
+
+const SYNC_STEPS: Record<string, string> = { 'grants.gov': 'Reading Grants.gov', california: 'Reading the California Grants Portal', alerts: 'Sending match alerts and deadline reminders' };
+
+/** A sentence for the refresh's state, from its background job. */
+export function syncStatusText(job: GrantMeta['syncJob']): string | null {
+  if (!job) return null;
+  if (job.status === 'queued') return job.attempts > 0 ? `The last attempt failed (${job.lastError ?? 'unknown error'}). Trying again at ${new Date(job.runAt).toLocaleTimeString()}.` : 'Refresh queued. It starts within a minute.';
+  return `${SYNC_STEPS[job.progress?.step ?? ''] ?? 'Refreshing'}…`;
+}
 export const useApplicants = () => useQuery({ queryKey: keys.applicants, queryFn: () => apiGet<Applicant[]>('/grants/applicants') });
 export const useApplicant = (id: string) => useQuery({ queryKey: keys.applicant(id), queryFn: () => apiGet<Applicant>(`/grants/applicants/${id}`) });
 export const useFacts = (id: string) =>
@@ -347,7 +360,7 @@ export const grantsApi = {
   deleteBudgetLine: (lid: string) => apiDelete(`/grants/budget-lines/${lid}`),
   budgetJustification: (id: string) => apiPost(`/grants/applications/${id}/budget-justification`) as Promise<Section>,
   approvePackage: (id: string, note: string) => apiPost(`/grants/applications/${id}/approve-package`, { confirmAuthorized: true, note: note || undefined }) as Promise<Workspace>,
-  sync: () => apiPost('/grants/sync') as Promise<{ status: string }>,
+  sync: () => apiPost('/grants/sync') as Promise<{ status: string; jobId: string }>,
 };
 
 async function apiPut(path: string, body: unknown) {

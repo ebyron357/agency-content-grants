@@ -33,6 +33,7 @@ import mediaRouter from "./media";
 import grantsRouter from "./grants";
 import workspaceRouter from "./workspace";
 import accountRouter from "./account";
+import jobsRouter from "./jobs";
 
 export const router = Router();
 
@@ -80,3 +81,4 @@ router.use(mediaRouter);
 router.use(grantsRouter);
 router.use(workspaceRouter);
 router.use(accountRouter);
+router.use(jobsRouter);
