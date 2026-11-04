@@ -206,7 +206,42 @@ export interface Snippet {
   updatedAt: string;
 }
 
+/** An AI job still queued or running for an application (api-server lib/jobs). */
+export interface AiJob {
+  id: string;
+  kind: 'grant_section_draft' | 'grant_section_review' | 'grant_requirements_extract';
+  status: 'queued' | 'running';
+  sectionId: string | null;
+  attempts: number;
+  lastError: string | null;
+}
+
+/** What an AI request returns when its job is still running in the background. */
+export interface PendingJob {
+  pending: true;
+  jobId: string;
+  status: string;
+}
+
+export function isPendingJob(value: unknown): value is PendingJob {
+  return typeof value === 'object' && value !== null && (value as PendingJob).pending === true;
+}
+
+/** Follows a background job until it finishes. Resolves with its result; rejects with its error. */
+export async function followJob<T = Record<string, unknown>>(jobId: string, { intervalMs = 2000, maxMs = 10 * 60_000 } = {}): Promise<T> {
+  const until = Date.now() + maxMs;
+  for (;;) {
+    const job = await apiGet<{ status: string; result: T | null; lastError: string | null }>(`/jobs/${jobId}`);
+    if (job.status === 'succeeded') return (job.result ?? {}) as T;
+    if (job.status === 'failed' || job.status === 'cancelled') throw new Error(JSON.stringify({ error: job.lastError ?? 'The job did not finish.' }));
+    if (Date.now() > until) throw new Error(JSON.stringify({ error: 'Still working. Check back in a few minutes.' }));
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 export interface Workspace {
+  /** AI jobs still running for this application. While there are any, the page re-reads itself. */
+  aiJobs?: AiJob[];
   application: {
     id: string;
     title: string;
@@ -327,7 +362,8 @@ export const useOpportunity = (id: string, applicantId?: string) =>
     queryKey: keys.opportunity(id, applicantId),
     queryFn: () => apiGet<{ opportunity: Opportunity; match: Match | null; existingApplicationId: string | null; detailError: string | null }>(`/grants/opportunities/${id}${applicantId ? `?applicantId=${encodeURIComponent(applicantId)}` : ''}`),
   });
-export const useWorkspace = (id: string) => useQuery({ queryKey: keys.workspace(id), queryFn: () => apiGet<Workspace>(`/grants/applications/${id}`) });
+export const useWorkspace = (id: string) =>
+  useQuery({ queryKey: keys.workspace(id), queryFn: () => apiGet<Workspace>(`/grants/applications/${id}`), refetchInterval: (q) => (q.state.data?.aiJobs?.length ? 2500 : false) });
 
 export const grantsApi = {
   createApplicant: (body: Partial<Applicant>) => apiPost('/grants/applicants', body) as Promise<Applicant>,
@@ -351,10 +387,10 @@ export const grantsApi = {
   updateRequirement: (rid: string, body: Partial<Requirement>) => apiPatch(`/grants/requirements/${rid}`, body),
   deleteRequirement: (rid: string) => apiDelete(`/grants/requirements/${rid}`),
   confirmAll: (id: string) => apiPost(`/grants/applications/${id}/requirements/confirm-all`) as Promise<Workspace>,
-  extract: (id: string, noticeText: string) => apiPost(`/grants/applications/${id}/requirements/extract`, { noticeText }) as Promise<{ added: number; demo: boolean; message: string | null }>,
+  extract: (id: string, noticeText: string) => apiPost(`/grants/applications/${id}/requirements/extract`, { noticeText }) as Promise<{ added: number; demo: boolean; message: string | null } | PendingJob>,
   updateSection: (sid: string, body: Partial<Section>) => apiPatch(`/grants/sections/${sid}`, body) as Promise<Section>,
-  draftSection: (sid: string) => apiPost(`/grants/sections/${sid}/draft`) as Promise<{ section: Section; demo: boolean; message: string | null }>,
-  reviewSection: (sid: string) => apiPost(`/grants/sections/${sid}/review`) as Promise<{ section: Section; demo: boolean; message: string | null }>,
+  draftSection: (sid: string) => apiPost(`/grants/sections/${sid}/draft`) as Promise<{ section: Section; demo: boolean; message: string | null } | PendingJob>,
+  reviewSection: (sid: string) => apiPost(`/grants/sections/${sid}/review`) as Promise<{ section: Section; demo: boolean; message: string | null } | PendingJob>,
   approveSection: (sid: string) => apiPost(`/grants/sections/${sid}/approve`) as Promise<Section>,
   reopenSection: (sid: string) => apiPost(`/grants/sections/${sid}/reopen`) as Promise<Section>,
   addBudgetLine: (id: string, body: Partial<BudgetLine>) => apiPost(`/grants/applications/${id}/budget-lines`, body),
