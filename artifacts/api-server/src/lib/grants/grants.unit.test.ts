@@ -3,7 +3,7 @@ import { normalizeDetail, normalizeSearchHit, toAmount, toIsoDate, plainText, pu
 import { evaluateGate, daysUntil } from "./gate";
 import { matchMissionTerms, matchOpportunity, matchTopics, type MatchApplicant, type MatchOpportunity } from "./matching";
 import { summarizeBudget } from "./budget";
-import { checkLimit, countText } from "./text";
+import { checkLimit, countText, htmlToText } from "./text";
 import { evaluateCompliance } from "./compliance";
 import { TEMPLATES, chooseTemplate } from "./templates";
 import { readinessKindsFor } from "./eligibility";
@@ -513,5 +513,24 @@ describe("California Grants Portal connector", () => {
     const labels = TEMPLATES.state_nonprofit.requirements.map((r) => r.label).join(" ");
     expect(labels).not.toMatch(/SF-424|SAM\.gov/);
     expect(labels).toMatch(/State application portal/);
+  });
+});
+
+describe("saved writing", () => {
+  it("turns section HTML into plain text with breaks kept", () => {
+    expect(htmlToText("<h3>Capacity</h3><p>Founded in 2009 &amp; staffed by 12.</p><ul><li>One</li><li>Two</li></ul>")).toBe("Capacity\nFounded in 2009 & staffed by 12.\nOne\nTwo");
+  });
+
+  it("points the demo outline to approved writing on file, escaped", () => {
+    const html = demoScaffold({
+      applicant: { name: "Org", applicantTypeLabel: "Nonprofit", mission: null, serviceArea: null, state: null, focusAreas: [] },
+      opportunity: { title: "Opp", agency: null, description: null },
+      section: { title: "Organizational capacity", guidance: null, limitType: null, limitValue: null, content: "" },
+      requirements: [],
+      facts: [],
+      savedWriting: [{ title: "Capacity <2026>", text: "We have run programs since 2009." }],
+    });
+    expect(html).toMatch(/Approved writing on file for this section/);
+    expect(html).toContain("Capacity &lt;2026&gt;");
   });
 });

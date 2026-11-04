@@ -190,6 +190,20 @@ export interface Fact {
   updatedAt: string;
 }
 
+export interface Snippet {
+  id: string;
+  applicantId: string;
+  title: string;
+  sectionKey: string;
+  content: string;
+  sourceApplicationId: string | null;
+  sourceLabel: string | null;
+  savedBy: string;
+  words: number;
+  preview: string;
+  updatedAt: string;
+}
+
 export interface Workspace {
   application: {
     id: string;
@@ -238,6 +252,7 @@ export const keys = {
   applications: ['grants', 'applications'] as const,
   workspace: (id: string) => ['grants', 'workspace', id] as const,
   facts: (id: string) => ['grants', 'facts', id] as const,
+  snippets: (id: string) => ['grants', 'snippets', id] as const,
 };
 
 export const useGrantMeta = () => useQuery({ queryKey: keys.meta, queryFn: () => apiGet<GrantMeta>('/grants/meta') });
@@ -245,6 +260,7 @@ export const useApplicants = () => useQuery({ queryKey: keys.applicants, queryFn
 export const useApplicant = (id: string) => useQuery({ queryKey: keys.applicant(id), queryFn: () => apiGet<Applicant>(`/grants/applicants/${id}`) });
 export const useFacts = (id: string) =>
   useQuery({ queryKey: keys.facts(id), queryFn: () => apiGet<{ categories: FactCategoryInfo[]; facts: Fact[] }>(`/grants/applicants/${id}/facts`) });
+export const useSnippets = (id: string) => useQuery({ queryKey: keys.snippets(id), queryFn: () => apiGet<Snippet[]>(`/grants/applicants/${id}/snippets`) });
 export const useApplications = () => useQuery({ queryKey: keys.applications, queryFn: () => apiGet<ApplicationSummary[]>('/grants/applications') });
 export interface MatchesResponse {
   total: number;
@@ -283,6 +299,10 @@ export const grantsApi = {
   createFact: (applicantId: string, body: Record<string, unknown>) => apiPost(`/grants/applicants/${applicantId}/facts`, body) as Promise<Fact>,
   updateFact: (id: string, body: Record<string, unknown>) => apiPatch(`/grants/facts/${id}`, body) as Promise<Fact>,
   deleteFact: (id: string) => apiDelete(`/grants/facts/${id}`),
+  saveSectionToLibrary: (sectionId: string, title?: string) => apiPost(`/grants/sections/${sectionId}/save-to-library`, title ? { title } : {}) as Promise<Snippet>,
+  insertSnippet: (sectionId: string, snippetId: string, mode: 'replace' | 'append') => apiPost(`/grants/sections/${sectionId}/insert-snippet`, { snippetId, mode }),
+  renameSnippet: (id: string, title: string) => apiPatch(`/grants/snippets/${id}`, { title }) as Promise<Snippet>,
+  deleteSnippet: (id: string) => apiDelete(`/grants/snippets/${id}`),
   markMatchesSeen: (id: string) => apiPost(`/grants/applicants/${id}/matches/seen`, {}) as Promise<{ matchesSeenAt: string }>,
   setReadiness: (id: string, kind: string, body: { status: string; expiresOn: string | null; note: string | null }) => apiPut(`/grants/applicants/${id}/readiness/${kind}`, body) as Promise<Readiness>,
   startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,

@@ -502,6 +502,67 @@ describe("Grant Studio end to end", () => {
     await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, org.id));
   }, 30_000);
 
+  it("saves approved section text and reuses it in a later application", async () => {
+    const api = client(await login(OWNER));
+    const oppA = randomUUID();
+    const oppB = randomUUID();
+    await db.insert(grantOpportunitiesTable).values([
+      opportunity(oppA, { title: "Saved writing test A", eligibilityCodes: ["12"] }),
+      opportunity(oppB, { title: "Saved writing test B", eligibilityCodes: ["12"] }),
+    ]);
+    const org = (await api("POST", "/grants/applicants", { name: "Writing Reuse Readers", applicantType: "nonprofit_501c3" })).data;
+    const appA = (await api("POST", "/grants/applications", { applicantId: org.id, opportunityId: oppA, eligibilityConfirmed: true })).data;
+    const wsA = (await api("GET", `/grants/applications/${appA.id}`)).data;
+    const capA = wsA.sections.find((sec: any) => sec.key === "capacity");
+
+    // Only approved, non-demo text can be saved.
+    await api("PATCH", `/grants/sections/${capA.id}`, { content: "<p>Founded in 2009, we run reading programs at 12 schools.</p><script>x()</script>" });
+    expect((await api("POST", `/grants/sections/${capA.id}/save-to-library`, {})).status).toBe(409);
+    await api("POST", `/grants/sections/${capA.id}/approve`);
+    const saved = await api("POST", `/grants/sections/${capA.id}/save-to-library`, {});
+    expect(saved.status).toBe(201);
+    expect(saved.data).toMatchObject({ sectionKey: "capacity", sourceApplicationId: appA.id, words: 10 });
+    expect(saved.data.content).not.toContain("<script");
+    const demoSection = wsA.sections.find((sec: any) => sec.key === "need");
+    await api("POST", `/grants/sections/${demoSection.id}/draft`);
+    await api("POST", `/grants/sections/${demoSection.id}/approve`);
+    expect((await api("POST", `/grants/sections/${demoSection.id}/save-to-library`, {})).status).toBe(409);
+
+    // Another operator can see or use none of it.
+    const other = client(await login(OTHER));
+    expect((await other("GET", `/grants/applicants/${org.id}/snippets`)).status).toBe(404);
+    expect((await other("PATCH", `/grants/snippets/${saved.data.id}`, { title: "x" })).status).toBe(404);
+    expect((await other("DELETE", `/grants/snippets/${saved.data.id}`)).status).toBe(404);
+
+    // A second application: drafting sees the saved text, and inserting it replaces then appends.
+    const appB = (await api("POST", "/grants/applications", { applicantId: org.id, opportunityId: oppB, eligibilityConfirmed: true })).data;
+    const capB = (await api("GET", `/grants/applications/${appB.id}`)).data.sections.find((sec: any) => sec.key === "capacity");
+    await api("POST", `/grants/sections/${capB.id}/draft`);
+    const drafted = (await api("GET", `/grants/applications/${appB.id}`)).data.sections.find((sec: any) => sec.key === "capacity");
+    expect(drafted.content).toMatch(/Approved writing on file for this section/);
+    expect((await api("POST", `/grants/sections/${capB.id}/insert-snippet`, { snippetId: saved.data.id, mode: "sideways" })).status).toBe(400);
+    const replaced = await api("POST", `/grants/sections/${capB.id}/insert-snippet`, { snippetId: saved.data.id, mode: "replace" });
+    expect(replaced.status).toBe(200);
+    // Replacing a demo scaffold leaves only the saved text, and the section is no longer demo content.
+    expect(replaced.data.content).toBe(saved.data.content);
+    expect(replaced.data).toMatchObject({ demoContent: false, status: "drafting" });
+    const appended = await api("POST", `/grants/sections/${capB.id}/insert-snippet`, { snippetId: saved.data.id, mode: "append" });
+    expect(appended.data.content).toBe(saved.data.content + saved.data.content);
+    await api("POST", `/grants/sections/${capB.id}/approve`);
+    expect((await api("POST", `/grants/sections/${capB.id}/insert-snippet`, { snippetId: saved.data.id, mode: "replace" })).status).toBe(409);
+    expect((await other("POST", `/grants/sections/${capB.id}/insert-snippet`, { snippetId: saved.data.id, mode: "replace" })).status).toBe(404);
+
+    // The saved text outlives its source application; rename and delete work.
+    await api("DELETE", `/grants/applications/${appA.id}`);
+    const list = (await api("GET", `/grants/applicants/${org.id}/snippets`)).data;
+    expect(list).toHaveLength(1);
+    expect(list[0].preview).toContain("Founded in 2009");
+    expect((await api("PATCH", `/grants/snippets/${saved.data.id}`, { title: "Capacity, standard" })).data.title).toBe("Capacity, standard");
+    expect((await api("DELETE", `/grants/snippets/${saved.data.id}`)).status).toBe(204);
+    await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, org.id));
+    await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [oppA, oppB]));
+  }, 30_000);
+
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {
     const close = inDays(45);
     const hits: Record<string, any[]> = {

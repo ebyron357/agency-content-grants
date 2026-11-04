@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { RichEditor } from '@/components/RichEditor';
 import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
-import { calendarUrl, deadlineLabel, errorMessage, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
+import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
 
 const KIND_LABELS: Record<string, string> = {
   section: 'Section',
@@ -218,6 +218,15 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
   const counts = useMemo(() => countHtml(draft), [draft]);
   const dirty = draft !== section.content;
   const mapped = ws.requirements.filter((r) => r.sectionKey === section.key || (r.kind === 'criterion' && !r.sectionKey));
+  const snippets = useSnippets(ws.applicant.id);
+  const sameSection = (snippets.data ?? []).filter((w) => w.sectionKey === section.key);
+  const otherSections = (snippets.data ?? []).filter((w) => w.sectionKey !== section.key);
+  const [showAllSaved, setShowAllSaved] = useState(false);
+  const savedShown = showAllSaved ? [...sameSection, ...otherSections] : sameSection;
+  function insertSaved(snippetId: string, mode: 'replace' | 'append') {
+    if (dirty && !window.confirm('You have unsaved changes in this section. Insert the saved writing and discard them?')) return;
+    void run(`insert-${snippetId}`, () => grantsApi.insertSnippet(section.id, snippetId, mode), () => ({ tone: 'ok', text: mode === 'replace' ? 'Saved writing inserted. Edit it for this funder, then review and approve.' : 'Saved writing added at the end. Edit it for this funder, then review and approve.' }));
+  }
   const wanted = ws.library.sectionCategories[section.key];
   const sectionFacts = ws.library.confirmed.filter((f) => !wanted || wanted.includes(f.category));
   const [copied, setCopied] = useState('');
@@ -254,6 +263,7 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
             <>
               <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300"><CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Approved by {section.approvedBy}</span>
               <Button size="sm" variant="ghost" onClick={() => run('reopen', () => grantsApi.reopenSection(section.id))}>Reopen to edit</Button>
+              <Button size="sm" variant="outline" disabled={busy === 'save'} onClick={() => run('save', () => grantsApi.saveSectionToLibrary(section.id), () => ({ tone: 'ok', text: 'Saved to the library. Reuse it in this organization’s later applications.' }))}>Save to library</Button>
             </>
           ) : (
             <>
@@ -322,6 +332,39 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
           </form>
         </Panel>
       </div>
+      <Panel>
+        <PanelHeader
+          title="Reuse approved writing"
+          description={sameSection.length ? 'Approved text this organization saved from earlier applications. Drafting also uses it.' : undefined}
+          actions={otherSections.length ? (
+            <Button size="sm" variant="ghost" onClick={() => setShowAllSaved((v) => !v)}>{showAllSaved ? 'Only this section' : `Show all (${otherSections.length} more)`}</Button>
+          ) : undefined}
+        />
+        {savedShown.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-muted-foreground">
+            {sameSection.length === 0 && otherSections.length > 0
+              ? 'Nothing saved for this section yet. Show all to reuse text saved from other sections.'
+              : 'Nothing saved yet. When a section is approved, choose Save to library to reuse it in later applications.'}
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {savedShown.map((w) => (
+              <li key={w.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{w.title}</p>
+                  <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{w.preview}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{w.words} words{w.sourceLabel ? ` · from ${w.sourceLabel}` : ''}</p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button size="sm" variant="secondary" disabled={section.status === 'approved' || busy === `insert-${w.id}`} onClick={() => insertSaved(w.id, 'replace')} aria-label={`Replace the section with ${w.title}`}>Replace</Button>
+                  <Button size="sm" variant="ghost" disabled={section.status === 'approved' || busy === `insert-${w.id}`} onClick={() => insertSaved(w.id, 'append')} aria-label={`Add ${w.title} at the end`}>Append</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {section.status === 'approved' && savedShown.length > 0 && <p className="border-t border-border px-5 py-2 text-xs text-muted-foreground">Reopen the section to insert saved writing.</p>}
+      </Panel>
       <Panel>
         <PanelHeader
           title="Facts on file for this section"

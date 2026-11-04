@@ -250,3 +250,26 @@ export const grantFactsTable = pgTable("grant_facts", {
 }, (table) => [index("idx_grant_facts_applicant").on(table.applicantId)]);
 
 export type GrantFact = typeof grantFactsTable.$inferSelect;
+
+/**
+ * Saved writing: approved section text an organization keeps to reuse in later
+ * applications. Only approved, non-demo sections can be saved, so everything
+ * here has passed a person's review once.
+ */
+export const grantSnippetsTable = pgTable("grant_snippets", {
+  id: text("id").primaryKey(),
+  applicantId: text("applicant_id").notNull().references(() => grantApplicantsTable.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  /** The template section key it was written for (for example "capacity"), used to suggest it for the same section later. */
+  sectionKey: text("section_key").notNull(),
+  /** Sanitized HTML. */
+  content: text("content").notNull(),
+  /** Where it came from; kept as text so deleting the application does not delete the saved writing. */
+  sourceApplicationId: text("source_application_id"),
+  sourceLabel: text("source_label"),
+  savedBy: text("saved_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [index("idx_grant_snippets_applicant").on(table.applicantId)]);
+
+export type GrantSnippet = typeof grantSnippetsTable.$inferSelect;
