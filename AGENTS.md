@@ -9,8 +9,9 @@ Finish the Agency Content and Grant Intelligence Platform as an evidence-first, 
 `docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 4 November 2026:
 
 - The Content Machine release scope is **VERIFIED COMPLETE** (Issue #8 UI/UX lock and all repository, CI, accessibility, security and production-mode rehearsal gates; Issue #8 is closed).
-- `main` `997b735` is the release candidate. It adds the grant directory, Grant Studio, workspaces and roles, two-factor sign-in, background jobs and templates (PRs #26–#45). It is validated, including an upgrade and rollback rehearsal, but **not deployed**. Owner acceptance of Grant Studio and of the new security model is not yet recorded.
-- Production is **LIVE** on Render running `6d9f488` but **NO-GO** until the owner approves and deploys the candidate, and the authenticated `tests/production-smoke.sh` run and Render log review are recorded. Deploys and paid resources are owner-only; agents must not trigger production deploys or create paid resources.
+- Production is **LIVE** on Render running `d2250c3` (PRs #26–#42: the grant directory, Grant Studio, workspaces and roles, two-factor sign-in). Render's Blueprint Auto Sync deployed it on 4 November when PR #42 changed `render.yaml`; nobody triggered it, and it skipped the production gate. It is **NO-GO**: owner acceptance of Grant Studio and of the new security model is not recorded, and no authenticated `tests/production-smoke.sh` run exists.
+- `main` `fdb352c` is the release candidate. It adds background jobs, templates, place designations, the writing toolkit and the competitiveness rating (PRs #43–#46). It is validated, including an upgrade and rollback rehearsal, but **not deployed**.
+- Deploys, rollbacks, Render settings and paid resources are owner-only; agents must not trigger production deploys or create paid resources.
 
 Agents may maintain, fix and verify the product within the approved scope below, prepare and verify deployments, and update the governing records. No agent may bypass a failing gate merely to meet a schedule.
 
@@ -121,7 +122,7 @@ A project is **COMPLETE / GO** only when all applicable conditions are true:
 
 ## Merge and production deployment gate
 
-`main` is the reviewed release branch; Render deploys from it only when someone triggers a manual deploy (`autoDeployTrigger: off`). Merging and promoting are therefore separate gates.
+`main` is the reviewed release branch. Render deploys ordinary commits only when someone triggers a manual deploy (`autoDeployTrigger: off`). But while the Render Blueprint's Auto Sync is on, a merge that changes `render.yaml` deploys immediately ([Render Blueprints](https://render.com/docs/infrastructure-as-code#disabling-automatic-sync)). Until the owner turns Auto Sync off, treat a PR that changes `render.yaml` as a production deploy: it must also meet the production gate below before it merges. Otherwise, merging and promoting are separate gates.
 
 **Merge to `main`** is authorized when:
 

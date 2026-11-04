@@ -29,7 +29,7 @@ Updated 4 November 2026. Every fact has one current home. If two documents disag
 | `docs/automation-api.md` | Automation API and webhook contract | Technical lead | Approved PR |
 | `docs/engineering-standards.md` | Access-first, reuse-first engineering rules | Technical lead | Approved PR |
 | `docs/decisions/*` | Recorded technical decisions | Technical lead | Approved PR |
-| `docs/evidence/release/2026-10-02/`, `docs/evidence/release/2026-11-04/`, `docs/evidence/ui/closeout-2026-10-02/`, `docs/evidence/grants/2026-11-02/`, `docs/evidence/grant-studio/2026-11-03/`, `docs/evidence/accounts/2026-11-04/`, `docs/evidence/jobs/2026-11-04/`, `docs/evidence/templates/2026-11-04/`, `docs/evidence/toolkit/2026-11-04/`, `docs/evidence/security/*` | Closeout, release-candidate, feature and security evidence | Program lead | Append-only |
+| `docs/evidence/release/2026-10-02/`, `docs/evidence/release/2026-11-04/`, `docs/evidence/ui/closeout-2026-10-02/`, `docs/evidence/grants/2026-11-02/`, `docs/evidence/grant-studio/2026-11-03/`, `docs/evidence/accounts/2026-11-04/`, `docs/evidence/jobs/2026-11-04/`, `docs/evidence/templates/2026-11-04/`, `docs/evidence/toolkit/2026-11-04/`, `docs/evidence/production/2026-11-04/`, `docs/evidence/security/*` | Closeout, release-candidate, feature and security evidence | Program lead | Append-only |
 | `render.yaml`, `.env.example` | Deployment blueprint and configuration template | Technical lead | Approved PR |
 
 Section 40 of the completion standard names `docs/PROJECT_CLOSEOUT_STATUS.md`; that role is filled by `docs/PROJECT_STATUS.md` so there is only one status record.
@@ -45,6 +45,7 @@ These describe earlier stages. Each carries a "historical" banner pointing here.
 | `docs/history/GO_NO_GO_DECISION_2026-10-02.md` | 2 Oct 2026 decision (release candidate GO; production NO-GO pending Render creation) |
 | `docs/history/PROJECT_STATUS_2026-10-02_PRE_SECURITY_REPAIR.md` | 2 Oct 2026 status, evidence matrix and release history, before the October dependency repairs |
 | `docs/history/PROJECT_STATUS_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md`, `docs/history/GO_NO_GO_DECISION_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md` | Early 4 Nov 2026 status and decision (`main` described as `3221c7b`; superseded the same day after PRs #29–#45 merged) |
+| `docs/history/PROJECT_STATUS_2026-11-04_PRE_PRODUCTION_RECONCILIATION.md`, `docs/history/GO_NO_GO_DECISION_2026-11-04_PRE_PRODUCTION_RECONCILIATION.md` | 19:50 UTC 4 Nov 2026 status and decision (production described as `6d9f488` after `d2250c3` had already been deployed; `main` as `997b735`) |
 | `docs/history/PROJECT_STATUS_RECOVERY_BASELINE.md` | Recovery-baseline status |
 | `docs/PROGRAM_CHARTER.md`, `docs/STAGE_0_EXECUTION_PLAN.md`, `docs/REPOSITORY_BASELINE.md`, `docs/governance/GOVERNANCE_BASELINE.md`, `prompts/CURSOR_MASTER_ORCHESTRATOR.md` | Stage 0 planning and governance (July–August 2026) |
 | `docs/recovery/*`, `RECOVERY_PROVENANCE.md` | Replit source recovery (August 2026) |
