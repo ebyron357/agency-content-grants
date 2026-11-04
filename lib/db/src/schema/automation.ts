@@ -29,6 +29,8 @@ export const apiKeysTable = pgTable("api_keys", {
   scopes: jsonb("scopes").notNull(), // string[] — see lib/automation/scopes.ts AUTOMATION_SCOPES
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  /** The member who created the key, so removing them from the workspace revokes it. Null for the team password. */
+  createdByMemberId: text("created_by_member_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -54,6 +54,7 @@ Without an AI provider key, generation returns clearly labelled demo output.
 |---|---|---|
 | `DATABASE_URL` | yes | PostgreSQL connection string |
 | `SESSION_SECRET` | yes | Session signing secret; the server refuses to start without it |
+| `MFA_ENCRYPTION_KEY` | production | Encrypts two-factor secrets at rest (AES-256-GCM). Any long random string; keep it when rotating `SESSION_SECRET`. Without it, secrets are stored unencrypted and Settings shows a warning |
 | `ADMIN_PASSWORD` | yes | Workspace sign-in password and admin elevation |
 | `PORT` | yes | HTTP port (Render sets it) |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | one required in production | AI providers; production readiness fails without one |
@@ -86,7 +87,7 @@ Render blueprint [`render.yaml`](render.yaml): web service + managed PostgreSQL 
 
 - Single instance (persistent disk; in-process schedulers). Deploys have a short restart window.
 - Media, source PDFs and exports are stored on the Render disk, not object storage.
-- Workspaces with personal accounts, invitations and roles ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)). Each role's permissions are enforced on every request (writers draft, reviewers approve sections, the authorized representative approves the package). Two-factor sign-in and email delivery (invitations, password reset) are not built yet; the team password still signs in to the agency workspace.
+- Workspaces with personal accounts, invitations and roles ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)). Each role's permissions are enforced on every request (writers draft, reviewers approve sections, the authorized representative approves the package). Two-factor sign-in (authenticator app with recovery codes, optionally required per workspace), sign-out everywhere and an audit log are in Settings → Team. Email delivery (invitations, password reset) is not built yet; the team password still signs in to the agency workspace.
 - Projects, brands, sources and images are deleted through the API, not the UI ([`docs/DATA_LIFECYCLE_AND_OFFBOARDING.md`](docs/DATA_LIFECYCLE_AND_OFFBOARDING.md)).
 
 ## Documentation

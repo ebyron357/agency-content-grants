@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
 import { requirePermission } from "../middleware/requirePermission";
+import { withRequestContext } from "../lib/requestContext";
 
 // ── Public routers (no auth required) ────────────────────────────────────────
 import authRouter from "./auth";
@@ -31,8 +32,12 @@ import webhooksRouter from "./webhooks";
 import mediaRouter from "./media";
 import grantsRouter from "./grants";
 import workspaceRouter from "./workspace";
+import accountRouter from "./account";
 
 export const router = Router();
+
+// Every request records who is making it, for the audit log.
+router.use(withRequestContext);
 
 // ── Public routes (must be mounted BEFORE requireAuth) ────────────────────────
 router.use(authRouter); // /auth/login, /auth/logout, /auth/me
@@ -74,3 +79,4 @@ router.use(webhooksRouter);
 router.use(mediaRouter);
 router.use(grantsRouter);
 router.use(workspaceRouter);
+router.use(accountRouter);

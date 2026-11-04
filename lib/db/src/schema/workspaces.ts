@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uniqueIndex, index, boolean, integer } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 /**
@@ -18,6 +18,8 @@ export const workspacesTable = pgTable("workspaces", {
   principalUserId: text("principal_user_id").notNull().unique().references(() => usersTable.id, { onDelete: "restrict" }),
   /** "agency" for the operator's own workspace, "client" for organizations it serves or that sign up. */
   kind: text("kind").notNull().default("client"),
+  /** When true, members must use two-factor sign-in before they can use the workspace. */
+  requireMfa: boolean("require_mfa").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -32,6 +34,11 @@ export const membersTable = pgTable("members", {
   /** "active" or "disabled". */
   status: text("status").notNull().default("active"),
   lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+  /** Authenticator (TOTP) secret, encrypted at rest (see the API's lib/mfa.ts). Null until two-factor is on. */
+  totpSecret: text("totp_secret"),
+  totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
+  /** The last time step a code was accepted for, so a code cannot be used twice. */
+  totpLastStep: integer("totp_last_step"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [uniqueIndex("uq_members_email").on(table.email)]);
@@ -60,7 +67,34 @@ export const invitesTable = pgTable("workspace_invites", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("idx_invites_workspace").on(table.workspaceId)]);
 
+/**
+ * One row per signed-in browser of a member. The session cookie carries the row id;
+ * revoking the row ends that session on its next request, whatever the session store.
+ */
+export const memberSessionsTable = pgTable("member_sessions", {
+  id: text("id").primaryKey(),
+  memberId: text("member_id").notNull().references(() => membersTable.id, { onDelete: "cascade" }),
+  workspaceId: text("workspace_id").notNull().references(() => workspacesTable.id, { onDelete: "cascade" }),
+  userAgent: text("user_agent"),
+  ipAddress: text("ip_address"),
+  /** "password", "mfa" or "recovery_code": how the sign-in was completed. */
+  method: text("method").notNull().default("password"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, (table) => [index("idx_member_sessions_member").on(table.memberId)]);
+
+/** Single-use recovery codes for two-factor sign-in. Only a SHA-256 hash is stored. */
+export const memberRecoveryCodesTable = pgTable("member_recovery_codes", {
+  id: text("id").primaryKey(),
+  memberId: text("member_id").notNull().references(() => membersTable.id, { onDelete: "cascade" }),
+  codeHash: text("code_hash").notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("idx_recovery_codes_member").on(table.memberId)]);
+
 export type Workspace = typeof workspacesTable.$inferSelect;
 export type Member = typeof membersTable.$inferSelect;
 export type Membership = typeof membershipsTable.$inferSelect;
 export type WorkspaceInvite = typeof invitesTable.$inferSelect;
+export type MemberSession = typeof memberSessionsTable.$inferSelect;

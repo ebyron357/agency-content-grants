@@ -115,6 +115,13 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   ...writes("/blueprints/*", "workspace.configure"),
   { method: "PATCH", path: "/dependencies/*", needs: "workspace.configure" },
 
+  // A person's own account and security: every role manages its own.
+  ...writes("/account/*", "workspace.read"),
+
+  // The audit log is for the people who manage the workspace.
+  { method: "GET", path: "/workspace/audit", needs: "members.manage" },
+  { method: "GET", path: "/workspace/audit.csv", needs: "members.manage" },
+
   // Members and workspaces (the handlers keep the owner-only and last-owner rules).
   { method: "PATCH", path: "/workspace", needs: "members.manage" },
   ...writes("/workspace/*", "members.manage"),

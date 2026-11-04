@@ -29,6 +29,8 @@ export const activityLogTable = pgTable("activity_log", {
   projectId: text("project_id"),
   projectTitle: text("project_title"),
   brandName: text("brand_name"),
+  /** Who did it: a member's name, or null for the team password and system events. */
+  actorName: text("actor_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

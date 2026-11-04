@@ -10,7 +10,17 @@ Content Machine (shown in the app as **Content OS**) turns a content idea into a
 
 The left rail shows which workspace you are in. If you belong to several, switch in **Settings → Team**.
 
-Forgotten password: ask an owner or admin of your workspace to remove you and invite you again; you choose a new password when you accept. To change a password you know, go to **Settings → Team → Your account**. Five wrong attempts lock sign-in from your network for 15 minutes.
+Forgotten password: ask an owner or admin of your workspace to remove you and invite you again; you choose a new password when you accept. To change a password you know, go to **Settings → Team → Your account**; this signs you out of every other browser. Five wrong attempts lock sign-in from your network for 15 minutes.
+
+### Two-factor sign-in
+
+Turn it on in **Settings → Team → Two-factor sign-in**: scan the code with an authenticator app (1Password, Google Authenticator, Microsoft Authenticator, Authy), enter the 6-digit code it shows, then copy or download your 10 recovery codes and keep them safe. From then on, sign-in asks for the current code after your password. Lost your phone? Choose **Use a recovery code**; each works once. Make new codes in the same place when you run low.
+
+An owner or admin can **require two-factor for everyone** (Settings → Team → Members). Anyone without it is asked to set it up before they can continue.
+
+### Where you're signed in
+
+**Settings → Team → Where you're signed in** lists every browser signed in to your account, with when it was last active. Sign out any one of them, or choose **Sign out everywhere else**.
 
 ### Your team
 
@@ -18,7 +28,8 @@ Forgotten password: ask an owner or admin of your workspace to remove you and in
 - **invite someone** (email and role; send them the link that appears, which is shown only once);
 - **withdraw** an open invitation;
 - **change** a member's role;
-- **remove** a member, whose access ends immediately.
+- **remove** a member, whose access ends immediately and whose API keys in this workspace are revoked;
+- read the **audit log** of sign-ins, security changes, members, approvals and automation, filter it, and export it as CSV.
 
 A workspace always keeps at least one owner, and only owners can make or remove owners. Each workspace's data is private to it.
 

@@ -23,7 +23,10 @@ Security issues go privately to the owner, never in a public issue. Severity gui
 |---|---|---|
 | "Incorrect password" on sign-in | Wrong password, or it was rotated | Get the current password from the owner (password manager) |
 | "Too many sign-in attempts" | 5 failures from your IP in 15 minutes | Wait 15 minutes, then use the correct password |
-| Signed out unexpectedly | Session older than 7 days, or `SESSION_SECRET` rotated | Sign in again |
+| Signed out unexpectedly | Session older than 7 days; signed out from another browser (Settings → Team → Where you're signed in); password changed; removed from the workspace; or `SESSION_SECRET` rotated | Sign in again |
+| "That code is not correct" at two-factor sign-in | Phone clock is wrong, or the code was already used | Set the phone's time to automatic and enter the next code. Lost phone: choose **Use a recovery code** |
+| Lost phone and no recovery codes | — | An owner or admin removes the member and invites them again; they set up two-factor afresh |
+| "This workspace requires two-factor sign-in" | An owner turned on the requirement | Follow the setup screen; it takes a minute |
 | Site does not load / Render shows deploy failed | Build failed or readiness never passed | Render → Events → open the failed deploy logs. If `configuration` failed, a provider key or `ADMIN_PASSWORD` is missing; if `database`, check the Render database status; if `storage`, check the disk is attached at `/var/data`. Roll back if needed (runbook §6) |
 | Brief outage during a deploy | Expected: services with a disk cannot do zero-downtime deploys | Wait about a minute |
 | Generated text starts with `[DEMO OUTPUT …]` / dashboard says demo mode | No AI provider key configured | Owner sets `OPENAI_API_KEY` (or another provider key) in Render and redeploys |

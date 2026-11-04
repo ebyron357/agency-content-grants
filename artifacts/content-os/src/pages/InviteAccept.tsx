@@ -9,6 +9,8 @@ interface InviteInfo {
   roleLabel: string;
   expiresAt: string;
   hasAccount: boolean;
+  /** The existing account has two-factor on, so joining also needs a code. */
+  needsCode?: boolean;
 }
 
 /** Public page for an invitation link (/invite/<token>). */
@@ -17,6 +19,7 @@ export default function InviteAccept({ token, onDone }: { token: string; onDone:
   const [loadError, setLoadError] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -38,7 +41,7 @@ export default function InviteAccept({ token, onDone }: { token: string; onDone:
       const res = await fetch(`${BASE}/api/auth/invites/${encodeURIComponent(token)}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(info?.hasAccount ? { password } : { name, password }),
+        body: JSON.stringify(info?.hasAccount ? { password, ...(info.needsCode ? { code: code.trim() } : {}) } : { name, password }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -91,8 +94,15 @@ export default function InviteAccept({ token, onDone }: { token: string; onDone:
                   <input id="invite-password" type="password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete={info.hasAccount ? 'current-password' : 'new-password'} aria-describedby="invite-password-hint" />
                   {!info.hasAccount && <p id="invite-password-hint" className="mt-1.5 text-xs text-muted-foreground">At least 12 characters. A short sentence works well.</p>}
                 </div>
+                {info.needsCode && (
+                  <div>
+                    <label htmlFor="invite-code" className="mb-2 block text-sm font-medium text-foreground">Two-factor code</label>
+                    <input id="invite-code" className={`${inputClass} font-mono tracking-widest`} value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="one-time-code" aria-describedby="invite-code-hint" />
+                    <p id="invite-code-hint" className="mt-1.5 text-xs text-muted-foreground">The 6-digit code from your authenticator app, or a recovery code.</p>
+                  </div>
+                )}
                 {error && <p role="alert" className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
-                <button type="submit" disabled={busy || !password || (!info.hasAccount && !name.trim())} className="h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="submit" disabled={busy || !password || (!info.hasAccount && !name.trim()) || (info.needsCode === true && !code.trim())} className="h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
                   {busy ? 'Joining…' : `Join ${info.workspace.name}`}
                 </button>
               </form>

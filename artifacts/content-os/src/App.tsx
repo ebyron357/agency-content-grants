@@ -6,6 +6,7 @@ import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Login from "@/pages/Login";
 import InviteAccept from "@/pages/InviteAccept";
+import MfaRequired from "@/pages/MfaRequired";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingState } from "@/components/layout/Page";
 
@@ -74,7 +75,7 @@ function AppLayout() {
 }
 
 function AuthGate() {
-  const { isAuthenticated, isLoading, refetch } = useAuth();
+  const { isAuthenticated, isLoading, mfaEnrollmentRequired, refetch } = useAuth();
   // Invitation links work whether or not someone is signed in.
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname.slice(base.length);
@@ -95,6 +96,10 @@ function AuthGate() {
 
   if (!isAuthenticated) {
     return <Login onSuccess={refetch} />;
+  }
+
+  if (mfaEnrollmentRequired) {
+    return <MfaRequired onDone={refetch} />;
   }
 
   return (

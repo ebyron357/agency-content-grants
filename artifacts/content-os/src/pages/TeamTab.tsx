@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, Notice, selectClass } from '@/components/grants/GrantUi';
 import { errorMessage } from '@/lib/grants';
+import { AuditLogPanel, RequireMfaSetting, SessionsPanel, TwoFactorPanel } from '@/components/account/Security';
 import { accountApi, inviteLink, useClientWorkspaces, useInvalidateAccount, useMe, useTeam, type RoleInfo, type Team } from '@/lib/account';
 
 function CopyLink({ link }: { link: string }) {
@@ -126,7 +127,7 @@ function PasswordForm() {
       await accountApi.changePassword(current, next);
       setCurrent('');
       setNext('');
-      setMessage({ tone: 'ok', text: 'Password changed.' });
+      setMessage({ tone: 'ok', text: 'Password changed. Any other browsers signed in to your account have been signed out.' });
     } catch (err) {
       setMessage({ tone: 'error', text: errorMessage(err) });
     }
@@ -253,7 +254,10 @@ export default function TeamTab() {
               <li key={m.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{m.name}{m.isYou ? ' (you)' : ''}</p>
-                  <p className="text-xs text-muted-foreground">{m.email}{m.lastSignInAt ? ` · last signed in ${new Date(m.lastSignInAt).toLocaleDateString()}` : ''}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {m.email}{m.lastSignInAt ? ` · last signed in ${new Date(m.lastSignInAt).toLocaleDateString()}` : ''}
+                    {m.mfaEnabled !== undefined && <span className={m.mfaEnabled ? 'text-emerald-300' : 'text-amber-300'}>{m.mfaEnabled ? ' · two-factor on' : ' · no two-factor'}</span>}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {t.canManage && !m.isYou ? (
@@ -273,6 +277,9 @@ export default function TeamTab() {
               </li>
             ))}
           </ul>
+        )}
+        {t.canManage && t.workspace.requireMfa !== undefined && (
+          <RequireMfaSetting required={t.workspace.requireMfa} membersWithout={t.members.filter((m) => m.mfaEnabled === false).length} selfHasMfa={!self.member || self.member.mfaEnabled === true} />
         )}
       </Panel>
 
@@ -296,11 +303,17 @@ export default function TeamTab() {
       <RoleMatrix team={t} />
 
       {self.member && (
-        <Panel>
-          <PanelHeader title="Your account" />
-          <PasswordForm />
-        </Panel>
+        <>
+          <Panel>
+            <PanelHeader title="Your account" description="Changing your password signs you out everywhere else." />
+            <PasswordForm />
+          </Panel>
+          <TwoFactorPanel />
+          <SessionsPanel />
+        </>
       )}
+
+      {t.canManage && <AuditLogPanel />}
 
       {self.isAdmin && <ClientWorkspaces />}
     </div>

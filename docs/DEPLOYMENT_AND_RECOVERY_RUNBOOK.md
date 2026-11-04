@@ -24,6 +24,7 @@ Set in **Render → service `agency-content-grants` → Environment**. Never com
 | `NODE_VERSION` | yes | blueprint (`24.15.0`) | |
 | `DATABASE_URL` | yes | blueprint (from the Render database) | |
 | `SESSION_SECRET` | yes | blueprint (`generateValue`) | Rotating it signs everyone out |
+| `MFA_ENCRYPTION_KEY` | yes | blueprint (`generateValue`); on an existing service the **owner** adds it once (Render → Environment → Add → Generate) | Encrypts two-factor secrets. Set it before anyone turns on two-factor, and never rotate it with `SESSION_SECRET`: secrets encrypted with a lost key cannot be read, and those members must be re-invited |
 | `ADMIN_PASSWORD` | yes | **owner**, prompted at blueprint creation | The workspace sign-in password; see `SECURITY_AND_ACCESS_HANDOFF.md` |
 | `OPENAI_API_KEY` | one provider key required in production | **owner**, prompted at blueprint creation | Alternatively `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` (add manually). Without one `/api/readyz` returns 503 and Render will not mark the deploy live |
 | `UPLOAD_DIR`, `SOURCE_UPLOAD_DIR`, `EXPORT_DIR` | yes | blueprint (`/var/data/...`) | Must stay on the persistent disk |
@@ -104,7 +105,8 @@ If the Render service or region is unavailable for an extended period: create a 
 | Secret | How | Effect |
 |---|---|---|
 | `ADMIN_PASSWORD` | Change the value in Render → Environment → **Save and deploy** | Existing sessions stay signed in until they expire or `SESSION_SECRET` also rotates; new sign-ins need the new password |
-| `SESSION_SECRET` | Use Render's generate option → **Save and deploy** | Every session is signed out |
+| `SESSION_SECRET` | Use Render's generate option → **Save and deploy** | Every session is signed out. Two-factor is unaffected |
+| `MFA_ENCRYPTION_KEY` | Do not rotate routinely. If it is exposed: set a new value, then have each member with two-factor turn it off and on again (or remove and re-invite them) | Secrets encrypted with the old key stop working |
 | Provider keys | Replace in Render and revoke the old key at the provider | No user impact |
 | API keys (automation) | Settings → Automation → Revoke, then create a new key | The revoked key stops working immediately |
 

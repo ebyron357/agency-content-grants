@@ -56,6 +56,7 @@ router.post("/api-keys", async (req, res): Promise<void> => {
     keyPrefix: displayPrefix,
     keyHash: hash,
     scopes,
+    createdByMemberId: req.session.memberId ?? null,
   }).returning();
 
   await logActivity("api_key_created", `API key "${name}" created`, { userId }).catch(() => {});
