@@ -11,7 +11,7 @@ import session from "express-session";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { eq, inArray } from "drizzle-orm";
-import { db, invitesTable, membersTable, workspacesTable } from "@workspace/db";
+import { brandsTable, db, invitesTable, membersTable, usersTable, workspacesTable } from "@workspace/db";
 import { router } from "./index";
 import { invalidateMembershipCache } from "../middleware/requireAuth";
 
@@ -20,6 +20,8 @@ let base = "";
 const PASSWORD = "Correct horse battery staple 42";
 const OWNER_EMAIL = `owner-${Date.now()}@client-a.example`;
 const WRITER_EMAIL = `writer-${Date.now()}@client-a.example`;
+/** Brands this file creates for the shared agency principal, removed afterwards so later suites (and /api/seed) see the database as they left it. */
+const agencyBrandIds: string[] = [];
 
 function buildApp() {
   const app = express();
@@ -55,7 +57,12 @@ afterAll(async () => {
   server?.close();
   const ws = await db.select().from(workspacesTable).where(eq(workspacesTable.name, "Client A (test)"));
   await db.delete(membersTable).where(inArray(membersTable.email, [OWNER_EMAIL, WRITER_EMAIL]));
-  if (ws.length) await db.delete(workspacesTable).where(inArray(workspacesTable.id, ws.map((w) => w.id)));
+  if (agencyBrandIds.length) await db.delete(brandsTable).where(inArray(brandsTable.id, agencyBrandIds));
+  if (ws.length) {
+    await db.delete(workspacesTable).where(inArray(workspacesTable.id, ws.map((w) => w.id)));
+    // The client workspace's principal owns its data; deleting it removes that data too.
+    await db.delete(usersTable).where(inArray(usersTable.id, ws.map((w) => w.principalUserId)));
+  }
 });
 
 describe("workspaces and members", () => {
@@ -114,6 +121,7 @@ describe("workspaces and members", () => {
     const brand = await owner("POST", "/brands", { name: "Client A brand", industry: "Literacy" });
     expect(brand.status).toBe(201);
     const agencyBrand = await operator("POST", "/brands", { name: "Agency brand", industry: "Agency" });
+    agencyBrandIds.push(agencyBrand.data.id);
     expect((await operator("GET", `/brands/${brand.data.id}`)).status).toBe(404);
     expect((await owner("GET", `/brands/${agencyBrand.data.id}`)).status).toBe(404);
     expect(((await operator("GET", "/brands")).data as any[]).map((b) => b.id)).not.toContain(brand.data.id);
