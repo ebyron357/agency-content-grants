@@ -8,6 +8,7 @@ interface LoginProps {
 }
 
 export default function Login({ onSuccess }: LoginProps) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,14 +21,17 @@ export default function Login({ onSuccess }: LoginProps) {
       const res = await fetch(`${BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify(email.trim() ? { email: email.trim(), password } : { password }),
       });
       if (res.ok) {
         onSuccess();
       } else if (res.status === 429) {
         setError('Too many sign-in attempts. Wait 15 minutes, then try again.');
+      } else if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error ?? 'This account cannot sign in.');
       } else {
-        setError('Incorrect password. Please try again.');
+        setError(email.trim() ? 'Incorrect email or password. Please try again.' : 'Incorrect password. Please try again.');
       }
     } catch {
       setError('Unable to connect. Please try again.');
@@ -54,9 +58,23 @@ export default function Login({ onSuccess }: LoginProps) {
         <div className="rounded-2xl border border-border bg-card p-7 shadow-2xl shadow-black/40 sm:p-9">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Welcome back</p>
           <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">Sign in to Content OS</h1>
-          <p className="mb-7 text-sm leading-relaxed text-muted-foreground">Enter your team password to continue building.</p>
+          <p className="mb-7 text-sm leading-relaxed text-muted-foreground">Sign in with your email and password. Operators can leave email empty and use the team password.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-11 w-full rounded-xl border border-input bg-background px-3.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/25"
+                placeholder="you@organization.org"
+                autoComplete="username"
+              />
+            </div>
             <div>
               <label
                 htmlFor="password"
@@ -70,9 +88,8 @@ export default function Login({ onSuccess }: LoginProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11 w-full rounded-xl border border-input bg-background px-3.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/25"
-                placeholder="Team password"
+                placeholder={email.trim() ? 'Your password' : 'Team password'}
                 required
-                autoFocus
                 autoComplete="current-password"
               />
             </div>

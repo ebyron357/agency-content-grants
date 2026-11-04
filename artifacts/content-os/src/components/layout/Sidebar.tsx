@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { LayoutDashboard, Building2, FolderKanban, Settings, Plus, LogOut, Send, LineChart, PenLine, HandCoins, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useMe } from '@/lib/account';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -109,6 +110,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border px-2 py-3 md:px-4">
+        <WorkspaceLabel />
         <RailItem label="Sign out">
           <button
             type="button"
@@ -122,5 +124,17 @@ export function Sidebar() {
         </RailItem>
       </div>
     </aside>
+  );
+}
+
+/** Which workspace and person this session is (desktop rail only; the details are in Settings → Team). */
+function WorkspaceLabel() {
+  const me = useMe();
+  if (!me.data?.workspace) return null;
+  return (
+    <Link href="/settings" className="mb-2 hidden rounded-xl px-3 py-2 text-left hover:bg-sidebar-accent/60 md:block">
+      <span className="block truncate text-xs font-medium text-foreground">{me.data.workspace.name}</span>
+      <span className="block truncate text-[11px] text-muted-foreground">{me.data.member ? me.data.member.name : 'Team password'} · {me.data.roleLabel ?? me.data.role}</span>
+    </Link>
   );
 }

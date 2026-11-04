@@ -125,8 +125,10 @@ function isoDate(value: unknown): string | null | undefined | false {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : false;
 }
 
-async function usernameOf(userId: string): Promise<string> {
-  const [user] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+/** The name recorded on approvals and outcomes: the signed-in member, or the principal's username for the shared operator sign-in. */
+async function actorOf(req: Request): Promise<string> {
+  if (req.session.actorName) return req.session.actorName;
+  const [user] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, req.session.userId!)).limit(1);
   return user?.username ?? "operator";
 }
 
@@ -406,7 +408,7 @@ router.put("/grants/applicants/:id/readiness/:kind", async (req, res): Promise<v
   if (expiresOn === false) return fail(res, 400, "expiresOn must be a date (YYYY-MM-DD)");
   const note = optionalText(body.note, 1000);
   if (note === false) return fail(res, 400, "note must be text");
-  const username = await usernameOf(req.session.userId!);
+  const username = await actorOf(req);
   const values = {
     status: body.status as string,
     expiresOn: expiresOn ?? null,
@@ -483,7 +485,7 @@ router.post("/grants/applicants/:id/facts", async (req, res): Promise<void> => {
   if (typeof values === "string") return fail(res, 400, values);
   const [{ n }] = await db.select({ n: count() }).from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
   if (Number(n) >= MAX_FACTS_PER_APPLICANT) return fail(res, 400, `An organization can hold at most ${MAX_FACTS_PER_APPLICANT} facts.`);
-  const confirmation = body.confirmed === true ? { confirmedBy: await usernameOf(req.session.userId!), confirmedAt: new Date() } : {};
+  const confirmation = body.confirmed === true ? { confirmedBy: await actorOf(req), confirmedAt: new Date() } : {};
   const [row] = await db.insert(grantFactsTable).values({ id: randomUUID(), applicantId: applicant.id, ...(values as any), ...confirmation }).returning();
   res.status(201).json(factView(row));
 });
@@ -497,7 +499,7 @@ router.patch("/grants/facts/:fid", async (req, res): Promise<void> => {
   if (typeof values === "string") return fail(res, 400, values);
   const contentChanged = ["category", "label", "body", "source", "asOf"].some((k) => values[k] !== undefined && values[k] !== (owned.fact as any)[k]);
   // Editing a confirmed fact withdraws the confirmation unless the same request confirms it again.
-  if (body.confirmed === true) Object.assign(values, { confirmedBy: await usernameOf(req.session.userId!), confirmedAt: new Date() });
+  if (body.confirmed === true) Object.assign(values, { confirmedBy: await actorOf(req), confirmedAt: new Date() });
   else if (body.confirmed === false || contentChanged) Object.assign(values, { confirmedBy: null, confirmedAt: null });
   if (Object.keys(values).length === 0) {
     res.json(factView(owned.fact));
@@ -624,7 +626,7 @@ router.post("/grants/applications", async (req, res): Promise<void> => {
   }
   const templateKey: TemplateKey = (body.template as TemplateKey) ?? chooseTemplate(applicant.applicantType as ApplicantType, opp.title, opp.jurisdiction);
   const template = TEMPLATES[templateKey];
-  const username = await usernameOf(req.session.userId!);
+  const username = await actorOf(req);
   const id = randomUUID();
   await db.transaction(async (tx) => {
     await tx.insert(grantApplicationsTable).values({
@@ -959,7 +961,7 @@ router.post("/grants/sections/:sid/approve", async (req, res): Promise<void> => 
   if (!limit.words) return fail(res, 409, "Write the section before approving it.");
   if (owned.row.demoContent) return fail(res, 409, "Replace the demo scaffold with your own writing before approving.");
   if (limit.over) return fail(res, 409, `The section is over its limit (${limit.used} of ${limit.limit} ${limit.unit}).`);
-  const username = await usernameOf(req.session.userId!);
+  const username = await actorOf(req);
   const [row] = await db.update(grantSectionsTable).set({ status: "approved", approvedBy: username, approvedAt: new Date() }).where(eq(grantSectionsTable.id, owned.row.id)).returning();
   await db.insert(grantApprovalsTable).values({ id: randomUUID(), applicationId: owned.app.id, scope: "section", subjectId: row.id, role: "reviewer", approvedBy: username });
   res.json({ ...row, limitCheck: limit });
@@ -1071,7 +1073,7 @@ router.post("/grants/applications/:id/approve-package", async (req, res): Promis
   if (note === false) return fail(res, 400, "note must be text");
   const ws = await workspace(owned.app, owned.applicant);
   if (!ws.compliance.readyForApproval) return fail(res, 409, "Every compliance check must pass before the package is approved.");
-  const username = await usernameOf(req.session.userId!);
+  const username = await actorOf(req);
   await db.insert(grantApprovalsTable).values({ id: randomUUID(), applicationId: owned.app.id, scope: "package", role: "authorized_representative", approvedBy: username, note: note ?? null });
   await db.update(grantApplicationsTable).set({ status: "approved" }).where(eq(grantApplicationsTable.id, owned.app.id));
   await logActivity("grant_package_approved", `Package approved: ${owned.app.title}`, { userId: req.session.userId }).catch(() => {});
@@ -1158,7 +1160,7 @@ router.post("/grants/sections/:sid/save-to-library", async (req, res): Promise<v
     content: sanitizeRichHtml(section.content),
     sourceApplicationId: owned.app.id,
     sourceLabel: owned.app.title.slice(0, 200),
-    savedBy: await usernameOf(req.session.userId!),
+    savedBy: await actorOf(req),
   }).returning();
   res.status(201).json(snippetView(row));
 });
@@ -1223,7 +1225,7 @@ router.post("/grants/applications/:id/outcome", async (req, res): Promise<void> 
   if (amount === false) return fail(res, 400, "awardedAmount must be a positive number");
   if (outcome === "awarded" && !amount) return fail(res, 400, "Record the awarded amount.");
   const day = date ?? new Date().toISOString().slice(0, 10);
-  const values: Record<string, unknown> = { outcome, outcomeDate: day, outcomeRecordedBy: await usernameOf(req.session.userId!) };
+  const values: Record<string, unknown> = { outcome, outcomeDate: day, outcomeRecordedBy: await actorOf(req) };
   if (note !== undefined) values.outcomeNote = note;
   if (outcome === "submitted") {
     const ws = await workspace(owned.app, owned.applicant);

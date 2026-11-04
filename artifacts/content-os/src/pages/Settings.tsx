@@ -1,3 +1,4 @@
+import TeamTab from './TeamTab';
 import { useState, useEffect } from 'react';
 import {
   useListProviders, useTestProvider, useGetModelConfig, useUpdateModelConfig,
@@ -94,7 +95,7 @@ function AdminAccessCard() {
   );
 }
 
-const TABS = ['AI Providers', 'Model Configuration', 'Dependencies', 'Automation'] as const;
+const TABS = ['Team', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation'] as const;
 type Tab = typeof TABS[number];
 
 const PROVIDER_ENV_KEYS: Record<string, { key: string; docs: string }> = {
@@ -367,14 +368,14 @@ function DependenciesTab() {
 }
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<Tab>('AI Providers');
+  const [activeTab, setActiveTab] = useState<Tab>('Team');
 
   return (
     <PageShell width="narrow">
       <PageHeader
         eyebrow="Settings"
         title="Settings"
-        description="Provider status, model assignments, system dependencies and automation access for this workspace."
+        description="Your team and workspace, provider status, model assignments, system dependencies and automation access."
       />
 
       <section aria-labelledby="security-heading" className="mb-8">
@@ -405,6 +406,7 @@ export default function Settings() {
         </div>
       </div>
 
+      {activeTab === 'Team' && <TeamTab />}
       {activeTab === 'AI Providers' && <ProvidersTab />}
       {activeTab === 'Model Configuration' && <ModelConfigTab />}
       {activeTab === 'Dependencies' && <DependenciesTab />}

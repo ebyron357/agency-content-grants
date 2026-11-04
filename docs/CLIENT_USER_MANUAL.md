@@ -4,11 +4,23 @@ Content Machine (shown in the app as **Content OS**) turns a content idea into a
 
 ## 1. Signing in
 
-1. Open the workspace address you were given (the production URL).
-2. Enter the workspace password and choose **Sign in**. There is no username.
+1. **First time:** open the invitation link you were sent. Enter your name and choose a password of at least 12 characters (a short sentence works well), then choose **Join**. The link works once and expires after 7 days.
+2. **After that:** open the workspace address (the production URL), enter your **email** and **password**, and choose **Sign in**. Operators who use the team password leave the email empty.
 3. You stay signed in for up to 7 days on that browser. Use **Sign out** at the bottom of the left rail on shared computers.
 
-Forgotten or changed password: ask the workspace owner; passwords are never reset by e-mail. Five wrong attempts lock sign-in from your network for 15 minutes.
+The left rail shows which workspace you are in. If you belong to several, switch in **Settings → Team**.
+
+Forgotten password: ask an owner or admin of your workspace to remove you and invite you again; you choose a new password when you accept. To change a password you know, go to **Settings → Team → Your account**. Five wrong attempts lock sign-in from your network for 15 minutes.
+
+### Your team
+
+**Settings → Team** lists the workspace's members and their roles. Owners and admins can:
+- **invite someone** (email and role; send them the link that appears, which is shown only once);
+- **withdraw** an open invitation;
+- **change** a member's role;
+- **remove** a member, whose access ends immediately.
+
+A workspace always keeps at least one owner, and only owners can make or remove owners. Each workspace's data is private to it. An admin-unlocked operator can also create a **client workspace** for an organization, with an invitation for its first owner.
 
 ## 2. Finding your way
 
