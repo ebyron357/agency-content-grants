@@ -1,260 +1,205 @@
-# Grant Platform Plan: discover, match, write, apply
+# Grant Platform Plan: one system from discovery to award closeout
 
-**Status:** PROPOSED. It becomes the approved plan when the owner accepts it, and the decisions in §11 are recorded in `GO_NO_GO_DECISION.md`.
-**Date:** 3 November 2026. **Owner:** Emmanuel Andre Byron (`ebyron357`). **Review date:** 3 December 2026.
-**Supersedes:** nothing. It extends the curated directory in [`GRANT_RESOURCES.md`](GRANT_RESOURCES.md) (PR #26) and replaces no part of it.
-
-## Implementation status (4 November 2026)
-
-At the owner's request ("system software that operates end to end"), the first phases were built as Grant Studio. Nothing below is merged or deployed. The pull requests are open for owner review, and their scope is recorded in [`GRANT_STUDIO.md`](GRANT_STUDIO.md) on those branches.
-
-| Phase | State | Where |
-|---|---|---|
-| 0. Decide | **Open.** D1 is effectively requested by the owner's 3 November instruction; it is recorded as pending owner approval of the pull requests | This PR, #29 |
-| 1. Registry foundation | **Not done; built differently.** Grant Studio has its own publication gate, provenance fields (source, source reference, fetch times, checksum, connector version) and gate tests, instead of a Veteran-Hub port. The 21 curated records stay in `/grants`, unchanged. D2 should be revisited: ADOPT → DEFER unless a second source needs the shared registry | #29 |
-| 2. Live federal discovery | **Built for Grants.gov.** Per-code search, daily sync, detail for every open opportunity, publication gate, failure recording, and contract tests with a fake Grants.gov. SBIR.gov (403) and SAM.gov (404) are still blocked from the build environment | #29 |
-| 3. Profiles and matching | **Built.** Profiles for nonprofits and businesses, readiness with expiry, hard exclusions with reasons, an explained score, on-topic filtering, broad-topic warnings, and human eligibility confirmation. New-match and closing-soon alerts, plus a `grant.new_matches` webhook event | #29, #30 |
-| 4. Writing studio | **Built.** Compliance matrix (template plus AI extraction), section blueprints including SBIR/STTR and state templates, grounded drafting from a confirmed, sourced fact library, limits, SF-424A budget, reviewer scoring, approvals and DOCX package export | #29, #31, #33 |
-| 5. Pilots and state | **Mostly built.** In-app alerts and the webhook event (#30), the deadline calendar and reminders (#32), and the first state source: the California Grants Portal, chosen over D4's North Carolina because California publishes keyless, structured open data and North Carolina has no comparable feed (#33). Still open: pilots, which need the owner and the pilot organizations' consent | #30, #32, #33 |
-| 6. Accounts and assisted submission | **Not started** (gated, D5 and D6) | — |
-
-D7 (email digests): the `grant.new_matches` webhook event lets the owner route alerts to email through existing automation, with no email service added. In-product email stays deferred.
+**Status:** PROPOSED. It becomes the approved plan when the owner accepts it, and the decisions in §12 are recorded in `GO_NO_GO_DECISION.md`.
+**Date:** 4 November 2026. **Owner:** Emmanuel Andre Byron (`ebyron357`). **Review date:** 4 December 2026.
+**Supersedes:** the 3 November version of this file. It replaces that version completely, and keeps its repository audit, its submission gate and its risk controls. It extends the curated directory in [`GRANT_RESOURCES.md`](GRANT_RESOURCES.md); no part of that directory is replaced.
 
 ## 1. Outcome
 
-Two kinds of applicant use one workspace to apply for grants:
+A nonprofit or a small business opens one product and, without another tool or a spreadsheet:
 
-- **nonprofits** (501(c)(3) and others);
-- **businesses** (small businesses and other for-profits).
+1. **Knows what it can win.** Live federal and state opportunities from official sources, foundations that fund organizations like it (from their public tax filings), and the history of who won each program before.
+2. **Writes a winning application.** It extracts the notice into a checklist, grounds every claim in the organization's own confirmed facts, follows the funder's limits and review criteria, and goes through team review and approval.
+3. **Submits with confidence.** A complete, compliant package and a submission record. Grant Studio never submits on its own. Assisted submission is a gated later release (§10, R6).
+4. **Manages the award.** Budget against actual spending, reporting deadlines, report drafts, and closeout.
+5. **Gets faster every time.** Facts, approved writing, budgets and outcomes carry into the next application.
 
-For each applicant, the platform does five things:
+The plan counts as delivered only when all five work end to end for one pilot nonprofit and one pilot business, on production, with the evidence in §11.
 
-1. **Knows what is available.** Live federal opportunities, the curated directory and, later, state programs. Each listing is linked to its official source and shows its freshness.
-2. **Shows what fits.** Opportunities the applicant is eligible for, with the reasons, the deadline, the award range and any readiness gaps, such as an expired SAM.gov registration.
-3. **Writes the application.** Professional grant writing tools:
-   - a compliance matrix built from the funding notice;
-   - section drafting grounded in the applicant's own facts;
-   - a budget and budget justification;
-   - scoring against the funder's review criteria;
-   - review and approval before anything leaves the platform.
-4. **Applies.** First, a complete, export-ready submission package that the applicant submits. Later, assisted submission through Grants.gov's system-to-system interface, after the applicant's Authorized Organization Representative (AOR) approves (§8, gated).
-5. **Keeps going after the award.** Deadlines, reporting dates and a reusable content library, so each application is faster than the last.
+## 2. Market: what exists and what is missing (researched 4 November 2026)
 
-A product that only lists grants, or only drafts text, does not meet this plan. All five stages must work end to end for one pilot nonprofit and one pilot business before the plan counts as delivered (§10).
+### 2.1 The landscape
 
-## 2. What already exists (verified 3 November 2026)
+The grant software market has two sides. Funder-side platforms (Fluxx, Submittable, Foundant GLM) run grant programs for foundations, and are the wrong tool for applicants ([OpenGrants comparison](https://opengrants.io/grant-management-software-comparison-what-to-buy-when/), [Guideflow](https://www.guideflow.com/blog/grant-management-software)). Applicants assemble several tools:
 
-| Capability | Where | Reuse |
+| Need | Typical tool | Reported price | What it leaves out |
+|---|---|---|---|
+| Discovery and tracking | Instrumentl | Discover ~$299/mo; full lifecycle ~$999/mo (figures conflict across sources) ([Grantcue](https://www.grantcue.com/blog/instrumentl-vs-candid-vs-grantstation), [GrantOrb](https://grantorb.com/blog/best-ai-grant-writing-tools-compared/)) | Writing tools are reported as limited compared with proposal platforms; AI drafting only on the $499 tier |
+| Funder research | Candid (Foundation Directory) | Premium from ~$1,199/yr; often used through libraries | No writing or award management |
+| Research membership | GrantStation | $699/yr | A membership, not workflow software |
+| AI drafting | Grantable, Grant Assistant, others | Grantable from $0, paid from ~$50–150/mo | Discovery is reported to screen historical IRS 990s rather than verify live opportunities; AI use is metered |
+| Post-award federal compliance | GrantVantage, GrantPipe, accounting add-ons (Aplos, QuickBooks Nonprofit, WiseCost) | Varies | Separate from pre-award; aimed at mid-sized federal recipients |
+
+These are vendor and affiliate sources, so they are directional, and prices must be confirmed with each vendor ([Software Advice](https://www.softwareadvice.com/nonprofit/grant-management-comparison/), [Vercor on 2 CFR 200 tools](https://vercor.ai/resources/compliance/2-cfr-200-grant-compliance-software)).
+
+### 2.2 The gaps
+
+| # | Gap | Evidence | Grant Studio's answer |
+|---|---|---|---|
+| G1 | **Fragmentation.** Discovery, writing and post-award live in separate tools, so finances, deliverables and status sit in spreadsheets | Buyers' most frequent complaint, per comparison sites ([Software Advice](https://www.softwareadvice.com/nonprofit/grant-management-comparison/)) | One system across all five stages (§1) |
+| G2 | **Discovery trust.** Listings drawn from historical 990s are not live, verified opportunities | Reviews of Grantable's discovery ([GrantOrb](https://grantorb.com/blog/best-ai-grant-writing-tools-compared/)) | Official feeds, a publication gate, freshness and official links (built). Foundation data is labelled as funding history, never as an open call |
+| G3 | **AI trust.** No published accuracy or hallucination measurements for grant AI tools | No independent tests found in this research | Drafting limited to confirmed, sourced facts (built). Next: claim-level citations, an unsupported-claim detector, and a published evaluation harness (§6, R3) |
+| G4 | **Post-award for small organizations.** 2 CFR 200 asks for per-award tracking against budget (200.302), drawdowns, reporting and time and effort records (200.430). Small organizations patch accounting tools with add-ons | [Vercor](https://vercor.ai/resources/compliance/2-cfr-200-grant-compliance-software), [WiseCost](https://www.usewisecost.com/blog/uniform-guidance-compliance-nonprofits), [Kleer](https://www.getkleercard.com/blogs/nonprofit-accounting-software) | An awards workspace (§7, R4) |
+| G5 | **Businesses and state economic development** are poorly covered. Tools focus on nonprofits and federal research | The research found few state economic development finders | Business applicant types, SBIR/STTR and state templates (built); a source registry for more states (§4) |
+| G6 | **Built for big teams.** Tools are overbuilt and costly for small nonprofits, with a learning curve and clunky reporting | [Software Advice](https://www.softwareadvice.com/nonprofit/grant-management-comparison/), [GivingData](https://www.givingdata.com/insights/what-to-watch-out-for-in-grant-management-software-reviews) | Guided flows in plain language, no-setup onboarding, readability checks, and a quality bar (§5) |
+| G7 | **Price.** The full lifecycle costs about $1,000/month at the leader | As above | Pricing for small organizations (§12, D10) |
+
+### 2.3 Open, official data that makes this possible (verified 4 November 2026 from the build environment)
+
+| Source | Use | Check |
 |---|---|---|
-| Research plans and questions, sources with storage, claims with citations, citation and freshness scoring | `research.ts`, `sources.ts`, `claims.ts`, tables `research_plans`, `research_questions`, `sources`, `claims` | The evidence layer for need statements and cited facts |
-| Outlines and sections, documents with section revisions, rich editor, images and video | `outlines.ts`, `documents.ts`, tables `outlines`, `outline_sections`, `documents`, `document_sections`, `section_revisions` | Each application section is a document section with revision history |
-| Quality evaluation and issues | `quality.ts`, tables `quality_evaluations`, `quality_issues` | Extended into reviewer-criteria scoring |
-| Brand Brain: audience profiles, brand facts, knowledge entries | `brand-brain.ts`, `brands.ts` | Becomes the applicant's **boilerplate library**: mission, history, capacity, past performance |
-| Content blueprints | `blueprints.ts`, `content_blueprints` | Grant section blueprints (§5) |
-| AI router for Anthropic, OpenAI and Gemini, with labelled demo output | `lib/ai/router.ts` | Drafting, requirement extraction and critique. Demo output stays labelled |
-| DOCX, PDF, HTML, Markdown and TXT exports | `exports.ts`, `lib/exporters` | Package export (§6) |
-| Webhooks, automation API, idempotency | `webhooks.ts`, `automation.ts` | Deadline and new-match events |
-| Curated grant directory: 21 primary-source resources for nonprofits and international work | `/grants`, `artifacts/content-os/src/data/grants.ts`, `GRANT_RESOURCES.md` | Kept as the curated tier (§4.3) |
-| Single shared operator account; per-project ownership checks | `auth.ts` | **Gap:** applicants cannot sign in as their own organization (§7) |
+| Grants.gov Search and Fetch APIs (keyless) | Live federal opportunities | ✅ Ingested daily (built) |
+| California Grants Portal (data.ca.gov, keyless) | Live state opportunities | ✅ Ingested daily (built) |
+| IRS Form 990 e-file XML (`apps.irs.gov/pub/epostcard/990/xml/2026/`) | Foundation funders: 990-PF grants paid, giving by place and purpose, application instructions | ✅ The 2026 index lists about 472,000 returns, about 85,000 of them 990-PF. Batches are about 70 MB zip files |
+| ProPublica Nonprofit Explorer API v2 (keyless) | Organization lookup by EIN or name, to prefill profiles and identify funders | ✅ 200; for example 1,147 North Carolina foundations |
+| USAspending.gov API (keyless) | Past federal awards per assistance listing: winners, amounts, in-state awards | ✅ 200 on `spending_by_award_count` |
+| SAM.gov Assistance Listings | Program rules behind each listing | Needs a free API key (owner, §12) |
+| SBIR.gov API | Small-business research solicitations | ❌ 403 "Forbidden" from SBIR.gov's own gateway on 3 and 4 November |
+| Other states | — | No state other than California publishes an official, keyless opportunities feed found in this research; Oregon's datasets are empty placeholders |
 
-### Related repositories audited 3 November 2026
+## 3. What is built (4 November 2026, open pull requests, not merged or deployed)
 
-All 54 of the owner's repositories were searched.
-
-| Repository | Decision | Reason |
+| Area | Built | PR |
 |---|---|---|
-| `Veteran-Hub` | **ADOPT** (port the domain layer) | Its records for source, organization, opportunity, evidence and claim carry provenance: source, canonical URL, fetch time, parser version, checksum and confidence. It has freshness classes, including `grant_scholarship`, and a tested publication gate that blocks unverified, date-sensitive records. It also has CSV/JSON import. It is TypeScript, and its ingestion design already lists Grants.gov and SAM.gov. Port `src/lib/domain/*` and `src/lib/import/*` with their tests, not its Next.js app |
-| `Haiti` (HRI Foundation) | **PILOT** (first nonprofit) | A real nonprofit with donor, partner and international work. Its "registered non-profit initiative" and "501(c)(3)" wording must be reconciled before federal applications |
-| `source-intelligence-engine` | **REJECT as code; keep as reference** | Its domain is liquidation sourcing. Only its rule carries over: "verify the source; no evidence means unverified" |
-| `DAffordableHomes-Platform` | **REJECT** | It covers homebuyer assistance for individuals, not organizational grants |
-| `Terracecapitalfund`, `market-intelligence-platform`, the remaining 46 | **REJECT** | They contain investment-fund content, a 4-file stub, or false matches (SQL `GRANT`, OAuth grants) |
+| Discovery | Grants.gov daily sync with detail for every open record; California Grants Portal; publication gate; closing of records that leave the open set | #29, #33 |
+| Matching | Nonprofit and business types; readiness with expiry; hard exclusions with reasons; explained 0–100 score; on-topic filter; broad-topic warning; state residency; stated match percentage; human eligibility confirmation | #29, #30, #33 |
+| Alerts | New and closing-soon counts; `grant.new_matches` and `grant.deadline_approaching` webhook events; deadline calendars (`.ics`) | #30, #32 |
+| Writing | Compliance matrix (template plus AI extraction); federal, SBIR/STTR and state templates; fact library with confirmation; grounded drafting; limits; reviewer scoring; approved-writing reuse | #29, #31, #38 |
+| Budget and package | SF-424A budget, justification, ceiling check, ten compliance checks, approvals, DOCX package | #29 |
+| Outcomes | Submission, award, decline and withdrawal records; pipeline and win rate | #39 |
+| Capacity | Measured: first full sync peaks at 248 MB; grant data is 4 MB; cached hub summaries | #37 |
 
-## 3. Applicants and their readiness
+Every PR has unit tests, integration tests against a real database, a browser journey with accessibility checks, and evidence in `docs/evidence/grant-studio/2026-11-03/`.
 
-**Applicant organization profile.** Each organization is its own tenant (§7) and records:
+## 4. Architecture rules: configuration over code
 
-- Legal name, type and EIN.
-- Organization type, using Grants.gov applicant-type codes, for example `12` (501(c)(3) nonprofit), `13` (non-501(c)(3) nonprofit), `23` (small business) and `22` (other for-profit). The codes come from the Grants.gov `search2` eligibility facets, verified 3 November 2026.
-- State, counties and service area.
-- NAICS codes (for businesses) and mission areas.
-- Annual budget or revenue, and headcount.
-- For businesses: ownership categories, recorded only when the applicant states them.
-- **Readiness records**, each with a document, an expiry date and who confirmed it:
-  - UEI and SAM.gov registration status and expiry. Federal awards require an active registration (2 CFR Part 25).
-  - Grants.gov roles. A submission needs an Authorized Organization Representative (AOR).
-  - IRS determination letter for 501(c)(3) status.
-  - Most recent financial statements or audit, and the indirect cost rate agreement if there is one.
-  - Board list, key staff résumés, a capability statement and past awards.
-- **Readiness score** with blocking gaps. For example: "SAM.gov registration expires before this deadline: renew now; renewal can take weeks". The platform states each gap with its source. It never asserts eligibility as a legal conclusion (charter, Boundaries).
+"No hardcoding" is a design rule, not a slogan. Anything that varies by funder, state, program type or customer is **data with an admin screen**, versioned and tested, not code:
 
-## 4. Discovery: what is available
-
-All sources go into one opportunity registry, which uses the Veteran-Hub provenance and publication-gate model. No opportunity reaches an applicant unless it has an official source URL, a fetch time and a passing publication gate. Deadlines and award amounts always link back to the primary source (charter, grant-research source policy).
-
-### 4.1 Federal (Phase 2, free, authoritative)
-
-| Source | Use | Status |
+| Thing | Today | Target (R1) |
 |---|---|---|
-| **Grants.gov Search API** (`POST https://api.grants.gov/v1/api/search2`) | Posted and forecast opportunities, with filters for eligibility, agency, category and status | **Verified 3 November 2026.** No key needed. A nonprofit keyword search returned 446 hits; eligibility `23` (small businesses) returned 390 posted opportunities |
-| **Grants.gov Fetch Opportunity** (`POST /v1/api/fetchOpportunity`) | Details for each opportunity: synopsis, assistance listings (CFDA), packages and forms, documents | **Verified to respond.** The field coverage of each opportunity must be mapped in Phase 2, because some return empty synopsis or form lists |
-| **SBIR/STTR** (sbir.gov public API) | Small-business research and development solicitations | **To verify.** The endpoint returned `403 Forbidden` from the agent environment. Confirm the access terms and endpoint before building |
-| **SAM.gov Assistance Listings** | Program descriptions behind each assistance listing number, such as eligibility, matching requirements and use restrictions | **To verify.** It needs an API key, and the tested endpoint returned 404. Confirm the current endpoint |
-| **USAspending.gov API** | Past awards for the same assistance listing: typical award size, prior recipients in the applicant's state, for competitive context | Planned; to verify in Phase 2 |
+| Opportunity sources | Two connectors in code (Grants.gov, California) | A **source registry** table: connector type, endpoint, schedule, field mapping, eligibility mapping, terms of use, owner and status. Code holds connector *types* (CKAN, Socrata, REST JSON, XML bulk); a new state on an existing type is a registry row and a mapping, not a release |
+| Templates and requirements | Five templates in `templates.ts` | A **template registry**: sections, guidance, limits and requirement rows as versioned data, with an editor. Applications pin the template version they started from |
+| Readiness items | Seven kinds in `eligibility.ts` | A **readiness registry** by jurisdiction and applicant type (federal, each state, foundations) |
+| Eligibility mappings | Grants.gov codes, plus the California mapping in code | Mapping tables per source, shown on the source's admin page |
+| Interface text | English strings in components | A message catalog (English, then Spanish), so no user-facing text is hardcoded |
+| Limits and thresholds | Constants (14-day reminders, 40% broad-topic share, cache size) | Settings with defaults, per organization where it makes sense |
+| Feature rollout | Branches | Feature flags per organization, so pilots get features first |
 
-### 4.2 State and local (Phase 4)
+Two further rules:
+- **Heavy work leaves the web process.** Syncs, IRS 990 parsing and report generation run in a background worker with a database-backed job queue (retries, idempotency, visibility). The web instance stays inside its 512 MB.
+- **Every number has a source.** Any figure shown to a user links to its record (an official listing, a filing, an award, or a fact the organization confirmed).
 
-- Starts with one state the owner chooses. North Carolina is suggested because the agency's work is in the Carolinas.
-- Grows one state at a time.
-- Each state portal is a registered source with its own connector or monitored page.
-- Change monitoring follows Veteran-Hub's ingestion design: checksum and last-meaningful-change, with no unauthorized scraping.
-- Each program record needs a human verification before it is published.
+## 5. Quality bar: what "platform-grade" means here
 
-### 4.3 Curated and private (continuing)
+The bar the owner set ("prepared like Microsoft and Apple system software") is defined as checks that can pass or fail:
 
-- **The curated directory stays.** Its 21 records move into the registry as the curated tier and keep the `checkedOn` dates and maintenance rules in `GRANT_RESOURCES.md`.
-- **Business-focused curated records** are added the same way: corporate small-business grant programs and state economic development grants, each sourced and dated.
-- **Private foundation databases** such as Candid are licensed products. **DEFER** until a licence is accepted (§11). Public IRS Form 990-PF data, which identifies foundation funders, is a free candidate for Phase 5.
-
-### 4.4 Cadence and cost
-
-- Grants.gov is ingested daily and fetched on demand when a match is opened.
-- Curated records are reviewed monthly.
-- State sources have their own cadence.
-- The scheduler is the existing single-instance, in-process scheduler (operating constraint). There are no new paid services.
-
-## 5. Matching and alerts: what fits
-
-1. **Hard filters**, applied first, with each exclusion explained:
-   - applicant type against the opportunity's eligibility codes;
-   - geography;
-   - status (posted or forecast);
-   - a deadline that has not passed;
-   - any cost share the applicant marked as not possible.
-2. **Fit score** (0–100), with every factor shown:
-   - mission and NAICS match against the synopsis and category;
-   - award range against the applicant's budget;
-   - past awards in the same assistance listing;
-   - time left before the deadline;
-   - readiness gaps.
-3. **The applicant sees:**
-   - an "Available for you" list, newest and most urgent first;
-   - the reasons for each match and the readiness gaps;
-   - the official link;
-   - one action: **Start application**.
-4. **Alerts.** In-app alerts come first. A weekly email digest follows only after the owner approves outbound email (charter: external communications need approval) and the applicant opts in.
-5. **Human confirmation.** Before an application starts, the applicant confirms the eligibility reasons. That confirmation is recorded (charter: grant eligibility conclusions need human approval).
-
-## 6. Writing studio: the core
-
-Each application is a project with a fixed workflow. Every step uses existing Content Machine components.
-
-1. **Read the funding notice.** The platform fetches or uploads the notice (NOFO, RFA or solicitation) and its attachments into Sources. AI extracts a **compliance matrix**: every requirement, required section, page or character limit, formatting rule, attachment, eligibility condition, cost-share rule, deadline and review criterion with its points. Each row cites the page it came from. A person confirms the matrix before writing starts.
-2. **Plan the application.** A grant blueprint creates the outline from the matrix. Standard section blueprints:
-   - abstract or summary, within its limit;
-   - statement of need;
-   - project description;
-   - goals and SMART objectives;
-   - logic model;
-   - work plan and timeline;
-   - evaluation plan;
-   - organizational capacity and key personnel;
-   - sustainability;
-   - budget justification;
-   - letters of support and commitment;
-   - for SBIR/STTR: the technical volume and commercialization plan.
-3. **Ground every claim.** Drafts use the applicant's boilerplate library (Brand Brain) and cited evidence (research, sources and claims). Examples are community data for the need statement and outcomes from past awards. An unsupported statistic is flagged by the existing citation and claim checks, never invented.
-4. **Draft and edit.** AI drafts each section in the rich editor against its matrix rows and limits. The writer edits, and every revision is kept. Live counters show page, word and character limits, and each section shows which matrix rows it covers.
-5. **Budget builder.** Line items use the standard federal cost categories from the SF-424A budget form: personnel, fringe, travel, equipment, supplies, contractual, construction, other and indirect. It handles cost share and match. The budget justification is generated from the line items, and its totals are checked against the narrative and the award ceiling.
-6. **Review like a reviewer.** The quality engine scores each section against the funder's own review criteria and points, and lists gaps and fixes. The process ends with a compliance check that every matrix row is covered, every limit is met and every attachment is present.
-7. **Approvals.** The writer drafts, the reviewer approves sections, and the AOR approves the final package (charter: proposal submission packages need human approval). Approvals are recorded and audited.
-8. **Package.** Exports each section as DOCX or PDF within its limits, the budget workbook, the attachment checklist and a forms checklist from the Grants.gov package (SF-424 family and agency forms). The applicant submits the package through Grants.gov Workspace or the funder's portal.
-9. **Reuse.** Approved sections go back into the boilerplate library, tagged by topic, so the next application starts further along.
-
-## 7. Accounts, tenancy and data
-
-- **The gap.** The product has one shared operator account (operating constraint). Applicants signing in as their own organization needs organization accounts, users, roles (owner, writer, reviewer, AOR) and per-organization isolation for every applicant record, document and upload. This is a **security-boundary change**. It needs owner approval (charter, Human approvals) and its own PR, with cross-tenant rejection tests, before any outside organization signs in.
-- **Until then**, the agency operator runs the workflow on behalf of pilot applicants (agency-managed mode). The data model is still keyed by organization from day one.
-- **Data class.** EINs, financial statements, budgets and application content are "financial or grant-application data" (charter). They are encrypted at rest through the existing storage, kept out of logs, follow per-organization retention and deletion (`DATA_LIFECYCLE_AND_OFFBOARDING.md`), and are never used across organizations or to train models.
-
-## 8. Assisted submission (owner decision: "assisted")
-
-Planned as Phase 6 and **gated**. Nothing is submitted automatically.
-
-- **Route.** Grants.gov system-to-system (S2S) submission on behalf of an applicant. It needs:
-  - the applicant's active SAM.gov registration and UEI;
-  - an applicant AOR who approves each submission in the platform;
-  - Grants.gov S2S certificate registration;
-  - conformance testing in the Grants.gov training environment.
-- **Pre-conditions:**
-  - organization accounts (§7);
-  - a legal review of acting as the applicant's submitting system;
-  - written applicant authorization;
-  - the owner's approval to change the charter boundary "must not autonomously submit a grant application". The boundary is amended to allow submission only after an AOR approval for each application, never without it.
-- **Until those are met**, the package-export path (§6.8) is the delivered "apply" experience.
-
-## 9. Architecture
-
-- **Server (`artifacts/api-server`):**
-  - new modules `grants/registry` (ported Veteran-Hub domain), `grants/connectors/grantsgov`, `grants/matching`, `grants/applications` and `grants/budget`;
-  - typed routes under `/api/grants/*` with the existing auth, rate limits, validation and idempotency;
-  - the scheduler job `grants-ingest`.
-- **Database (`lib/db`)**, with migrations and the existing destructive-test guards. New tables:
-  - `applicant_orgs`, `applicant_readiness_items`;
-  - `opportunity_sources`, `opportunities`, `opportunity_evidence`, `opportunity_claims`;
-  - `matches`;
-  - `applications`, `application_requirements` (the compliance matrix), `application_approvals`;
-  - `budgets`, `budget_lines`;
-  - `deadlines`.
-  - Application sections reuse `documents` and `document_sections`.
-- **UI (`artifacts/content-os`):**
-  - `/grants` becomes **Discover** (live, matched and curated tabs);
-  - new **Applicant profile**, **Application workspace** (matrix, sections, budget, review, package) and **Deadlines** screens;
-  - all screens use the existing design system and accessibility gate.
-- **API contract.** OpenAPI in `lib/api-spec`, with clients and schemas generated by `orval`, as today.
-
-## 10. Phased roadmap
-
-Each phase is one focused PR with tests and evidence, and a definition of done that uses the `AGENTS.md` verification matrix. Production promotion follows the existing gates.
-
-| Phase | Delivers | Done when |
+| Area | Requirement | Check |
 |---|---|---|
-| **0. Decide** | This plan accepted; §11 decisions recorded; charter and GO/NO-GO amended | Owner approval recorded in `GO_NO_GO_DECISION.md` |
-| **1. Registry foundation** | Veteran-Hub domain ported, with provenance, freshness, publication gate and import tests passing here. The 21 curated records migrate into the registry with no visible change to `/grants` | Unit tests ported and passing; `/grants` browser tests unchanged and passing |
-| **2. Live federal discovery** | Grants.gov connector, daily ingest, on-demand detail, and evidence per record. SBIR/STTR and SAM.gov endpoints confirmed or recorded as blocked | Synthetic-fixture contract tests; one recorded live sample; publication gate blocks incomplete records; no paid service |
-| **3. Profiles and matching** | Applicant profile, readiness items and score, hard filters, explained fit score, "Available for you", and human eligibility confirmation, for nonprofits and businesses | Matching tests for codes 12, 13, 22 and 23; explanation for every exclusion; accessibility passes |
-| **4. Writing studio** | Matrix extraction and confirmation, grant blueprints, grounded drafting, limits, budget builder, reviewer scoring, approvals, package export | One complete synthetic federal application, with every matrix row covered and every limit met, exported and reopened |
-| **5. Pilots and state** | HRI Foundation (nonprofit) and one pilot business run end to end in agency-managed mode; first state source; deadline calendar and in-app alerts | Pilot evidence recorded with consent; no cross-organization data; owner acceptance |
-| **6. Accounts and assisted submission** (gated) | Organization accounts and roles; then Grants.gov S2S after the §8 pre-conditions | Cross-tenant rejection tests; legal review on file; S2S conformance in the Grants.gov training environment; AOR approval for each submission |
+| Accounts and security | Organization accounts; invites; roles (owner, writer, reviewer, authorized representative, finance); passwords hashed with the existing scheme; optional TOTP two-factor; session list and sign-out everywhere; audit log of approvals, outcomes, exports and permission changes | Cross-tenant tests generated for **every** route; an audit entry for each listed action |
+| Reliability | Background worker and job queue; retries with backoff; no work lost on restart; daily backups (existing runbook) | Kill-and-restart test of the worker mid-sync; restore drill recorded |
+| Performance | p95 under 300 ms for common API reads; Grant Studio pages interactive in under 2 s on a mid-range phone; memory under 70% of the plan at peak | Timings in CI against the seeded dataset; the capacity measurement repeated each release |
+| Accessibility | WCAG 2.1 AA; full keyboard use; screen reader labels; no horizontal scroll at 390 px | The existing axe gate on every screen, plus a manual screen reader pass per release |
+| Interface quality | Every screen has loading, empty, error and success states; destructive actions confirm or undo; autosave with version history for sections; consistent design tokens | A screen checklist in the PR template; browser journeys for each flow |
+| Help | An onboarding checklist; contextual help on each step; a help center; plain-language copy with a readability check | Readability grade under 9 for help text |
+| Privacy | Organization data export and deletion; no cross-organization model training; terms, privacy policy and data processing terms reviewed by counsel | Export and deletion tested; documents signed off by counsel |
+| Operations | Error tracking, an uptime monitor and a status page | Alerts tested monthly |
 
-## 11. Owner decisions
+## 6. Writing studio 2.0 (what moves the win rate)
+
+1. **Read the notice itself.** Upload or fetch the notice PDF. Text is extracted with [pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0), with OCR deferred. The requirement checklist is extracted with page citations, and a person confirms it.
+2. **Claim-level grounding.** Every sentence that states a number, a name, a result or a partner links to a confirmed fact or a cited source. An **unsupported-claim detector** flags the rest before approval.
+3. **Reviewer simulation.** Each section is scored against the notice's own criteria and points, with specific fixes.
+4. **Plain-language and readability checks** with [retext](https://github.com/retextjs/retext) plugins (MIT), so they work even without an AI key.
+5. **Collaboration.** Assign sections, comment, compare versions, and lock approved text.
+6. **Letters of support tracker.** Who was asked, the request template, status and due date, linked to its requirement row.
+7. **Package.** DOCX and PDF (reusing the existing exporter), the Grants.gov forms checklist from the opportunity package, and a pre-submission check.
+8. **Evaluation harness.** A fixed set of synthetic notices and organizations, scored on requirement coverage, limit compliance and unsupported claims for each AI provider, with the results published in the evidence folder. This answers G3 with numbers rather than claims.
+
+## 7. Awards workspace (post-award)
+
+When an outcome is **Awarded**, the application becomes an award:
+
+- **Award record:** award number, period, amount, terms, program officer and the documents from the award letter.
+- **Budget against actual spending:** a CSV import from any accounting system first, then QuickBooks and Xero connections (each needs a developer account, §12). Spending is shown per budget line and category, with alerts when a line drifts.
+- **Reporting calendar** from the award terms: interim and final narrative reports, financial reports, and federal SF-425 data preparation.
+- **Report builder:** narrative reports drafted from the application's objectives and the organization's confirmed outcome facts, with the same grounding rules.
+- **Time and effort records** for staff charged to federal awards (2 CFR 200.430), and subrecipient tracking where it applies.
+- **Closeout checklist** and a lessons-learned note that feeds the next application.
+
+## 8. Discovery 2.0
+
+- **Foundation intelligence from IRS 990-PF filings.** A worker job reads the e-file XML index and batches, and builds funder profiles:
+  - total giving, and giving by state and by purpose;
+  - grant size distribution and recent grantees;
+  - the filing's application instructions and deadlines (990-PF Part XV).
+  Matching suggests foundations that have funded organizations like this one. These are always labelled **funding history from tax filings, not an open call**, with a link to the filing.
+- **Past federal awards (USAspending).** For each federal opportunity's assistance listing: the number of awards, the median and range of award sizes, and the in-state winners in recent years. This informs the budget and the go/no-go decision.
+- **Profile prefill (ProPublica).** Look up the organization by EIN or name. Its legal name, address, NTEE code and revenue prefill the profile, and the person confirms them.
+- **More states through the source registry,** as each state publishes structured data. Pages are monitored for change only where their terms allow.
+- **SAM.gov assistance listings,** once a key is provided.
+- **Saved searches** and a weekly digest (in the app, then email once a provider is approved).
+
+## 9. Commercial readiness
+
+- **Billing:** plans and limits, a trial, invoices and receipts, through a payment processor (owner decision; for example Stripe).
+- **Onboarding:** a wizard (EIN lookup, then readiness, then first matches) that reaches the first match in under five minutes.
+- **Legal:** terms of service, privacy policy, data processing terms, and a statement that matches are guidance, not eligibility decisions. All are reviewed by counsel before launch.
+- **Support:** a help center, an in-app contact, a status page and a defined response time.
+- **Go-to-market:**
+  1. Start as an **agency-run service**, which works today with one operator account.
+  2. Run the pilots (HRI Foundation plus one business).
+  3. Open self-serve after R1 and R5.
+
+## 10. Releases
+
+Each release is a set of focused PRs. A release is done only when its acceptance checks pass on production.
+
+| Release | Delivers | Accepted when |
+|---|---|---|
+| **R0. Ship what is built** | Merge #29–#39 in order and deploy; production smoke test; branch protection on `main`; an AI key | `/api/healthz` shows the merged commit; the smoke test passes; a real Grants.gov and California sync runs on production; the AI drafting path works |
+| **R1. Platform foundation** | Organization accounts, invites, roles, two-factor, audit log; generated cross-tenant tests; background worker and job queue; source, template and readiness registries with admin screens; message catalog | A second organization signs in and can see none of the first's data on any route; a new California-style source is added as a registry row with no code change; the worker survives a restart mid-sync |
+| **R2. Discovery 2.0** | 990-PF foundation intelligence; USAspending past awards; ProPublica prefill; saved searches; SAM.gov (with a key) | Foundation suggestions for a pilot organization, each linked to its filing; past-award panels on federal opportunities; a profile prefilled from an EIN |
+| **R3. Writing 2.0** | Notice PDF ingestion with page citations; claim-level grounding and the unsupported-claim detector; reviewer simulation; readability; collaboration; letters tracker; PDF package; evaluation harness | One synthetic federal application and one state application go from uploaded notice to approved package with 100% requirement coverage, 0 limit violations and 0 unsupported claims; harness results published |
+| **R4. Awards workspace** | Award record; budget against actual spending (CSV, then accounting connections); reporting calendar; report builder; time and effort; closeout | A synthetic award moves from award letter to final report, with spending imported and reminders delivered |
+| **R5. Commercial readiness** | Billing, onboarding wizard, legal pages (counsel), help center, email delivery, status page | A new organization signs up, pays, onboards and reaches a first match without help; counsel sign-off recorded |
+| **R6. Assisted submission (gated)** | Grants.gov system-to-system submission after the §12 D6 pre-conditions | Conformance in the Grants.gov training environment; legal review on file; an authorized representative approves each submission |
+
+## 11. Success measures (reviewed for each pilot)
+
+- Hours from "match found" to "package approved", compared with the organization's previous process.
+- Requirement coverage at approval: 100%. Limit violations: 0. Unsupported claims at approval: 0.
+- Matching precision: the share of matches the organization confirms as eligible.
+- Applications submitted, the win rate and dollars awarded, from the outcome records.
+- For awards: reports delivered on time, and spending variance caught before a report is due.
+- Platform: p95 latency, error rate, peak memory, and accessibility gate results each release.
+
+## 12. Owner decisions
 
 | # | Decision | Recommendation | Label |
 |---|---|---|---|
-| D1 | Bring grant discovery, matching, writing and package export into scope for nonprofits **and businesses**, amending the charter and the `AGENTS.md` gating sentence | Approve | ADOPT |
-| D2 | Port Veteran-Hub's domain layer, with its tests, as the registry foundation | Approve | ADOPT |
-| D3 | HRI Foundation as the first pilot nonprofit; name one pilot business | Approve, after the 501(c)(3) wording is reconciled | PILOT |
-| D4 | First state for Phase 5 | North Carolina | PILOT |
-| D5 | Organization accounts and roles (a security-boundary change) | Approve as Phase 6; agency-managed mode until then | DEFER (to Phase 6) |
-| D6 | Assisted Grants.gov S2S submission | Approve the pre-conditions in §8, including the legal review | DEFER (gated) |
-| D7 | Outbound email digests | Approve after Phase 3, opt-in only | DEFER |
-| D8 | Paid foundation database licence (for example Candid) | Not now | DEFER |
+| D1 | Approve Grant Studio's scope for nonprofits and businesses, and amend `AGENTS.md` and the charter | Approve | ADOPT |
+| D2 | Port Veteran-Hub's domain layer | Grant Studio built its own gate and provenance; revisit only if the registry needs it | DEFER |
+| D3 | Pilots: HRI Foundation, plus one named business | Approve, after the 501(c)(3) wording is reconciled | PILOT |
+| D4 | Next state source | California is built; add states as they publish structured data | ADOPT |
+| D5 | Organization accounts and roles (a security boundary change) | Approve as R1 | ADOPT |
+| D6 | Assisted Grants.gov system-to-system submission | Approve the pre-conditions: legal review, applicant authorization, per-submission approval by the authorized representative, conformance testing | DEFER (gated) |
+| D7 | An email delivery provider for alerts and digests | Approve a transactional email service in R2 or R5 | ADOPT (cost) |
+| D8 | A paid foundation database licence | Not needed: IRS 990-PF data covers the core need | REJECT |
+| D9 | A background worker instance (Render) for syncs and 990 processing | Approve for R1; measure first to confirm the size | ADOPT (cost) |
+| D10 | Pricing and a payment processor | Decide plans before R5; recommended for small organizations: a free tier with paid plans well below the market leader's full lifecycle | DEFER to R5 |
+| D11 | SAM.gov API key (free), and accounting connection developer accounts | Register them | ADOPT |
+| D12 | Counsel review of terms, privacy policy and data processing terms | Required before self-serve | ADOPT |
 
-Each decision's evidence and risk are in the sections above. The owner reviews all of them on the review date at the top of this plan.
+## 13. Risks and controls
 
-## 12. Risks and controls
+- **Wrong eligibility or deadlines.** Prevented by official links, the publication gate, freshness marks and human confirmation before applying. Grant Studio never guarantees eligibility.
+- **AI fabrication.** Prevented by confirmed-fact grounding, claim-level citations, the unsupported-claim detector, labelled demo output and per-section approval. Measured by the evaluation harness.
+- **Cross-organization exposure.** Prevented by organization-scoped data from day one, cross-tenant tests generated for every route, the audit log, and no shared model training.
+- **Foundation data misread as open calls.** Prevented by labelling, linking each profile to its filing, and keeping foundation data out of "open opportunity" counts.
+- **Source terms.** Only official APIs and permitted pages are used. Each source's terms are recorded in its registry row.
+- **Capacity and cost.** Heavy jobs run in the worker; each release repeats the capacity measurement; every new paid service needs owner approval.
+- **Scope creep.** One release at a time, each with acceptance checks on production. Nothing is marked complete without traceable evidence (`PROJECT_COMPLETION_STANDARD.md`).
 
-- **Wrong eligibility or deadlines.** Prevented by the primary-source links, the publication gate, freshness marks and human confirmation before applying. The platform never guarantees eligibility.
-- **AI fabrication in narratives.** Prevented by the citation and claim checks, the rule that no statistic appears without a source, labelled demo output, and reviewer approval of each section.
-- **Data exposure across organizations.** Handled by the organization key from day one, cross-tenant tests in Phase 6, and no shared-model training.
-- **Source terms.** Only official APIs and permitted pages are used. Each connector's terms are recorded in its source record. There is no scraping where terms forbid it.
-- **Cost.** Federal APIs are free, and there is no new paid service without approval. AI cost is metered by the existing generation runs, and each phase reports its AI spend.
-- **Scope creep.** One phase per PR. Each phase has its own definition of done and evidence, and nothing is marked complete without traceable evidence (`PROJECT_COMPLETION_STANDARD.md`).
+## 14. Repository audit (3 November 2026, unchanged)
 
-## 13. Success measures (reviewed per pilot)
-
-- Hours from "match found" to "package exported", against the applicant's previous process.
-- Matrix coverage at export: target 100%.
-- Limit violations at export: target 0.
-- Unsupported-claim flags left open at export: target 0.
-- Applications submitted and awards won, reported by the applicant.
-- Share of matches the applicant confirmed as eligible: a measure of matching precision.
+All 54 of the owner's repositories were searched. Only `Veteran-Hub` (provenance and publication-gate design) and `Haiti` (HRI Foundation, the first pilot nonprofit) were relevant; the others are unrelated (investment, housing, sourcing or stubs). Grant Studio applied Veteran-Hub's principle ("no evidence, no publication") without porting its code (D2).
