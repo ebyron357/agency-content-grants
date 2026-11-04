@@ -1,5 +1,6 @@
 import type { GrantApplicant, GrantOpportunity } from "@workspace/db";
 import type { ApplicantType } from "./eligibility";
+import type { PlaceDesignations } from "./places";
 import { matchOpportunity, type MatchReadiness, type MatchResult } from "./matching";
 
 /**
@@ -21,6 +22,7 @@ export function matchInput(applicant: GrantApplicant) {
     state: applicant.state,
     annualBudget: applicant.annualBudget,
     maxCostSharePercent: applicant.maxCostSharePercent,
+    placeDesignations: applicant.placeDesignations as PlaceDesignations | null,
   };
 }
 

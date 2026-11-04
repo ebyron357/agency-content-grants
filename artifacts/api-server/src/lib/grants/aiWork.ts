@@ -15,6 +15,7 @@ import {
 } from "@workspace/db";
 import { APPLICANT_TYPES, type ApplicantType } from "./eligibility";
 import { factLine, factsForSection } from "./facts";
+import { placeStatements, type PlaceDesignations } from "./places";
 import { htmlToText } from "./text";
 import { draftSection, extractRequirements, reviewSection, type DraftContext } from "./ai";
 import { PermanentJobError } from "../jobs/types";
@@ -60,6 +61,8 @@ export async function draftContext(sectionId: string, app: GrantApplication, app
     applicant.ein ? `EIN on file: ${applicant.ein}` : null,
     app.requestedAmount ? `Amount requested: $${app.requestedAmount.toLocaleString("en-US")}` : null,
     ...factsForSection(library, section.key).map(factLine),
+    // Place designations a person checked on the agency's own tool count as confirmed facts.
+    ...placeStatements(applicant.placeDesignations as PlaceDesignations),
   ].filter((f): f is string => Boolean(f));
   return {
     applicant: {

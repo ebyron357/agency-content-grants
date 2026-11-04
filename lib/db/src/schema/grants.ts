@@ -28,6 +28,18 @@ export const grantApplicantsTable = pgTable("grant_applicants", {
   annualBudget: integer("annual_budget"),
   /** The largest cost share or match the organization can commit, as a percentage (0 = none). */
   maxCostSharePercent: integer("max_cost_share_percent").notNull().default(0),
+  /** Principal office (or main project site) street address, used when checking place designations. */
+  principalAddress: text("principal_address"),
+  /** Census tract GEOID (11 digits) of that address, from the Census Geocoder. */
+  censusTract: text("census_tract"),
+  /** County FIPS code (5 digits). */
+  countyFips: text("county_fips"),
+  /**
+   * Place designations a person checked on each agency's own tool: Opportunity
+   * Zone, HUBZone, HUD QCT and DDA, persistent poverty, USDA rural. Keyed by
+   * PLACE_DESIGNATIONS in the API's grants/places module.
+   */
+  placeDesignations: jsonb("place_designations").$type<Record<string, unknown>>().notNull().default({}),
   /** When the user last marked this organization's matches as seen; later opportunities count as new. */
   matchesSeenAt: timestamp("matches_seen_at", { withTimezone: true }),
   /** When the last new-matches webhook event was emitted for this organization. */
@@ -147,6 +159,10 @@ export const grantApplicationsTable = pgTable("grant_applications", {
   awardedAmount: doublePrecision("awarded_amount"),
   outcomeNote: text("outcome_note"),
   outcomeRecordedBy: text("outcome_recorded_by"),
+  /** Font, size, spacing, margins, narrative page limit and package file name from the notice (writing toolkit). */
+  formatProfile: jsonb("format_profile").$type<Record<string, unknown>>().notNull().default({}),
+  /** The logic model: inputs, activities, outputs, outcomes and assumptions, each a list. */
+  logicModel: jsonb("logic_model").$type<Record<string, string[]>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [uniqueIndex("uq_grant_application").on(table.applicantId, table.opportunityId)]);
@@ -314,3 +330,27 @@ export const grantTemplatesTable = pgTable("grant_templates", {
 }, (table) => [index("idx_grant_templates_user").on(table.userId)]);
 
 export type GrantTemplate = typeof grantTemplatesTable.$inferSelect;
+
+/** A letter of support or commitment the application needs from a partner. */
+export const grantSupportLettersTable = pgTable("grant_support_letters", {
+  id: text("id").primaryKey(),
+  applicationId: text("application_id").notNull().references(() => grantApplicationsTable.id, { onDelete: "cascade" }),
+  /** The person asked. */
+  name: text("name").notNull(),
+  organization: text("organization"),
+  /** What they commit to or speak to, for example "Hosts the after-school sessions". */
+  purpose: text("purpose"),
+  email: text("email"),
+  /** to_request | requested | received | declined */
+  status: text("status").notNull().default("to_request"),
+  requestedOn: text("requested_on"),
+  dueOn: text("due_on"),
+  receivedOn: text("received_on"),
+  /** The compliance-matrix row the letter answers, when there is one. */
+  requirementId: text("requirement_id"),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [index("idx_grant_letters_app").on(table.applicationId)]);
+
+export type GrantSupportLetter = typeof grantSupportLettersTable.$inferSelect;

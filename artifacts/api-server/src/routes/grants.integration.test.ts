@@ -236,6 +236,12 @@ describe("Grant Studio end to end", () => {
     // The budget justification is generated from the lines and must be re-approved.
     const justification = await api("POST", `/grants/applications/${appId}/budget-justification`);
     expect(justification.data.content).toMatch(/Program director/);
+    // It leaves the indirect-rate basis for the applicant to state; an unfilled placeholder blocks the package.
+    expect(justification.data.content).toMatch(/\[Add: the basis for the rate/);
+    ws = (await api("GET", `/grants/applications/${appId}`)).data;
+    expect(ws.compliance.checks.find((c: any) => c.id === "no_placeholders")).toMatchObject({ ok: false, detail: expect.stringContaining("Budget justification") });
+    const filled = justification.data.content.replace(/\[Add: the basis for the rate[^\]]*\]/, "The rate is the 10% de minimis rate the notice allows.");
+    await api("PATCH", `/grants/sections/${justification.data.id}`, { content: filled });
     expect((await api("POST", `/grants/sections/${justification.data.id}/approve`)).status).toBe(200);
 
     // Every matrix row covered.

@@ -1,6 +1,6 @@
 # GO / NO-GO Decision
 
-**Current decision record. Updated: 4 November 2026, 19:05 UTC. Production evidence is still dated 26 October.** It replaces the earlier 4 November decision, which described `main` as `3221c7b`; that version is archived verbatim at [`history/GO_NO_GO_DECISION_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md`](history/GO_NO_GO_DECISION_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+**Current decision record. Updated: 4 November 2026, 19:50 UTC. Production evidence is still dated 26 October.** It replaces the earlier 4 November decision, which described `main` as `3221c7b`; that version is archived verbatim at [`history/GO_NO_GO_DECISION_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md`](history/GO_NO_GO_DECISION_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
 ## Decision
 
@@ -8,6 +8,7 @@
 |---|---|
 | Content Machine release scope (Issue #8 closeout) | **GO — VERIFIED COMPLETE** (unchanged since 2 October). Issue #8 is closed. |
 | Release candidate `main` `997b7356b29f9d0a47028d82569c62d8d854c5ef` | **Technically ready to deploy.** Contents: the grant directory, Grant Studio, accounts and security, background jobs, templates and the `qs` fix (PRs #26–#45). All CI-equivalent gates pass on this exact commit. The upgrade from the production version and a rollback to it were rehearsed, and the smoke test passed 75/75 on both. Evidence: [`evidence/release/2026-11-04/`](evidence/release/2026-11-04/README.md). |
+| Place designations and writing toolkit (branch `claude/stoic-hawking-8vvewa`) | **Implemented and validated locally; not merged.** It needs a reviewed PR with `CI` green. If it merges before the deploy, deploy that merge commit instead of `997b735`. Evidence: [`evidence/toolkit/2026-11-04/`](evidence/toolkit/2026-11-04/README.md) |
 | Scope and security-model acceptance | **PENDING — owner.** Grant Studio (#29 onward) and the workspace, role and two-factor security model (#40–#42) were merged by `ebyron357`. No written owner approval is recorded, and none of the 16 PRs had a review. |
 | Production environment | **LIVE on `6d9f488`** (PR #23 merge). Checked anonymously on 26 October: health, readiness, SHA parity, anonymous rejection and security headers. Not re-checked since. |
 | Dependency audit (4 November, `997b735`) | **PASS at the CI gate.** 0 critical, 0 high, 1 moderate (`minimatch`, dev only). |

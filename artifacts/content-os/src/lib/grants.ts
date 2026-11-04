@@ -26,6 +26,33 @@ export interface Readiness {
   blockingOpen: number;
 }
 
+export type PlaceStatus = 'unknown' | 'in' | 'not_in';
+
+export interface PlaceRecord {
+  status: PlaceStatus;
+  place: string | null;
+  geoRef: string | null;
+  checkedOn: string | null;
+  validThrough: string | null;
+  note: string | null;
+  recordedBy: string | null;
+  recordedAt: string | null;
+}
+
+/** One place designation (Opportunity Zone, HUBZone and so on), with the official tool and what a person recorded. */
+export interface PlaceDesignation {
+  key: string;
+  label: string;
+  geography: string;
+  authority: string;
+  lookupUrl: string;
+  sources: { label: string; url: string }[];
+  guidance: string;
+  record: PlaceRecord | null;
+  effectiveStatus: PlaceStatus;
+  needsRecheck: boolean;
+}
+
 export interface Applicant {
   id: string;
   name: string;
@@ -40,6 +67,10 @@ export interface Applicant {
   naicsCodes: string[];
   annualBudget: number | null;
   maxCostSharePercent: number;
+  principalAddress?: string | null;
+  censusTract?: string | null;
+  countyFips?: string | null;
+  places?: PlaceDesignation[];
   readiness: Readiness;
   applicationCount?: number;
   /** New on-topic matches since last marked seen, and on-topic matches closing within 14 days. */
@@ -89,6 +120,8 @@ export interface Match {
   missionTerms: string[];
   relevant: boolean;
   daysLeft: number | null;
+  /** Place designations the notice mentions. */
+  placeKinds?: string[];
 }
 
 export interface ApplicationSummary {
@@ -140,6 +173,61 @@ export interface Section {
   approvedBy: string | null;
   approvedAt: string | null;
   limitCheck: LimitCheck;
+  writingChecks?: WritingChecks;
+}
+
+export interface ObjectiveCheck {
+  text: string;
+  measurable: boolean;
+  timeBound: boolean;
+  baseline: boolean;
+  notes: string[];
+}
+
+export interface WritingChecks {
+  readability: { words: number; sentences: number; grade: number | null; readingEase: number | null; longSentences: string[] };
+  placeholders: string[];
+  objectives: ObjectiveCheck[] | null;
+  notes: string[];
+}
+
+export interface FormatProfile {
+  font: string;
+  sizePt: number;
+  lineSpacing: number;
+  marginsIn: number;
+  pageLimit: number | null;
+  fileName: string | null;
+}
+
+export interface FormatState {
+  set: boolean;
+  profile: FormatProfile;
+  defaults: FormatProfile;
+  fonts: string[];
+  wordsPerPage: number;
+  estimatedPages: number;
+  pageLimit: number | null;
+  over: boolean;
+  fileName: string | null;
+  fileNameIssues: { message: string; blocking: boolean }[];
+}
+
+export type LogicModel = Partial<Record<'inputs' | 'activities' | 'outputs' | 'shortTerm' | 'intermediate' | 'longTerm' | 'assumptions', string[]>>;
+
+export interface SupportLetter {
+  id: string;
+  name: string;
+  organization: string | null;
+  purpose: string | null;
+  email: string | null;
+  status: 'to_request' | 'requested' | 'received' | 'declined';
+  statusLabel: string;
+  requestedOn: string | null;
+  dueOn: string | null;
+  receivedOn: string | null;
+  requirementId: string | null;
+  note: string | null;
 }
 
 export interface BudgetLine {
@@ -272,6 +360,10 @@ export interface Workspace {
   budget: BudgetSummary;
   approvals: { id: string; scope: string; role: string; approvedBy: string; note: string | null; createdAt: string }[];
   compliance: { checks: ComplianceCheck[]; readyForApproval: boolean; readyToExport: boolean };
+  format?: FormatState;
+  logicModel?: { model: LogicModel; gaps: string[]; columns: { key: keyof LogicModel; label: string; hint: string }[] };
+  letters?: SupportLetter[];
+  letterStatuses?: { key: SupportLetter['status']; label: string }[];
   /** The organization's fact library: confirmed facts and which categories each section draws on. */
   library: { total: number; confirmed: Fact[]; sectionCategories: Record<string, string[]> };
   aiDemo: boolean;
@@ -399,6 +491,12 @@ export const grantsApi = {
   budgetJustification: (id: string) => apiPost(`/grants/applications/${id}/budget-justification`) as Promise<Section>,
   approvePackage: (id: string, note: string) => apiPost(`/grants/applications/${id}/approve-package`, { confirmAuthorized: true, note: note || undefined }) as Promise<Workspace>,
   sync: () => apiPost('/grants/sync') as Promise<{ status: string; jobId: string }>,
+  setPlace: (applicantId: string, kind: string, body: { status: PlaceStatus; place?: string | null; geoRef?: string | null; checkedOn?: string | null; validThrough?: string | null; note?: string | null }) =>
+    apiPut(`/grants/applicants/${applicantId}/places/${kind}`, body) as Promise<{ places: PlaceDesignation[] }>,
+  insertLogicModel: (sectionId: string, mode: 'replace' | 'append') => apiPost(`/grants/sections/${sectionId}/insert-logic-model`, { mode }) as Promise<Section>,
+  addLetter: (applicationId: string, body: Partial<SupportLetter>) => apiPost(`/grants/applications/${applicationId}/letters`, body) as Promise<SupportLetter>,
+  updateLetter: (id: string, body: Partial<SupportLetter>) => apiPatch(`/grants/letters/${id}`, body) as Promise<SupportLetter>,
+  deleteLetter: (id: string) => apiDelete(`/grants/letters/${id}`),
 };
 
 async function apiPut(path: string, body: unknown) {

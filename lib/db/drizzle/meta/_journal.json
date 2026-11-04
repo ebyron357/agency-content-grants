@@ -197,6 +197,20 @@
       "when": 1788864000000,
       "tag": "0026_grant_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1788950400000,
+      "tag": "0027_grant_place_designations",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789036800000,
+      "tag": "0028_grant_writing_toolkit",
+      "breakpoints": true
     }
   ]
 }

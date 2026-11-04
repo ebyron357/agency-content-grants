@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FactLibrary } from '@/components/grants/FactLibrary';
 import { SavedWriting } from '@/components/grants/SavedWriting';
+import { PlaceDesignations } from '@/components/grants/PlaceDesignations';
 import { DeadlineChip, Field, Notice, ReadinessRing, ReasonList, ScoreBadge, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { awardRange, deadlineLabel, errorMessage, grantsApi, useApplicant, useGrantMeta, useInvalidateGrants, useMatches, type Applicant, type ReadinessRow } from '@/lib/grants';
 
@@ -347,6 +348,7 @@ export default function GrantOrganization() {
         <TabsList className="mb-5 flex h-auto w-full flex-wrap justify-start gap-1 sm:w-auto">
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="readiness">Readiness</TabsTrigger>
+          <TabsTrigger value="places">Place designations</TabsTrigger>
           <TabsTrigger value="applications">Applications ({a.applications?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="library">Fact library</TabsTrigger>
           <TabsTrigger value="writing">Saved writing</TabsTrigger>
@@ -354,6 +356,7 @@ export default function GrantOrganization() {
         </TabsList>
         <TabsContent value="matches"><MatchesTab applicant={a} /></TabsContent>
         <TabsContent value="readiness"><ReadinessTab applicant={a} /></TabsContent>
+        <TabsContent value="places"><PlaceDesignations applicant={a} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab applicant={a} /></TabsContent>
         <TabsContent value="library"><FactLibrary applicantId={a.id} /></TabsContent>
         <TabsContent value="writing"><SavedWriting applicantId={a.id} /></TabsContent>

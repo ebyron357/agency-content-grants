@@ -23,11 +23,12 @@ export function countText(html: string): { words: number; characters: number } {
   };
 }
 
-export function checkLimit(html: string, limitType: string | null, limitValue: number | null): LimitCheck {
+/** `wordsPerPage` comes from the application's format profile (writing toolkit); 500 is Times New Roman 12 pt, single spaced. */
+export function checkLimit(html: string, limitType: string | null, limitValue: number | null, wordsPerPage: number = WORDS_PER_PAGE): LimitCheck {
   const { words, characters } = countText(html);
-  const pages = Math.ceil(words / WORDS_PER_PAGE);
+  const pages = Math.ceil(words / wordsPerPage);
   const unit = limitType && limitValue ? limitType : null;
-  const used = unit === "characters" ? characters : unit === "pages" ? Math.round((words / WORDS_PER_PAGE) * 10) / 10 : words;
+  const used = unit === "characters" ? characters : unit === "pages" ? Math.round((words / wordsPerPage) * 10) / 10 : words;
   return {
     words,
     characters,
