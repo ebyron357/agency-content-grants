@@ -14,7 +14,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
 import { and, eq, inArray } from "drizzle-orm";
-import { db, grantApplicantsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
+import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
 import { syncCalifornia, syncGrantsGov } from "../lib/grants/ingest";
@@ -561,6 +561,45 @@ describe("Grant Studio end to end", () => {
     expect((await api("DELETE", `/grants/snippets/${saved.data.id}`)).status).toBe(204);
     await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, org.id));
     await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [oppA, oppB]));
+  }, 30_000);
+
+  it("records submission and decision outcomes and summarizes the pipeline", async () => {
+    const api = client(await login(OWNER));
+    const oppId = randomUUID();
+    await db.insert(grantOpportunitiesTable).values(opportunity(oppId, { title: "Outcome test grant", eligibilityCodes: ["12"], closeDate: inDays(20) }));
+    const org = (await api("POST", "/grants/applicants", { name: "Outcome Test Readers", applicantType: "nonprofit_501c3" })).data;
+    const app = (await api("POST", "/grants/applications", { applicantId: org.id, opportunityId: oppId, eligibilityConfirmed: true })).data;
+    await api("POST", `/grants/applications/${app.id}/budget-lines`, { category: "personnel", description: "Coordinator", quantity: 1, unitCost: 40000, justification: "Runs the program." });
+
+    expect((await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "submitted" })).status).toBe(409);
+    expect((await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "won" })).status).toBe(400);
+    const before = (await api("GET", `/grants/pipeline?applicantId=${org.id}`)).data;
+    expect(before).toMatchObject({ inProgress: 1, dueWithin30Days: 1, awaitingDecision: 0 });
+
+    // The final-package path itself is covered by the nonprofit test; here the package is marked exported directly.
+    await db.update(grantApplicationsTable).set({ status: "exported", exportedAt: new Date() }).where(eq(grantApplicationsTable.id, app.id));
+    const submitted = await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "submitted", date: "2026-11-04", trackingNumber: "GRANT12345678" });
+    expect(submitted.status).toBe(200);
+    expect(submitted.data.application).toMatchObject({ outcome: "submitted", submittedOn: "2026-11-04", trackingNumber: "GRANT12345678", submittedAmount: 40000 });
+    expect((await client(await login(OTHER))("POST", `/grants/applications/${app.id}/outcome`, { outcome: "declined" })).status).toBe(404);
+    // A submitted application gets no more deadline reminders and leaves the deadline calendar.
+    expect((await api("GET", "/grants/calendar.ics")).data.toString("utf8")).not.toContain(app.id);
+    // Editing after submission keeps the record.
+    const sec = submitted.data.sections[0];
+    await api("PATCH", `/grants/sections/${sec.id}`, { content: "<p>Post-submission note.</p>" });
+    expect((await api("GET", `/grants/applications/${app.id}`)).data.application).toMatchObject({ status: "exported", outcome: "submitted" });
+
+    expect((await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "awarded" })).status).toBe(400);
+    const awarded = await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "awarded", awardedAmount: 35000, date: "2027-02-01", note: "Partial award" });
+    expect(awarded.data.application).toMatchObject({ outcome: "awarded", awardedAmount: 35000, outcomeDate: "2027-02-01", submittedOn: "2026-11-04" });
+    expect((await api("GET", `/grants/pipeline?applicantId=${org.id}`)).data).toMatchObject({ inProgress: 0, awarded: 1, awardedTotal: 35000, requestedSubmitted: 40000, winRate: 1 });
+
+    // Undo steps back: awarded → submitted → no outcome.
+    expect((await api("DELETE", `/grants/applications/${app.id}/outcome`)).data.application).toMatchObject({ outcome: "submitted", awardedAmount: null, outcomeDate: "2026-11-04" });
+    expect((await api("DELETE", `/grants/applications/${app.id}/outcome`)).data.application).toMatchObject({ outcome: null, submittedAmount: null });
+    expect((await api("DELETE", `/grants/applications/${app.id}/outcome`)).status).toBe(409);
+    await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, org.id));
+    await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, oppId));
   }, 30_000);
 
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {

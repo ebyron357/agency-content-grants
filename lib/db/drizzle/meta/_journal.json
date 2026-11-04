@@ -162,6 +162,13 @@
       "when": 1788432000000,
       "tag": "0021_grant_saved_writing",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788518400000,
+      "tag": "0022_grant_outcomes",
+      "breakpoints": true
     }
   ]
 }

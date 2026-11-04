@@ -107,3 +107,14 @@ Branch `feat/grant-studio-writing` (stacked on `feat/grant-studio-capacity`). Mi
 | Saved writing tab | The organization lists its saved text with source, word count, rename and delete | `22-saved-writing-tab.png` |
 
 axe found no serious or critical violations on any of the three pages. The integration test covers the rules: only approved, non-demo sections can be saved; another operator gets 404 everywhere; replace and append work; insertion into an approved section is refused; and saved text survives deletion of its source application.
+
+## Addendum, 4 November 2026: outcomes and pipeline
+
+Branch `feat/grant-studio-outcomes` (stacked on `feat/grant-studio-writing`). Migration `0022_grant_outcomes`.
+
+| Check | Result | Screenshot |
+|---|---|---|
+| Record submission and award | On a synthetic application, Record submission (tracking number "GRANT00000000 (synthetic)") and then Record award ($25,000) | `23-outcome.png` |
+| Pipeline on the Grant Studio page | "In progress 2 · Awarded $25,000 · Win rate 100%" | `24-pipeline.png` |
+
+The application's status was set to exported in the demo database to stand in for the final download, which the nonprofit integration test covers. axe found no serious or critical violations. **Found and fixed:** the first build of the pipeline strip called a hook after the page's loading return, which crashed the page when it re-rendered (React error #310). The hook now runs before any return, and the Grant Studio page renders.

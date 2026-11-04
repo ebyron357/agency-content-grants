@@ -303,7 +303,7 @@ function ApplicationsTab({ applicant }: { applicant: Applicant }) {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <DeadlineChip daysLeft={app.opportunity.daysLeft} label={deadlineLabel({ ...app.opportunity, status: 'posted' })} />
-                <StatusPill status={app.status} />
+                <StatusPill status={app.outcome ?? app.status} />
               </div>
             </Link>
           </li>

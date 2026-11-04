@@ -532,6 +532,71 @@ function BudgetStep({ ws }: { ws: Workspace }) {
 
 // ── Step 4: Review and package ───────────────────────────────────────────
 
+function OutcomePanel({ ws }: { ws: Workspace }) {
+  const { busy, message, run } = useAction();
+  const app = ws.application;
+  const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(today);
+  const [tracking, setTracking] = useState(app.trackingNumber ?? '');
+  const [amount, setAmount] = useState(app.awardedAmount ? String(app.awardedAmount) : '');
+  const [note, setNote] = useState(app.outcomeNote ?? '');
+  const canSubmit = app.status === 'exported' || app.outcome !== null;
+  const record = (outcome: string) =>
+    run(outcome, () => grantsApi.recordOutcome(app.id, { outcome, date, trackingNumber: tracking || null, awardedAmount: amount ? Number(amount.replace(/[$,]/g, '')) : null, note: note || null }), () => ({ tone: 'ok', text: 'Outcome recorded.' }));
+  return (
+    <Panel>
+      <PanelHeader title="Outcome" description="Grant Studio never submits. Record what happened so the pipeline and win rate stay accurate." />
+      <div className="space-y-3 px-5 py-4">
+        {app.outcome ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <StatusPill status={app.outcome} />
+            <span className="text-muted-foreground">
+              {app.outcome === 'awarded' && app.awardedAmount ? `${usd(app.awardedAmount)} · ` : ''}
+              {app.outcomeDate ? `on ${app.outcomeDate}` : ''}
+              {app.submittedOn && app.outcome !== 'submitted' ? ` · submitted ${app.submittedOn}` : ''}
+              {app.trackingNumber ? ` · tracking ${app.trackingNumber}` : ''}
+              {app.outcomeRecordedBy ? ` · recorded by ${app.outcomeRecordedBy}` : ''}
+            </span>
+          </div>
+        ) : !canSubmit ? (
+          <p className="text-sm text-muted-foreground">Download the final package first. Then, once your authorized representative has submitted it, record the submission here.</p>
+        ) : null}
+        {canSubmit && (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+              {!app.outcome || app.outcome === 'submitted' ? (
+                <Field label="Tracking number (optional)" hint="For example the Grants.gov GRANT number.">
+                  <Input value={tracking} maxLength={100} onChange={(e) => setTracking(e.target.value)} />
+                </Field>
+              ) : null}
+              {app.outcome ? (
+                <Field label="Awarded amount (USD)" hint="Needed to record an award.">
+                  <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                </Field>
+              ) : null}
+            </div>
+            <Field label="Note (optional)"><Textarea rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+            <div className="flex flex-wrap gap-2">
+              {!app.outcome && <Button size="sm" disabled={busy !== null} onClick={() => record('submitted')}>Record submission</Button>}
+              {app.outcome === 'submitted' && (
+                <>
+                  <Button size="sm" disabled={busy !== null || !amount} onClick={() => record('awarded')}>Record award</Button>
+                  <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => record('declined')}>Record decline</Button>
+                  <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => record('withdrawn')}>Withdrawn</Button>
+                </>
+              )}
+              {app.outcome && app.outcome !== 'submitted' && <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => record(app.outcome!)}>Update {app.outcome}</Button>}
+              {app.outcome && <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => run('undo', () => grantsApi.undoOutcome(app.id), () => ({ tone: 'ok', text: 'Last outcome step undone.' }))}>Undo last step</Button>}
+            </div>
+          </>
+        )}
+        {message && <Notice tone={message.tone}>{message.text}</Notice>}
+      </div>
+    </Panel>
+  );
+}
+
 function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void }) {
   const { busy, message, run } = useAction();
   const [approving, setApproving] = useState(false);
@@ -587,6 +652,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
             {ws.application.exportedAt && <p className="text-xs text-muted-foreground">Final package last exported {new Date(ws.application.exportedAt).toLocaleString('en-US')}.</p>}
           </div>
         </Panel>
+        <OutcomePanel ws={ws} />
         <Panel>
           <PanelHeader title="Approval record" />
           <ul className="space-y-2 px-5 py-4 text-xs text-muted-foreground">

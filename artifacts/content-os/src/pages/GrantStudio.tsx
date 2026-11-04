@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReadinessRing, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
-import { calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useApplications, useGrantMeta, useInvalidateGrants, type ApplicantType } from '@/lib/grants';
+import { calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useApplications, useGrantMeta, useInvalidateGrants, type ApplicantType, usePipeline, usd } from '@/lib/grants';
 
 const TYPE_CHOICES: { type: ApplicantType; title: string; body: string; icon: typeof HandHeart }[] = [
   { type: 'nonprofit_501c3', title: 'Nonprofit, 501(c)(3)', body: 'Tax-exempt charity with an IRS determination letter.', icon: HandHeart },
@@ -119,6 +119,7 @@ export default function GrantStudio() {
   const meta = useGrantMeta();
   const applicants = useApplicants();
   const applications = useApplications();
+  const pipeline = usePipeline();
   const invalidate = useInvalidateGrants();
   const [adding, setAdding] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
@@ -144,7 +145,7 @@ export default function GrantStudio() {
   }
 
   const orgs = applicants.data ?? [];
-  const inProgress = (applications.data ?? []).filter((a) => a.status !== 'exported');
+  const inProgress = (applications.data ?? []).filter((a) => !a.outcome);
   const lastSync = meta.data?.lastSync;
 
   return (
@@ -164,6 +165,23 @@ export default function GrantStudio() {
           </>
         }
       />
+
+      {pipeline.data && (pipeline.data.inProgress > 0 || pipeline.data.awaitingDecision > 0 || pipeline.data.awarded > 0 || pipeline.data.declined > 0) && (
+        <dl className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Pipeline">
+          {[
+            { label: 'In progress', value: pipeline.data.inProgress.toLocaleString('en-US'), sub: `${pipeline.data.dueWithin30Days} due within 30 days` },
+            { label: 'Awaiting decision', value: pipeline.data.awaitingDecision.toLocaleString('en-US'), sub: `${usd(pipeline.data.requestedSubmitted)} requested in all` },
+            { label: 'Awarded', value: usd(pipeline.data.awardedTotal), sub: `${pipeline.data.awarded} award${pipeline.data.awarded === 1 ? '' : 's'}` },
+            { label: 'Win rate', value: pipeline.data.winRate === null ? 'No decisions yet' : `${Math.round(pipeline.data.winRate * 100)}%`, sub: `${pipeline.data.awarded} won, ${pipeline.data.declined} declined` },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-border bg-card px-4 py-3">
+              <dt className="text-xs text-muted-foreground">{stat.label}</dt>
+              <dd className="mt-1 text-lg font-semibold text-foreground">{stat.value}</dd>
+              <dd className="text-xs text-muted-foreground">{stat.sub}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       <div className="mb-6 grid gap-3 lg:grid-cols-2">
         <Notice
@@ -262,7 +280,7 @@ export default function GrantStudio() {
                       <Link href={`/grant-studio/applications/${app.id}`} className="block px-5 py-4 transition-colors hover:bg-secondary/60 focus-visible:bg-secondary/60">
                         <div className="flex items-start justify-between gap-3">
                           <p className="line-clamp-2 text-sm font-semibold text-foreground">{app.title}</p>
-                          <StatusPill status={app.status} />
+                          <StatusPill status={app.outcome ?? app.status} />
                         </div>
                         <p className="mt-1 truncate text-xs text-muted-foreground">{app.applicant?.name} · {app.opportunity.agency ?? 'Funder not recorded'}</p>
                         <div className="mt-2"><DeadlineChip daysLeft={app.opportunity.daysLeft} label={deadlineLabel({ ...app.opportunity, status: 'posted' })} /></div>

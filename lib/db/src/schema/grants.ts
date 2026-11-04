@@ -135,6 +135,18 @@ export const grantApplicationsTable = pgTable("grant_applications", {
   exportedAt: timestamp("exported_at", { withTimezone: true }),
   /** The last deadline reminder threshold (days before closing) sent as a webhook event. */
   deadlineAlertDays: integer("deadline_alert_days"),
+  /** A person's record of what happened after export: submitted, awarded, declined or withdrawn. Grant Studio never submits. */
+  outcome: text("outcome"),
+  /** ISO date of the latest outcome (submission date, decision date or withdrawal date). */
+  outcomeDate: text("outcome_date"),
+  submittedOn: text("submitted_on"),
+  /** The funder's tracking number, for example a Grants.gov GRANT########. */
+  trackingNumber: text("tracking_number"),
+  /** The amount requested, captured when the submission is recorded. */
+  submittedAmount: doublePrecision("submitted_amount"),
+  awardedAmount: doublePrecision("awarded_amount"),
+  outcomeNote: text("outcome_note"),
+  outcomeRecordedBy: text("outcome_recorded_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [uniqueIndex("uq_grant_application").on(table.applicantId, table.opportunityId)]);
