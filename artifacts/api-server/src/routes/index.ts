@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/requireAuth";
+import { requirePermission } from "../middleware/requirePermission";
 
 // ── Public routers (no auth required) ────────────────────────────────────────
 import authRouter from "./auth";
@@ -36,10 +37,18 @@ export const router = Router();
 // ── Public routes (must be mounted BEFORE requireAuth) ────────────────────────
 router.use(authRouter); // /auth/login, /auth/logout, /auth/me
 router.use(healthRouter); // /healthz
+// Session callers of the automation API get the same membership re-check and role
+// permissions as the app; API-key callers are limited by their scopes instead.
+router.use("/automation", (req, res, next) => {
+  if (req.header("authorization")?.startsWith("Bearer ") || req.session?.authenticated !== true) return next();
+  requireAuth(req, res, (err?: unknown) => (err ? next(err) : requirePermission(req, res, next)));
+});
 router.use(automationRouter); // /automation/* — API-key-or-session auth, checked per-route inside the router
 
 // ── Require authentication for all routes below ───────────────────────────────
 router.use(requireAuth);
+// ── Per-role permissions (lib/permissions.ts) ─────────────────────────────────
+router.use(requirePermission);
 
 // ── Protected application-data routes ─────────────────────────────────────────
 router.use(dashboardRouter);

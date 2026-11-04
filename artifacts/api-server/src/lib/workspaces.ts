@@ -11,15 +11,8 @@ import { ensureAdminUser } from "./adoptData";
  * existing ownership check scopes to the workspace without change.
  */
 
-export const ROLES = {
-  owner: { label: "Owner", description: "Everything, including members, roles and the workspace itself." },
-  admin: { label: "Admin", description: "Everything except removing owners." },
-  writer: { label: "Writer", description: "Writes applications and manages the organization's data." },
-  reviewer: { label: "Reviewer", description: "Reviews and approves sections." },
-  representative: { label: "Authorized representative", description: "Approves final packages and records submissions." },
-  finance: { label: "Finance", description: "Budgets and award finances." },
-  viewer: { label: "Viewer", description: "Read only." },
-} as const;
+export { ROLES } from "./permissions";
+import { ROLES } from "./permissions";
 
 export type Role = keyof typeof ROLES;
 

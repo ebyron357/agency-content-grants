@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { RichEditor } from '@/components/RichEditor';
+import { usePermissions } from '@/lib/account';
 import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
 import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
@@ -207,6 +208,9 @@ function countHtml(html: string) {
 
 function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
   const { busy, message, setMessage, run } = useAction();
+  const { can, roleLabel } = usePermissions();
+  const canWrite = can('grants.write');
+  const canApprove = can('grants.review');
   const [draft, setDraft] = useState(section.content);
   const [limitType, setLimitType] = useState(section.limitType ?? '');
   const [limitValue, setLimitValue] = useState(section.limitValue ? String(section.limitValue) : '');
@@ -256,19 +260,20 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
         </div>
         {section.guidance && <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-muted-foreground"><span className="font-semibold text-foreground">Guidance: </span>{section.guidance}</p>}
         <div className="min-h-[22rem]">
-          <RichEditor key={section.id} sectionId={section.id} initialContent={section.content} contentFormat="html" allowMedia={false} label={`${section.title} editor`} readOnly={section.status === 'approved'} onChange={setDraft} />
+          <RichEditor key={section.id} sectionId={section.id} initialContent={section.content} contentFormat="html" allowMedia={false} label={`${section.title} editor`} readOnly={section.status === 'approved' || !canWrite} onChange={setDraft} />
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
           {section.status === 'approved' ? (
             <>
               <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300"><CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Approved by {section.approvedBy}</span>
-              <Button size="sm" variant="ghost" onClick={() => run('reopen', () => grantsApi.reopenSection(section.id))}>Reopen to edit</Button>
-              <Button size="sm" variant="outline" disabled={busy === 'save'} onClick={() => run('save', () => grantsApi.saveSectionToLibrary(section.id), () => ({ tone: 'ok', text: 'Saved to the library. Reuse it in this organization’s later applications.' }))}>Save to library</Button>
+              {canApprove && <Button size="sm" variant="ghost" onClick={() => run('reopen', () => grantsApi.reopenSection(section.id))}>Reopen to edit</Button>}
+              {canWrite && <Button size="sm" variant="outline" disabled={busy === 'save'} onClick={() => run('save', () => grantsApi.saveSectionToLibrary(section.id), () => ({ tone: 'ok', text: 'Saved to the library. Reuse it in this organization’s later applications.' }))}>Save to library</Button>}
+              {!canApprove && <span className="text-xs text-muted-foreground">A reviewer, the authorized representative, an owner or an admin can reopen it.</span>}
             </>
           ) : (
             <>
-              <Button size="sm" onClick={() => run('save', () => grantsApi.updateSection(section.id, { content: draft }), () => ({ tone: 'ok', text: 'Saved.' }))} disabled={!dirty || busy === 'save'}>{busy === 'save' ? 'Saving…' : 'Save'}</Button>
-              <Button
+              {canWrite && <Button size="sm" onClick={() => run('save', () => grantsApi.updateSection(section.id, { content: draft }), () => ({ tone: 'ok', text: 'Saved.' }))} disabled={!dirty || busy === 'save'}>{busy === 'save' ? 'Saving…' : 'Save'}</Button>}
+              {canWrite && <Button
                 size="sm"
                 variant="secondary"
                 className="gap-1.5"
@@ -279,13 +284,13 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
                 }}
               >
                 <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {busy === 'draft' ? 'Drafting…' : section.content ? 'Improve with AI' : 'Draft with AI'}
-              </Button>
-              <Button size="sm" variant="secondary" disabled={busy === 'review' || dirty} onClick={() => run('review', () => grantsApi.reviewSection(section.id), (r) => (r.demo ? { tone: 'warn', text: r.message ?? 'Rule checks only.' } : null))}>
+              </Button>}
+              {(canWrite || canApprove) && <Button size="sm" variant="secondary" disabled={busy === 'review' || dirty} onClick={() => run('review', () => grantsApi.reviewSection(section.id), (r) => (r.demo ? { tone: 'warn', text: r.message ?? 'Rule checks only.' } : null))}>
                 {busy === 'review' ? 'Reviewing…' : 'Review'}
-              </Button>
-              <Button size="sm" variant="outline" disabled={dirty || busy === 'approve'} onClick={() => run('approve', () => grantsApi.approveSection(section.id), () => ({ tone: 'ok', text: 'Section approved.' }))} className="gap-1.5">
+              </Button>}
+              {canApprove ? <Button size="sm" variant="outline" disabled={dirty || busy === 'approve'} onClick={() => run('approve', () => grantsApi.approveSection(section.id), () => ({ tone: 'ok', text: 'Section approved.' }))} className="gap-1.5">
                 <Check className="h-3.5 w-3.5" aria-hidden="true" /> Approve
-              </Button>
+              </Button> : <span className="text-xs text-muted-foreground">{canWrite ? 'A reviewer approves this section.' : `Your role (${roleLabel ?? 'none'}) can read this section.`}</span>}
               {dirty && <span className="text-xs text-amber-300">Unsaved changes</span>}
             </>
           )}
@@ -436,6 +441,9 @@ function WriteStep({ ws }: { ws: Workspace }) {
 function BudgetStep({ ws }: { ws: Workspace }) {
   const meta = useGrantMeta();
   const { busy, message, run } = useAction();
+  const { can } = usePermissions();
+  const canBudget = can('grants.finance');
+  const canWrite = can('grants.write');
   const categories = meta.data?.budgetCategories ?? [];
   const [form, setForm] = useState({ category: 'personnel', description: '', quantity: '1', unitCost: '', matchPercent: '0', justification: '' });
   const [rate, setRate] = useState(String(ws.application.indirectRatePercent));
@@ -476,7 +484,7 @@ function BudgetStep({ ws }: { ws: Workspace }) {
         <PanelHeader
           title="Budget lines"
           description="SF-424A categories. Match is the share your organization pays."
-          actions={<Button size="sm" variant="secondary" className="gap-1.5" disabled={!ws.budgetLines.length || busy === 'just'} onClick={() => run('just', () => grantsApi.budgetJustification(ws.application.id), () => ({ tone: 'ok', text: 'Budget justification written into its section. Review it on the Write step.' }))}><Wand2 className="h-3.5 w-3.5" aria-hidden="true" /> Write justification</Button>}
+          actions={canBudget && <Button size="sm" variant="secondary" className="gap-1.5" disabled={!ws.budgetLines.length || busy === 'just'} onClick={() => run('just', () => grantsApi.budgetJustification(ws.application.id), () => ({ tone: 'ok', text: 'Budget justification written into its section. Review it on the Write step.' }))}><Wand2 className="h-3.5 w-3.5" aria-hidden="true" /> Write justification</Button>}
         />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
@@ -497,12 +505,13 @@ function BudgetStep({ ws }: { ws: Workspace }) {
                   <td className="px-4 py-3 tabular-nums">{usd(line.unitCost)}</td>
                   <td className="px-4 py-3 tabular-nums">{line.matchPercent}%</td>
                   <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">{usd(line.total)}</td>
-                  <td className="px-4 py-3 text-right"><Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Delete ${line.description}`} onClick={() => run('del', () => grantsApi.deleteBudgetLine(line.id))}><Trash2 className="h-3.5 w-3.5" aria-hidden="true" /></Button></td>
+                  <td className="px-4 py-3 text-right">{canBudget && <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Delete ${line.description}`} onClick={() => run('del', () => grantsApi.deleteBudgetLine(line.id))}><Trash2 className="h-3.5 w-3.5" aria-hidden="true" /></Button>}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {canBudget ? (
         <form onSubmit={add} className="grid gap-3 border-t border-border px-5 py-4 md:grid-cols-6 md:items-end">
           <Field label="Category" className="md:col-span-2">
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={selectClass}>
@@ -516,14 +525,21 @@ function BudgetStep({ ws }: { ws: Workspace }) {
           <Field label="Justification" className="md:col-span-2"><Input value={form.justification} onChange={(e) => setForm({ ...form, justification: e.target.value })} placeholder="Why the project needs it" /></Field>
           <Button type="submit" variant="secondary" className="gap-1.5" disabled={!form.description.trim() || !form.unitCost}><Plus className="h-4 w-4" aria-hidden="true" /> Add line</Button>
         </form>
+        ) : (
+          <p className="border-t border-border px-5 py-4 text-xs text-muted-foreground">Writers, finance, owners and admins edit the budget.</p>
+        )}
       </Panel>
 
       <Panel>
         <PanelHeader title="Indirect costs" description="Applied to requested direct costs. Many agreements use a modified base that excludes items such as equipment: check yours and the notice." />
+        {canWrite ? (
         <form className="flex flex-wrap items-end gap-3 px-5 py-4" onSubmit={(e) => { e.preventDefault(); void run('rate', () => grantsApi.updateApplication(ws.application.id, { indirectRatePercent: Number(rate) }), () => ({ tone: 'ok', text: 'Indirect rate saved.' })); }}>
           <Field label="Indirect rate (%)"><Input type="number" min={0} max={100} step="any" value={rate} onChange={(e) => setRate(e.target.value)} className="w-32" /></Field>
           <Button type="submit" size="sm" variant="secondary">Save rate</Button>
         </form>
+        ) : (
+          <p className="px-5 py-4 text-sm text-muted-foreground">{ws.application.indirectRatePercent}% indirect rate. Writers, owners and admins change it.</p>
+        )}
       </Panel>
       <ActionMessage message={message} />
     </div>
@@ -540,7 +556,9 @@ function OutcomePanel({ ws }: { ws: Workspace }) {
   const [tracking, setTracking] = useState(app.trackingNumber ?? '');
   const [amount, setAmount] = useState(app.awardedAmount ? String(app.awardedAmount) : '');
   const [note, setNote] = useState(app.outcomeNote ?? '');
-  const canSubmit = app.status === 'exported' || app.outcome !== null;
+  const { can } = usePermissions();
+  const mayRecord = can('grants.approve', 'grants.finance');
+  const canSubmit = (app.status === 'exported' || app.outcome !== null) && mayRecord;
   const record = (outcome: string) =>
     run(outcome, () => grantsApi.recordOutcome(app.id, { outcome, date, trackingNumber: tracking || null, awardedAmount: amount ? Number(amount.replace(/[$,]/g, '')) : null, note: note || null }), () => ({ tone: 'ok', text: 'Outcome recorded.' }));
   return (
@@ -558,6 +576,8 @@ function OutcomePanel({ ws }: { ws: Workspace }) {
               {app.outcomeRecordedBy ? ` · recorded by ${app.outcomeRecordedBy}` : ''}
             </span>
           </div>
+        ) : !mayRecord ? (
+          <p className="text-sm text-muted-foreground">The authorized representative, finance, an owner or an admin records the submission and outcome.</p>
         ) : !canSubmit ? (
           <p className="text-sm text-muted-foreground">Download the final package first. Then, once your authorized representative has submitted it, record the submission here.</p>
         ) : null}
@@ -598,6 +618,7 @@ function OutcomePanel({ ws }: { ws: Workspace }) {
 }
 
 function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void }) {
+  const canApprovePackage = usePermissions().can('grants.approve');
   const { busy, message, run } = useAction();
   const [approving, setApproving] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -634,9 +655,11 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
             ) : (
               <Notice tone="info">Download a draft at any time to share with your team. The final package unlocks when every check passes and the authorized representative approves.</Notice>
             )}
-            {!ws.compliance.readyToExport && (
+            {!ws.compliance.readyToExport && (canApprovePackage ? (
               <Button className="w-full" disabled={!ws.compliance.readyForApproval} onClick={() => { setConfirmed(false); setApproving(true); }}>Approve package</Button>
-            )}
+            ) : (
+              <p className="text-xs text-muted-foreground">The authorized representative, an owner or an admin approves the package.</p>
+            ))}
             {ws.compliance.readyToExport ? (
               <Button asChild className="w-full gap-2">
                 <a href={packageUrl(ws.application.id, false)}><Download className="h-4 w-4" aria-hidden="true" /> Download final package</a>

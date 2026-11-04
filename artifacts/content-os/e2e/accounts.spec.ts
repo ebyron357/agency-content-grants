@@ -63,6 +63,10 @@ test("operator creates a client workspace and its owner joins and invites a writ
   await expect(owner.getByText(`writer-${stamp}@client.example`)).toBeVisible();
   await owner.getByRole("button", { name: `Withdraw the invitation for writer-${stamp}@client.example` }).click();
   await expect(owner.getByText(`writer-${stamp}@client.example`)).toHaveCount(0);
+  // The role table comes from the server's permission policy.
+  const matrix = owner.getByRole("table", { name: "Permissions held by each role" });
+  await expect(matrix).toBeVisible();
+  await expect(matrix.getByRole("row", { name: /Approve the final package/ })).toBeVisible();
   await expectNoSeriousViolations(owner, "team tab (owner)");
 
   // Mobile: no horizontal scroll on the invitation and team screens.

@@ -20,7 +20,9 @@ Forgotten password: ask an owner or admin of your workspace to remove you and in
 - **change** a member's role;
 - **remove** a member, whose access ends immediately.
 
-A workspace always keeps at least one owner, and only owners can make or remove owners. Each workspace's data is private to it. An admin-unlocked operator can also create a **client workspace** for an organization, with an invitation for its first owner.
+A workspace always keeps at least one owner, and only owners can make or remove owners. Each workspace's data is private to it.
+
+**Roles decide what each person can do.** Writers create content and applications, including budgets. Reviewers approve and reopen application sections. The authorized representative approves the final package and records submissions and outcomes. Finance edits budgets and records award amounts. Viewers read only. Owners and admins can do everything. Buttons a role cannot use are not shown, and **Settings → Team → What each role can do** has the full table. A role change applies on the person's next action. An admin-unlocked operator can also create a **client workspace** for an organization, with an invitation for its first owner.
 
 ## 2. Finding your way
 
