@@ -120,6 +120,13 @@
       "when": 1787000000000,
       "tag": "0015_add_content_media",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788000000000,
+      "tag": "0016_add_grant_studio",
+      "breakpoints": true
     }
   ]
 }

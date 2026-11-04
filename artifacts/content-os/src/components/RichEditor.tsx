@@ -151,10 +151,12 @@ function Toolbar({
   editor,
   sectionId,
   onImageInserted,
+  allowMedia = true,
 }: {
   editor: Editor;
   sectionId: string;
   onImageInserted?: () => void;
+  allowMedia?: boolean;
 }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
@@ -351,12 +353,16 @@ function Toolbar({
         >
           <Link2 className="w-4 h-4" />
         </ToolBtn>
-        <ToolBtn onClick={() => setImageOpen(true)} title="Insert image">
-          <ImageIcon className="w-4 h-4" />
-        </ToolBtn>
-        <ToolBtn onClick={() => setVideoOpen(true)} title="Insert video embed">
-          <Video className="w-4 h-4" />
-        </ToolBtn>
+        {allowMedia && (
+          <>
+            <ToolBtn onClick={() => setImageOpen(true)} title="Insert image">
+              <ImageIcon className="w-4 h-4" />
+            </ToolBtn>
+            <ToolBtn onClick={() => setVideoOpen(true)} title="Insert video embed">
+              <Video className="w-4 h-4" />
+            </ToolBtn>
+          </>
+        )}
         <div className="mx-1 h-5 w-px bg-secondary" />
         <ToolBtn
           onClick={() => editor.chain().focus().undo().run()}
@@ -573,6 +579,10 @@ interface RichEditorProps {
   readOnly?: boolean;
   onChange?: (html: string) => void;
   onImageInserted?: () => void;
+  /** Image and video embeds upload to document sections; editors for other records turn them off. */
+  allowMedia?: boolean;
+  /** Accessible name for the editing surface. */
+  label?: string;
 }
 
 export function RichEditor({
@@ -582,6 +592,8 @@ export function RichEditor({
   readOnly = false,
   onChange,
   onImageInserted,
+  allowMedia = true,
+  label,
 }: RichEditorProps) {
   const initialHtml =
     contentFormat === "html"
@@ -601,9 +613,9 @@ export function RichEditor({
     editable: !readOnly,
     editorProps: {
       attributes: {
-        "aria-label": readOnly
-          ? "Document section content"
-          : "Document section editor",
+        "aria-label":
+          label ??
+          (readOnly ? "Document section content" : "Document section editor"),
         role: "textbox",
         "aria-multiline": "true",
       },
@@ -636,6 +648,7 @@ export function RichEditor({
           editor={editor}
           sectionId={sectionId}
           onImageInserted={onImageInserted}
+          allowMedia={allowMedia}
         />
       )}
       <EditorContent

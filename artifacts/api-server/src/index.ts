@@ -5,6 +5,7 @@ import { adoptOrphanedData } from "./lib/adoptData";
 import { startPublishingScheduler } from "./lib/publishing/scheduler";
 import { startPerformanceScheduler } from "./lib/performance/scheduler";
 import { startWebhookScheduler } from "./lib/webhooks/scheduler";
+import { startGrantSyncScheduler } from "./lib/grants/ingest";
 
 const rawPort = process.env["PORT"];
 
@@ -34,6 +35,7 @@ runMigrations()
       startPublishingScheduler();
       startPerformanceScheduler();
       startWebhookScheduler();
+      startGrantSyncScheduler();
     });
   })
   .catch((err: unknown) => {

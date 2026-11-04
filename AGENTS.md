@@ -37,7 +37,7 @@ The autonomous closeout may implement and verify the product capabilities requir
 - Accessibility, responsive UX, SEO/metadata, error states, and reliability fixes required for a production-quality product.
 - Removal or consolidation of duplicate recovered UI/source trees only when the canonical implementation is proven, unique assets are preserved, and the change is covered by tests/evidence.
 
-The owner’s November 2, 2026 request authorizes a curated grant information directory (see `docs/GRANT_RESOURCES.md`), preserving the existing design. Automated eligibility decisions, applicant data, proposal generation and submissions remain deferred. Grant/proposal intelligence outside this narrow information scope remains separately gated.
+The owner’s November 2, 2026 request authorizes a curated grant information directory (see `docs/GRANT_RESOURCES.md`), preserving the existing design. The owner’s November 3, 2026 request asks for end-to-end grant software for nonprofits and businesses with assisted submission: Grant Studio (see `docs/GRANT_STUDIO.md`), which covers applicant profiles, readiness, Grants.gov matching, grounded writing tools, budgets, approvals and packages. It is accepted scope once the owner approves its pull request. Agents must never submit an application, record an approval on a person’s behalf, or present a match as an eligibility decision. AI drafting must not invent facts, and demo output stays labelled.
 
 ## Non-negotiable rules
 
@@ -162,4 +162,4 @@ A checkbox or project status may be marked complete only when:
 
 ## Current execution directive
 
-The original Content Machine closeout is implemented and verified. The November 2 owner-authorized grant directory is a separate focused addition; preserve completed functionality and validate the new route. The remaining steps are in `docs/GO_NO_GO_DECISION.md`: an operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.
+The original Content Machine closeout is implemented and verified. The November 2 grant directory and the November 3 Grant Studio are focused additions; preserve completed functionality and validate the new routes. The remaining steps are in `docs/GO_NO_GO_DECISION.md`: an operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.
