@@ -30,7 +30,8 @@ function inDays(days: number): string {
 
 function opportunity(id: string, title: string) {
   return {
-    id, source: "grants_gov", sourceRef: `test-${id}`, title, agency: "Test Agency", status: "posted", closeDate: inDays(60),
+    // A source no sync manages, so the sync tests running in parallel never close it.
+    id, source: "test_fixture", sourceRef: `test-${id}`, title, agency: "Test Agency", status: "posted", closeDate: inDays(60),
     officialUrl: `https://www.grants.gov/search-results-detail/${id}`, fetchedAt: new Date(), detailFetchedAt: new Date(), checksum: "seed",
     connectorVersion: "test", publishable: true, gateMissing: [], eligibilityCodes: ["12"], categories: [], assistanceListings: [], costSharing: false,
   };

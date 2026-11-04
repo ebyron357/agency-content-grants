@@ -11,7 +11,7 @@ import { RichEditor } from '@/components/RichEditor';
 import { usePermissions } from '@/lib/account';
 import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
-import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
+import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace, followJob, isPendingJob, type AiJob, type PendingJob } from '@/lib/grants';
 
 const KIND_LABELS: Record<string, string> = {
   section: 'Section',
@@ -27,13 +27,23 @@ function useAction() {
   const invalidate = useInvalidateGrants();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
-  async function run<T>(key: string, fn: () => Promise<T>, success?: (result: T) => { tone: 'ok' | 'warn'; text: string } | null) {
+  /**
+   * Runs an action and shows its outcome. An AI action that is still running
+   * comes back as a background job: the page says so, follows the job, and
+   * shows the outcome when it finishes (the page also refreshes by itself).
+   */
+  async function run<T>(key: string, fn: () => Promise<T | PendingJob>, success?: (result: T) => { tone: 'ok' | 'warn'; text: string } | null) {
     setBusy(key);
     setMessage(null);
     try {
-      const result = await fn();
+      let result = await fn();
+      if (isPendingJob(result)) {
+        await invalidate();
+        setMessage({ tone: 'ok', text: 'Working on it in the background. You can keep working or leave this page; it updates when it finishes.' });
+        result = await followJob<T>(result.jobId);
+      }
       await invalidate();
-      const next = success?.(result);
+      const next = success?.(result as T);
       if (next) setMessage(next);
       return result;
     } catch (err) {
@@ -112,6 +122,7 @@ function RequirementRow({ req, sections }: { req: Requirement; sections: Section
 
 function RequirementsStep({ ws }: { ws: Workspace }) {
   const { busy, message, run } = useAction();
+  const extracting = (ws.aiJobs ?? []).find((j) => j.kind === 'grant_requirements_extract');
   const [notice, setNotice] = useState(ws.application.noticeText ?? '');
   const [form, setForm] = useState({ kind: 'criterion', label: '', detail: '', points: '', sourceRef: '' });
   const unconfirmed = ws.requirements.filter((r) => !r.confirmed).length;
@@ -127,6 +138,7 @@ function RequirementsStep({ ws }: { ws: Workspace }) {
     <div className="space-y-6">
       <Panel>
         <PanelHeader title="Funding notice" description="Paste the notice (NOFO, RFA or solicitation) to extract its requirements, limits and review criteria. Each extracted row needs your confirmation." icon={<FileText className="h-4 w-4 text-brand" aria-hidden="true" />} />
+        {extracting && <AiJobNotice job={extracting} />}
         <div className="space-y-3 px-5 py-4">
           <Field label="Notice text">
             <Textarea rows={6} value={notice} onChange={(e) => setNotice(e.target.value)} placeholder="Paste the full text of the notice, or at least its application contents and review criteria sections." />
@@ -134,10 +146,10 @@ function RequirementsStep({ ws }: { ws: Workspace }) {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => run('extract', () => grantsApi.extract(ws.application.id, notice), (r) => ({ tone: r.demo ? 'warn' : 'ok', text: r.demo ? r.message ?? 'No AI provider configured.' : `${r.added} requirement${r.added === 1 ? '' : 's'} extracted. Review and confirm each one below.` }))}
-              disabled={busy === 'extract' || notice.trim().length < 200}
+              disabled={busy === 'extract' || !!extracting || notice.trim().length < 200}
               className="gap-2"
             >
-              <Wand2 className="h-4 w-4" aria-hidden="true" /> {busy === 'extract' ? 'Extracting…' : 'Extract requirements'}
+              <Wand2 className="h-4 w-4" aria-hidden="true" /> {busy === 'extract' || extracting ? 'Extracting…' : 'Extract requirements'}
             </Button>
             <Button asChild variant="ghost" className="gap-1.5">
               <a href={ws.opportunity.officialUrl} target="_blank" rel="noreferrer">Open the official notice <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /></a>
@@ -182,6 +194,25 @@ function RequirementsStep({ ws }: { ws: Workspace }) {
 
 // ── Step 2: Write ─────────────────────────────────────────────────────────
 
+const AI_JOB_TEXT: Record<AiJob['kind'], string> = {
+  grant_section_draft: 'Drafting this section with AI',
+  grant_section_review: 'Reviewing this section',
+  grant_requirements_extract: 'Reading the notice for requirements',
+};
+
+/** Shows AI work running in the background; the page refreshes by itself when it finishes. */
+function AiJobNotice({ job }: { job: AiJob }) {
+  const retrying = job.status === 'queued' && job.attempts > 0;
+  return (
+    <div role="status" aria-live="polite" className="flex items-center gap-2 border-b border-border bg-brand/5 px-5 py-2.5 text-xs text-foreground">
+      <Sparkles className="h-3.5 w-3.5 animate-pulse text-brand" aria-hidden="true" />
+      <span>
+        {AI_JOB_TEXT[job.kind]}… {retrying ? `The first attempt failed (${job.lastError ?? 'provider error'}); trying again shortly.` : job.status === 'queued' ? 'Waiting to start.' : 'This updates by itself when it finishes.'}
+      </span>
+    </div>
+  );
+}
+
 function LimitMeter({ section, liveWords, liveChars }: { section: Section; liveWords: number; liveChars: number }) {
   const unit = section.limitType;
   const limit = section.limitValue;
@@ -211,6 +242,9 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
   const { can, roleLabel } = usePermissions();
   const canWrite = can('grants.write');
   const canApprove = can('grants.review');
+  /** An AI job running for this section, even one started before a reload or by someone else. */
+  const aiJob = (ws.aiJobs ?? []).find((j) => j.sectionId === section.id);
+  const drafting = aiJob?.kind === 'grant_section_draft';
   const [draft, setDraft] = useState(section.content);
   const [limitType, setLimitType] = useState(section.limitType ?? '');
   const [limitValue, setLimitValue] = useState(section.limitValue ? String(section.limitValue) : '');
@@ -258,9 +292,10 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
           </div>
           <LimitMeter section={live} liveWords={counts.words} liveChars={counts.chars} />
         </div>
+        {aiJob && <AiJobNotice job={aiJob} />}
         {section.guidance && <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-muted-foreground"><span className="font-semibold text-foreground">Guidance: </span>{section.guidance}</p>}
         <div className="min-h-[22rem]">
-          <RichEditor key={section.id} sectionId={section.id} initialContent={section.content} contentFormat="html" allowMedia={false} label={`${section.title} editor`} readOnly={section.status === 'approved' || !canWrite} onChange={setDraft} />
+          <RichEditor key={section.id} sectionId={section.id} initialContent={section.content} contentFormat="html" allowMedia={false} label={`${section.title} editor`} readOnly={section.status === 'approved' || !canWrite || drafting} onChange={setDraft} />
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
           {section.status === 'approved' ? (
@@ -277,7 +312,7 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
                 size="sm"
                 variant="secondary"
                 className="gap-1.5"
-                disabled={busy === 'draft'}
+                disabled={busy === 'draft' || drafting}
                 onClick={() => {
                   if (dirty && !window.confirm('Drafting replaces the unsaved text in this section. Continue?')) return;
                   void run('draft', () => grantsApi.draftSection(section.id), (r) => ({ tone: r.demo ? 'warn' : 'ok', text: r.demo ? r.message ?? 'Demo scaffold added.' : 'Draft added. Fill every [Add: …] placeholder with a sourced fact.' }));

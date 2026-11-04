@@ -30,6 +30,16 @@ A durable job queue in PostgreSQL (`jobs` table, migration `0025_job_queue`), wi
 | Kind | Label | Attempts | Timeout | Backoff | Runs at once | Schedule |
 |---|---|---|---|---|---|---|
 | `grant_sync` | Refresh grant opportunities | 3 | 20 min | 5 min, doubling, up to 1 h | 1 | Daily (first run 60 s after start if the day has none) |
+| `grant_section_draft` | Draft a section with AI | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
+| `grant_section_review` | Review a section | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
+| `grant_requirements_extract` | Extract requirements from a notice | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
+
+**AI work.** **Draft with AI**, **Review** and **Extract requirements** each queue a job for the workspace (one per section, or per notice, at a time) and wait up to 3 seconds:
+- If the job finishes in that time (demo mode, or a quick provider), the request answers as before.
+- Otherwise it answers `202` with the job id. The page says the work is running in the background, follows the job, and shows the outcome when it is done. The application view lists running AI jobs (`aiJobs`), so the section shows its progress even after a reload, and the editor stays read only while a draft is being written.
+- A provider error is retried once. If it still fails, the error is shown.
+- Each run re-checks that the section belongs to the job's workspace, and a draft never overwrites a section approved in the meantime.
+- Where no worker runs in the process (tests, or `JOBS_WORKER_DISABLED`), the request runs the job itself through the same code, so every AI request is recorded as a job either way.
 
 `grant_sync` reads Grants.gov and the California Grants Portal, then sends match alerts and deadline reminders. It fails, and is retried, only when every source failed; one source failing is recorded on its sync run and the job succeeds. **Refresh now** in Grant Studio queues the same job, and the page shows its progress until it finishes.
 
@@ -61,5 +71,4 @@ A durable job queue in PostgreSQL (`jobs` table, migration `0025_job_queue`), wi
 
 | Work | Today | Next |
 |---|---|---|
-| AI section drafting and review | In the request; the page waits | A `grant_draft` kind with progress on the page |
 | Publishing, performance and webhook schedulers | Their own guarded loops with claim and retry, unchanged | Move onto the queue when they next change |

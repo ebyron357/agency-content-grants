@@ -15,6 +15,7 @@ import {
   grantRequirementsTable,
   grantSectionsTable,
   grantSyncRunsTable,
+  jobsTable,
   usersTable,
   type GrantApplicant,
   type GrantApplication,
@@ -45,13 +46,13 @@ import { summarizeBudget, lineTotal } from "../lib/grants/budget";
 import { checkLimit, htmlToText } from "../lib/grants/text";
 import { OUTCOMES, isOutcome, outcomeTransitionError, summarizePipeline } from "../lib/grants/pipeline";
 import { evaluateCompliance } from "../lib/grants/compliance";
-import { draftSection, extractRequirements, reviewSection, type DraftContext } from "../lib/grants/ai";
+import { invalidatePackage } from "../lib/grants/aiWork";
 import { buildApplicationPackage } from "../lib/grants/packageExport";
 import { refreshOpportunityDetail } from "../lib/grants/ingest";
 import { enqueue } from "../lib/jobs/registry";
-import { GRANT_SYNC_KEY, grantSyncJob } from "../lib/jobs/definitions";
+import { GRANT_SYNC_KEY, aiKey, grantSyncJob, requirementsExtractJob, sectionDraftJob, sectionReviewJob } from "../lib/jobs/definitions";
 import { activeJob } from "../lib/jobs/queue";
-import { currentWorker } from "../lib/jobs/worker";
+import { currentWorker, runJobNow } from "../lib/jobs/worker";
 import { daysUntil } from "../lib/grants/gate";
 import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
 import { CA_SOURCE } from "../lib/grants/california";
@@ -171,14 +172,6 @@ async function ownedChild<T extends typeof grantSectionsTable | typeof grantRequ
     .limit(1);
   if (!found) fail(res, 404, "Not found");
   return (found as any) ?? null;
-}
-
-/** Any edit after approval reopens the package for approval, until a submission is recorded: then the record stands. */
-async function invalidatePackage(applicationId: string): Promise<void> {
-  const [app] = await db.select({ outcome: grantApplicationsTable.outcome }).from(grantApplicationsTable).where(eq(grantApplicationsTable.id, applicationId)).limit(1);
-  if (app?.outcome) return;
-  await db.delete(grantApprovalsTable).where(and(eq(grantApprovalsTable.applicationId, applicationId), eq(grantApprovalsTable.scope, "package")));
-  await db.update(grantApplicationsTable).set({ status: "draft" }).where(and(eq(grantApplicationsTable.id, applicationId), inArray(grantApplicationsTable.status, ["approved", "exported"])));
 }
 
 function applicantSummary(applicant: GrantApplicant) {
@@ -677,6 +670,12 @@ router.get("/grants/applications", async (req, res): Promise<void> => {
   })));
 });
 
+async function activeAiJobs(applicationId: string, sectionIds: string[]) {
+  const keys = [aiKey("extract", applicationId), ...sectionIds.flatMap((id) => [aiKey("draft", id), aiKey("review", id)])];
+  const rows = await db.select().from(jobsTable).where(and(inArray(jobsTable.dedupeKey, keys), inArray(jobsTable.status, ["queued", "running"])));
+  return rows.map((j) => ({ id: j.id, kind: j.kind, status: j.status, sectionId: (j.payload as { sectionId?: string }).sectionId ?? null, attempts: j.attempts, lastError: j.lastError }));
+}
+
 async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
   const [requirements, sections, lines, approvals, readiness] = await Promise.all([
@@ -712,6 +711,8 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     approvals,
     compliance,
     aiDemo: getActiveProvider().name === "demo",
+    /** AI jobs still queued or running for this application, so the page can show them and refresh when they finish. */
+    aiJobs: await activeAiJobs(app.id, sections.map((s) => s.id)),
     library: {
       total: libraryFacts.length,
       confirmed: libraryFacts.filter((f) => f.confirmedAt).map(factView),
@@ -848,25 +849,10 @@ router.post("/grants/applications/:id/requirements/extract", aiLimiter, async (r
   const notice = supplied ?? owned.app.noticeText;
   if (!notice || notice.length < 200) return fail(res, 400, "Paste the funding notice text (at least a few paragraphs) first.");
   if (supplied) await db.update(grantApplicationsTable).set({ noticeText: supplied }).where(eq(grantApplicationsTable.id, owned.app.id));
-  const outcome = await extractRequirements(notice);
-  if (outcome.value.length) {
-    const [{ max }] = await db.select({ max: sql<number>`coalesce(max(${grantRequirementsTable.position}), 0)` }).from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, owned.app.id));
-    await db.insert(grantRequirementsTable).values(outcome.value.map((r, i) => ({
-      id: randomUUID(),
-      applicationId: owned.app.id,
-      kind: r.kind,
-      label: r.label,
-      detail: r.detail,
-      sourceRef: r.sourceRef,
-      points: r.points,
-      origin: "extracted",
-      confirmed: false,
-      position: Number(max) + 1 + i,
-    })));
-    await invalidatePackage(owned.app.id);
-  }
-  const [app] = await db.select().from(grantApplicationsTable).where(eq(grantApplicationsTable.id, owned.app.id)).limit(1);
-  res.json({ added: outcome.value.length, demo: outcome.demo, message: outcome.message ?? null, workspace: await workspace(app, owned.applicant) });
+  await runAiJob(req, res, requirementsExtractJob, { applicationId: owned.app.id }, aiKey("extract", owned.app.id), async (r) => {
+    const [app] = await db.select().from(grantApplicationsTable).where(eq(grantApplicationsTable.id, owned.app.id)).limit(1);
+    res.json({ added: Number(r.added ?? 0), demo: r.demo === true, message: (r.message as string | null) ?? null, workspace: await workspace(app, owned.applicant) });
+  });
 });
 
 // ── Sections ───────────────────────────────────────────────────────────────
@@ -909,63 +895,43 @@ router.patch("/grants/sections/:sid", async (req, res): Promise<void> => {
   res.json({ ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue) });
 });
 
-async function draftContext(sectionId: string, app: GrantApplication, applicant: GrantApplicant): Promise<DraftContext> {
-  const [section] = await db.select().from(grantSectionsTable).where(eq(grantSectionsTable.id, sectionId)).limit(1);
-  const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
-  const reqs = await db.select().from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, app.id));
-  const relevant = reqs.filter((r) => r.sectionKey === section.key || (r.kind === "criterion" && !r.sectionKey));
-  const library = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
-  // Up to two saved texts for the same section, newest first, as plain text (about 6,000 characters in all).
-  const savedWriting = (await db.select().from(grantSnippetsTable).where(and(eq(grantSnippetsTable.applicantId, applicant.id), eq(grantSnippetsTable.sectionKey, section.key))).orderBy(desc(grantSnippetsTable.updatedAt)).limit(2))
-    .map((w) => ({ title: w.title, text: htmlToText(w.content).slice(0, 3000) }));
-  const facts = [
-    applicant.annualBudget ? `Annual budget: $${applicant.annualBudget.toLocaleString("en-US")}` : null,
-    applicant.ein ? `EIN on file: ${applicant.ein}` : null,
-    app.requestedAmount ? `Amount requested: $${app.requestedAmount.toLocaleString("en-US")}` : null,
-    ...factsForSection(library, section.key).map(factLine),
-  ].filter((f): f is string => Boolean(f));
-  return {
-    applicant: {
-      name: applicant.name,
-      applicantTypeLabel: APPLICANT_TYPES[applicant.applicantType as ApplicantType]?.label ?? applicant.applicantType,
-      mission: applicant.mission,
-      serviceArea: applicant.serviceArea,
-      state: applicant.state,
-      focusAreas: applicant.focusAreas,
-    },
-    opportunity: { title: opp.title, agency: opp.agency, description: opp.description },
-    section: { title: section.title, guidance: section.guidance, limitType: section.limitType, limitValue: section.limitValue, content: section.content },
-    requirements: relevant.map((r) => ({ label: r.label, detail: r.detail, points: r.points })),
-    facts,
-    savedWriting,
-  };
+/**
+ * Queues an AI job and answers within a few seconds when it finishes, with
+ * the same response as before. Otherwise 202 with the job id: the page follows
+ * the job and refreshes when it is done. One job per section (or notice) runs
+ * at a time; asking again returns the running one.
+ */
+async function runAiJob(req: Request, res: Response, def: typeof sectionDraftJob | typeof sectionReviewJob | typeof requirementsExtractJob, payload: Record<string, string>, key: string, done: (result: Record<string, unknown>) => Promise<void>): Promise<void> {
+  const { job } = await enqueue(def as any, { ...payload, userId: req.session.userId! }, { userId: req.session.userId!, dedupeKey: key, requestedBy: req.session.actorName ?? "operator" });
+  const finished = await runJobNow(job.id);
+  if (finished?.status === "succeeded") return done((finished.result ?? {}) as Record<string, unknown>);
+  if (finished?.status === "failed") {
+    res.status(502).json({ error: finished.lastError ?? "The AI request failed.", jobId: finished.id });
+    return;
+  }
+  res.status(202).json({ jobId: job.id, status: finished?.status ?? job.status, pending: true });
+}
+
+async function sectionResponse(sectionId: string) {
+  const [row] = await db.select().from(grantSectionsTable).where(eq(grantSectionsTable.id, sectionId)).limit(1);
+  return { ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue) };
 }
 
 router.post("/grants/sections/:sid/draft", aiLimiter, async (req, res): Promise<void> => {
   const owned = await ownedChild(grantSectionsTable, param(req, "sid"), req.session.userId!, res);
   if (!owned) return;
-  const ctx = await draftContext(owned.row.id, owned.app, owned.applicant);
-  const outcome = await draftSection(ctx);
-  const [row] = await db
-    .update(grantSectionsTable)
-    .set({ content: outcome.value, demoContent: outcome.demo, status: "drafting", approvedBy: null, approvedAt: null, reviewScore: null, reviewNotes: [] })
-    .where(eq(grantSectionsTable.id, owned.row.id))
-    .returning();
-  await invalidatePackage(owned.app.id);
-  res.json({ section: { ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue) }, demo: outcome.demo, provider: outcome.provider, message: outcome.message ?? null });
+  if (owned.row.status === "approved") return fail(res, 409, "Reopen the section before drafting it again.");
+  await runAiJob(req, res, sectionDraftJob, { sectionId: owned.row.id }, aiKey("draft", owned.row.id), async (r) => {
+    res.json({ section: await sectionResponse(owned.row.id), demo: r.demo === true, provider: r.provider ?? null, message: (r.message as string | null) ?? null });
+  });
 });
 
 router.post("/grants/sections/:sid/review", aiLimiter, async (req, res): Promise<void> => {
   const owned = await ownedChild(grantSectionsTable, param(req, "sid"), req.session.userId!, res);
   if (!owned) return;
-  const ctx = await draftContext(owned.row.id, owned.app, owned.applicant);
-  const outcome = await reviewSection(ctx);
-  const [row] = await db
-    .update(grantSectionsTable)
-    .set({ reviewScore: outcome.value.score, reviewNotes: outcome.value.notes })
-    .where(eq(grantSectionsTable.id, owned.row.id))
-    .returning();
-  res.json({ section: { ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue) }, demo: outcome.demo, message: outcome.message ?? null });
+  await runAiJob(req, res, sectionReviewJob, { sectionId: owned.row.id }, aiKey("review", owned.row.id), async (r) => {
+    res.json({ section: await sectionResponse(owned.row.id), demo: r.demo === true, message: (r.message as string | null) ?? null });
+  });
 });
 
 router.post("/grants/sections/:sid/approve", async (req, res): Promise<void> => {

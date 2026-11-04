@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import { hostname } from "os";
-import { claimNextJob, completeJob, failJobAttempt, heartbeatJob, pruneFinishedJobs, reclaimStaleJobs } from "./queue";
+import { claimJobById, claimNextJob, completeJob, failJobAttempt, heartbeatJob, pruneFinishedJobs, reclaimStaleJobs } from "./queue";
+import { db, jobsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { jobKinds, jobDefinition } from "./registry";
 import { afterFailure, errorText } from "./types";
 import type { Job } from "@workspace/db";
@@ -131,29 +133,34 @@ export class JobWorker {
     this.running.set(job.id, { job, controller, done });
   }
 
-  private async execute(job: Job, controller: AbortController): Promise<void> {
-    const def = jobDefinition(job.kind);
-    if (!def) {
-      await failJobAttempt(job.id, this.id, `No handler for job kind ${job.kind}`, { status: "failed" });
-      return;
-    }
-    const heartbeat = setInterval(() => void heartbeatJob(job.id, this.id).catch(() => {}), HEARTBEAT_MS);
-    const timeout = setTimeout(() => controller.abort(new Error(`Timed out after ${Math.round(def.timeoutMs / 1000)} s`)), def.timeoutMs);
-    try {
-      const aborted = new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true }));
-      const result = await Promise.race([
-        def.run({ jobId: job.id, payload: job.payload as Record<string, unknown>, attempt: job.attempts, signal: controller.signal, progress: (p) => heartbeatJob(job.id, this.id, p) }),
-        aborted,
-      ]);
-      await completeJob(job.id, this.id, result ?? null);
-    } catch (err) {
-      const next = afterFailure(job.attempts, job.maxAttempts, err, def.backoffMs);
-      console.warn(`[jobs] ${job.kind} ${job.id} attempt ${job.attempts} failed: ${errorText(err)}${next.status === "queued" ? ` (retry at ${next.runAt.toISOString()})` : ""}`);
-      await failJobAttempt(job.id, this.id, errorText(err), next).catch(() => {});
-    } finally {
-      clearInterval(heartbeat);
-      clearTimeout(timeout);
-    }
+  private execute(job: Job, controller: AbortController): Promise<void> {
+    return executeJob(job, this.id, controller);
+  }
+}
+
+/** Runs one claimed job to an outcome: success, a retry with backoff, or failure. Shared by the worker and runJobNow. */
+async function executeJob(job: Job, workerId: string, controller: AbortController): Promise<void> {
+  const def = jobDefinition(job.kind);
+  if (!def) {
+    await failJobAttempt(job.id, workerId, `No handler for job kind ${job.kind}`, { status: "failed" });
+    return;
+  }
+  const heartbeat = setInterval(() => void heartbeatJob(job.id, workerId).catch(() => {}), HEARTBEAT_MS);
+  const timeout = setTimeout(() => controller.abort(new Error(`Timed out after ${Math.round(def.timeoutMs / 1000)} s`)), def.timeoutMs);
+  try {
+    const aborted = new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true }));
+    const result = await Promise.race([
+      def.run({ jobId: job.id, payload: job.payload as Record<string, unknown>, attempt: job.attempts, signal: controller.signal, progress: (p) => heartbeatJob(job.id, workerId, p) }),
+      aborted,
+    ]);
+    await completeJob(job.id, workerId, result ?? null);
+  } catch (err) {
+    const next = afterFailure(job.attempts, job.maxAttempts, err, def.backoffMs);
+    console.warn(`[jobs] ${job.kind} ${job.id} attempt ${job.attempts} failed: ${errorText(err)}${next.status === "queued" ? ` (retry at ${next.runAt.toISOString()})` : ""}`);
+    await failJobAttempt(job.id, workerId, errorText(err), next).catch(() => {});
+  } finally {
+    clearInterval(heartbeat);
+    clearTimeout(timeout);
   }
 }
 
@@ -164,10 +171,11 @@ export function workerEnabled(): boolean {
   return process.env.NODE_ENV !== "test" || process.env.JOBS_WORKER_ENABLED === "true";
 }
 
-export function startJobWorker(): JobWorker | null {
-  if (worker || !workerEnabled()) return worker;
+/** Starts this process's worker. `opts` is for tests: a fast poll and only the kinds under test. */
+export function startJobWorker(opts: { force?: boolean; kinds?: string[]; pollMs?: number } = {}): JobWorker | null {
+  if (worker || (!workerEnabled() && !opts.force)) return worker;
   const concurrency = Math.max(1, Math.min(8, Number(process.env.JOBS_CONCURRENCY) || 2));
-  worker = new JobWorker({ concurrency, pollMs: Number(process.env.JOBS_POLL_MS) || 5_000 });
+  worker = new JobWorker({ concurrency, pollMs: opts.pollMs ?? (Number(process.env.JOBS_POLL_MS) || 5_000), kinds: opts.kinds });
   worker.start();
   return worker;
 }
@@ -180,4 +188,33 @@ export async function stopJobWorker(): Promise<void> {
   const w = worker;
   worker = null;
   await w?.stop();
+}
+
+/**
+ * Waits up to `waitMs` for a job to finish, so a fast job (demo AI, a quick
+ * provider) answers in the same request while a slow one carries on in the
+ * background. Where no worker runs in this process (tests, or
+ * JOBS_WORKER_DISABLED), the job is run here, through the same code path.
+ */
+export async function runJobNow(jobId: string, waitMs = 3000): Promise<Job> {
+  const read = async () => (await db.select().from(jobsTable).where(eq(jobsTable.id, jobId)).limit(1))[0];
+  if (!worker) {
+    const workerId = `inline:${process.pid}`;
+    const claimed = await claimJobById(jobId, workerId);
+    if (claimed) await executeJob(claimed, workerId, new AbortController());
+    const job = await read();
+    // No worker will pick up a retry here, so a failed attempt is final.
+    if (job?.status === "queued" && job.attempts > 0) {
+      await db.update(jobsTable).set({ status: "failed", finishedAt: new Date() }).where(eq(jobsTable.id, jobId));
+      return read();
+    }
+    return job;
+  }
+  worker.nudge();
+  const until = Date.now() + waitMs;
+  for (;;) {
+    const job = await read();
+    if (!job || ["succeeded", "failed", "cancelled"].includes(job.status) || Date.now() >= until) return job;
+    await new Promise((r) => setTimeout(r, 150));
+  }
 }

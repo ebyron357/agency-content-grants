@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, lte, sql } from "drizzle-orm";
 import { db, jobsTable, pool, type Job } from "@workspace/db";
 
 /**
@@ -62,6 +62,16 @@ export async function claimNextJob(workerId: string, kinds: string[]): Promise<J
   );
   if (!rows[0]) return null;
   const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, rows[0].id)).limit(1);
+  return job ?? null;
+}
+
+/** Takes one specific job if it is due, for running it in the request (lib/jobs/worker.ts runJobNow). */
+export async function claimJobById(id: string, workerId: string): Promise<Job | null> {
+  const [job] = await db
+    .update(jobsTable)
+    .set({ status: "running", lockedBy: workerId, heartbeatAt: new Date(), startedAt: new Date(), attempts: sql`${jobsTable.attempts} + 1` })
+    .where(and(eq(jobsTable.id, id), eq(jobsTable.status, "queued"), lte(jobsTable.runAt, new Date())))
+    .returning();
   return job ?? null;
 }
 
