@@ -4,6 +4,22 @@
 **Date:** 3 November 2026. **Owner:** Emmanuel Andre Byron (`ebyron357`). **Review date:** 3 December 2026.
 **Supersedes:** nothing. It extends the curated directory in [`GRANT_RESOURCES.md`](GRANT_RESOURCES.md) (PR #26) and replaces no part of it.
 
+## Implementation status (4 November 2026)
+
+At the owner's request ("system software that operates end to end"), the first phases were built as Grant Studio. Nothing below is merged or deployed. The pull requests are open for owner review, and their scope is recorded in [`GRANT_STUDIO.md`](GRANT_STUDIO.md) on those branches.
+
+| Phase | State | Where |
+|---|---|---|
+| 0. Decide | **Open.** D1 is effectively requested by the owner's 3 November instruction; it is recorded as pending owner approval of the pull requests | This PR, #29 |
+| 1. Registry foundation | **Not done; built differently.** Grant Studio has its own publication gate, provenance fields (source, source reference, fetch times, checksum, connector version) and gate tests, instead of a Veteran-Hub port. The 21 curated records stay in `/grants`, unchanged. D2 should be revisited: ADOPT → DEFER unless a second source needs the shared registry | #29 |
+| 2. Live federal discovery | **Built for Grants.gov.** Per-code search, daily sync, detail for every open opportunity, publication gate, failure recording, and contract tests with a fake Grants.gov. SBIR.gov (403) and SAM.gov (404) are still blocked from the build environment | #29 |
+| 3. Profiles and matching | **Built.** Profiles for nonprofits and businesses, readiness with expiry, hard exclusions with reasons, an explained score, on-topic filtering, broad-topic warnings, and human eligibility confirmation. New-match and closing-soon alerts, plus a `grant.new_matches` webhook event | #29, #30 |
+| 4. Writing studio | **Built.** Compliance matrix (template plus AI extraction), section blueprints including SBIR/STTR, grounded drafting from a confirmed, sourced fact library, limits, SF-424A budget, reviewer scoring, approvals and DOCX package export | #29, #31 |
+| 5. Pilots and state | **Partly built.** In-app alerts and the webhook event are done (#30). Still open: the deadline calendar, a state source, and pilots (they need the owner and the pilot organizations' consent) | #30 |
+| 6. Accounts and assisted submission | **Not started** (gated, D5 and D6) | — |
+
+D7 (email digests): the `grant.new_matches` webhook event lets the owner route alerts to email through existing automation, with no email service added. In-product email stays deferred.
+
 ## 1. Outcome
 
 Two kinds of applicant use one workspace to apply for grants:
