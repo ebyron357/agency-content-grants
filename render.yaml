@@ -30,6 +30,9 @@ services:
         value: /var/data/exports
       - key: SESSION_SECRET
         generateValue: true
+      # Encrypts two-factor secrets at rest. Generated once; keep it when rotating SESSION_SECRET.
+      - key: MFA_ENCRYPTION_KEY
+        generateValue: true
       - key: ADMIN_PASSWORD
         sync: false
       - key: OPENAI_API_KEY

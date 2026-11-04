@@ -276,7 +276,7 @@ router.post("/grants/sync", syncLimiter, async (req, res): Promise<void> => {
     return;
   }
   void runGrantSyncOnce().catch((err) => console.error("[grants-sync] manual run failed:", err));
-  await logActivity("grants_sync_requested", "Grant opportunity refresh requested", { userId: req.session.userId }).catch(() => {});
+  await logActivity("grants_sync_requested", "Grant opportunity refresh requested", { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   res.status(202).json({ status: "started" });
 });
 
@@ -355,7 +355,7 @@ router.post("/grants/applicants", async (req, res): Promise<void> => {
   const values = applicantValues(body, true);
   if (typeof values === "string") return fail(res, 400, values);
   const [row] = await db.insert(grantApplicantsTable).values({ id: randomUUID(), userId: req.session.userId!, ...(values as any) }).returning();
-  await logActivity("grant_applicant_created", `Organization "${row.name}" added to Grant Studio`, { userId: req.session.userId }).catch(() => {});
+  await logActivity("grant_applicant_created", `Organization "${row.name}" added to Grant Studio`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   res.status(201).json({ ...applicantSummary(row), readiness: readinessView(row, []), applicationCount: 0 });
 });
 
@@ -392,7 +392,7 @@ router.delete("/grants/applicants/:id", async (req, res): Promise<void> => {
   const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
   if (!applicant) return;
   await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, applicant.id));
-  await logActivity("grant_applicant_deleted", `Organization "${applicant.name}" deleted from Grant Studio`, { userId: req.session.userId }).catch(() => {});
+  await logActivity("grant_applicant_deleted", `Organization "${applicant.name}" deleted from Grant Studio`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   res.status(204).end();
 });
 
@@ -644,7 +644,7 @@ router.post("/grants/applications", async (req, res): Promise<void> => {
     await tx.insert(grantRequirementsTable).values(template.requirements.map((r, position) => ({ id: randomUUID(), applicationId: id, kind: r.kind, label: r.label, detail: r.detail, sectionKey: r.sectionKey ?? null, sourceRef: "template", origin: "template", position })));
     await tx.insert(grantApprovalsTable).values({ id: randomUUID(), applicationId: id, scope: "eligibility", role: "writer", approvedBy: username, note: note ?? null });
   });
-  await logActivity("grant_application_started", `Application started: ${opp.title}`, { userId: req.session.userId }).catch(() => {});
+  await logActivity("grant_application_started", `Application started: ${opp.title}`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   res.status(201).json({ id, existing: false });
 });
 
@@ -1076,7 +1076,7 @@ router.post("/grants/applications/:id/approve-package", async (req, res): Promis
   const username = await actorOf(req);
   await db.insert(grantApprovalsTable).values({ id: randomUUID(), applicationId: owned.app.id, scope: "package", role: "authorized_representative", approvedBy: username, note: note ?? null });
   await db.update(grantApplicationsTable).set({ status: "approved" }).where(eq(grantApplicationsTable.id, owned.app.id));
-  await logActivity("grant_package_approved", `Package approved: ${owned.app.title}`, { userId: req.session.userId }).catch(() => {});
+  await logActivity("grant_package_approved", `Package approved: ${owned.app.title}`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   const [app] = await db.select().from(grantApplicationsTable).where(eq(grantApplicationsTable.id, owned.app.id)).limit(1);
   res.json(await workspace(app, owned.applicant));
 });
@@ -1104,7 +1104,7 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
   });
   if (!draft) {
     await db.update(grantApplicationsTable).set({ status: "exported", exportedAt: new Date() }).where(eq(grantApplicationsTable.id, owned.app.id));
-    await logActivity("grant_package_exported", `Package exported: ${owned.app.title}`, { userId: req.session.userId }).catch(() => {});
+    await logActivity("grant_package_exported", `Package exported: ${owned.app.title}`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   }
   const name = `${owned.applicant.name}-${ws.opportunity.number ?? "application"}${draft ? "-DRAFT" : ""}`.replace(/[^A-Za-z0-9_-]+/g, "-").slice(0, 120);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
@@ -1235,7 +1235,7 @@ router.post("/grants/applications/:id/outcome", async (req, res): Promise<void> 
     values.awardedAmount = outcome === "awarded" ? amount : null;
   }
   const [app] = await db.update(grantApplicationsTable).set(values).where(eq(grantApplicationsTable.id, owned.app.id)).returning();
-  await logActivity("grant_outcome_recorded", `Application "${app.title}" marked ${outcome}`, { userId: req.session.userId }).catch(() => {});
+  await logActivity("grant_outcome_recorded", `Application "${app.title}" marked ${outcome}`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   res.json(await workspace(app, owned.applicant));
 });
 
