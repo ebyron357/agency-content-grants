@@ -250,6 +250,8 @@ export interface GrantMeta {
   aiDemo: boolean;
   opportunities: number;
   lastSync: { status: string; startedAt: string; finishedAt: string | null; fetched: number; error: string | null } | null;
+  /** Active templates this workspace can start an application from. */
+  templates?: { key: string; label: string; builtIn?: boolean }[];
   syncRunning: boolean;
   /** The queued or running refresh (background job), with its progress. */
   syncJob?: { id: string; status: 'queued' | 'running'; progress: { step?: string } | null; runAt: string; attempts: number; lastError: string | null } | null;
@@ -342,7 +344,7 @@ export const grantsApi = {
   undoOutcome: (applicationId: string) => apiDelete(`/grants/applications/${applicationId}/outcome`),
   markMatchesSeen: (id: string) => apiPost(`/grants/applicants/${id}/matches/seen`, {}) as Promise<{ matchesSeenAt: string }>,
   setReadiness: (id: string, kind: string, body: { status: string; expiresOn: string | null; note: string | null }) => apiPut(`/grants/applicants/${id}/readiness/${kind}`, body) as Promise<Readiness>,
-  startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,
+  startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string; template?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,
   updateApplication: (id: string, body: Record<string, unknown>) => apiPatch(`/grants/applications/${id}`, body) as Promise<Workspace>,
   deleteApplication: (id: string) => apiDelete(`/grants/applications/${id}`),
   addRequirement: (id: string, body: Partial<Requirement>) => apiPost(`/grants/applications/${id}/requirements`, body),

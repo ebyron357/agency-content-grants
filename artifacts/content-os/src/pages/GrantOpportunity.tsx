@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReasonList, ScoreBadge, selectClass } from '@/components/grants/GrantUi';
-import { awardRange, calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useInvalidateGrants, useOpportunity } from '@/lib/grants';
+import { awardRange, calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useGrantMeta, useInvalidateGrants, useOpportunity } from '@/lib/grants';
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -30,6 +30,9 @@ export default function GrantOpportunity() {
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
+  /** Empty: the registry chooses (the workspace's most specific matching template, else a built-in). */
+  const [template, setTemplate] = useState('');
+  const meta = useGrantMeta();
 
   if (data.isLoading) return <LoadingState label="Loading the official record…" />;
   if (data.isError || !data.data) {
@@ -48,7 +51,7 @@ export default function GrantOpportunity() {
     setStarting(true);
     setError('');
     try {
-      const result = await grantsApi.startApplication({ applicantId: orgId, opportunityId: o.id, eligibilityConfirmed: true, eligibilityNote: note || undefined });
+      const result = await grantsApi.startApplication({ applicantId: orgId, opportunityId: o.id, eligibilityConfirmed: true, eligibilityNote: note || undefined, template: template || undefined });
       await invalidate();
       navigate(`/grant-studio/applications/${result.id}`);
     } catch (err) {
@@ -153,6 +156,12 @@ export default function GrantOpportunity() {
               <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
               <span>I read the notice’s eligibility section and {org?.name ?? 'this organization'} meets it.</span>
             </label>
+            <Field label="Template" hint="The sections and requirements the application starts with. Manage them in Grant Studio, Templates.">
+              <select className={selectClass} value={template} onChange={(e) => setTemplate(e.target.value)}>
+                <option value="">Choose automatically</option>
+                {(meta.data?.templates ?? []).map((t) => <option key={t.key} value={t.key}>{t.label}{t.builtIn === false ? ' (your template)' : ''}</option>)}
+              </select>
+            </Field>
             <Field label="Eligibility note (optional)" hint="For example the section you checked. Saved with the application.">
               <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
