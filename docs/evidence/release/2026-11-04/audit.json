@@ -1,0 +1,58 @@
+{
+  "advisories": {
+    "1244623": {
+      "findings": [
+        {
+          "version": "10.2.5",
+          "paths": [
+            "lib__api-spec>orval>@orval/angular>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/axios>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/effect>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/fetch>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/hono>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/hono>@orval/zod>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/mcp>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/mcp>@orval/fetch>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/mcp>@orval/zod>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/mock>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/query>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/query>@orval/fetch>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/solid-start>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/swr>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/swr>@orval/fetch>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>@orval/zod>@orval/core>typedoc>minimatch",
+            "lib__api-spec>orval>typedoc>minimatch",
+            "lib__api-spec>orval>typedoc-plugin-coverage>typedoc>minimatch",
+            "lib__api-spec>orval>typedoc-plugin-markdown>typedoc>minimatch"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1244623,
+      "title": "minimatch has potential denial of service via globparts amplification",
+      "module_name": "minimatch",
+      "vulnerable_versions": ">=7.0.0 <11.0.1",
+      "patched_versions": ">=11.0.1",
+      "severity": "moderate",
+      "cwe": "CWE-405",
+      "github_advisory_id": "GHSA-g3hv-75wg-m249",
+      "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 345,
+    "devDependencies": 430,
+    "optionalDependencies": 13,
+    "totalDependencies": 778
+  }
+}

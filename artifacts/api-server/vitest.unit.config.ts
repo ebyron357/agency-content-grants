@@ -25,6 +25,7 @@ export default defineConfig({
       "src/__tests__/video-validator.test.ts",
       "src/lib/ai/demo.test.ts",
       "src/lib/grants/grants.unit.test.ts",
+      "src/lib/grants/toolkit.unit.test.ts",
       "src/lib/permissions.unit.test.ts",
       "src/lib/mfa.unit.test.ts",
       "src/lib/jobs/jobs.unit.test.ts",

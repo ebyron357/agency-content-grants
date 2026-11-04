@@ -10,6 +10,7 @@ import {
   grantBudgetLinesTable,
   grantFactsTable,
   grantSnippetsTable,
+  grantSupportLettersTable,
   grantOpportunitiesTable,
   grantReadinessItemsTable,
   grantRequirementsTable,
@@ -21,6 +22,7 @@ import {
   type GrantApplication,
   type GrantFact,
   type GrantSnippet,
+  type GrantSupportLetter,
   type GrantOpportunity,
 } from "@workspace/db";
 import { getActiveProvider } from "../lib/ai/router";
@@ -56,6 +58,24 @@ import { currentWorker, runJobNow } from "../lib/jobs/worker";
 import { daysUntil } from "../lib/grants/gate";
 import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
 import { CA_SOURCE } from "../lib/grants/california";
+import { PLACE_DESIGNATIONS, PLACE_STATUSES, effectiveStatus, isPlaceKind, needsRecheck, placeCatalog, validGeoRef, COUNTY_FIPS, TRACT_GEOID, type PlaceDesignations, type PlaceRecord } from "../lib/grants/places";
+import {
+  DEFAULT_FORMAT,
+  FORMAT_FONTS,
+  LETTER_STATUSES,
+  LETTER_STATUS_LABELS,
+  LOGIC_MODEL_COLUMNS,
+  checkFormat,
+  defaultFileStem,
+  formatProfileOf,
+  logicModelGaps,
+  logicModelHtml,
+  parseFormatProfile,
+  parseLogicModel,
+  sectionWritingChecks,
+  type LogicModel,
+} from "../lib/grants/writing";
+import { calibration, rateCompetitiveness, type RatingBand } from "../lib/grants/competitiveness";
 import { FACT_CATEGORIES, SECTION_FACT_CATEGORIES, factLine, factsForSection, isFactCategory } from "../lib/grants/facts";
 
 /**
@@ -174,8 +194,18 @@ async function ownedChild<T extends typeof grantSectionsTable | typeof grantRequ
   return (found as any) ?? null;
 }
 
+/** Every designation, with what was recorded, what holds today and whether it is due for a recheck. */
+function placesView(applicant: GrantApplicant) {
+  const recorded = (applicant.placeDesignations ?? {}) as PlaceDesignations;
+  const now = new Date();
+  return placeCatalog().map((spec) => {
+    const record = recorded[spec.key] ?? null;
+    return { ...spec, record, effectiveStatus: effectiveStatus(record ?? undefined, now), needsRecheck: needsRecheck(record ?? undefined, now) };
+  });
+}
+
 function applicantSummary(applicant: GrantApplicant) {
-  return { ...applicant, applicantTypeLabel: APPLICANT_TYPES[applicant.applicantType as ApplicantType]?.label ?? applicant.applicantType };
+  return { ...applicant, applicantTypeLabel: APPLICANT_TYPES[applicant.applicantType as ApplicantType]?.label ?? applicant.applicantType, places: placesView(applicant) };
 }
 
 function readinessView(applicant: GrantApplicant, items: (typeof grantReadinessItemsTable.$inferSelect)[]) {
@@ -259,6 +289,7 @@ router.get("/grants/meta", async (req, res): Promise<void> => {
     readinessKinds: Object.entries(READINESS_KINDS).map(([key, v]) => ({ key, label: v.label, blocking: v.blocking })),
     readinessStatuses: READINESS_STATUSES,
     budgetCategories: Object.entries(BUDGET_CATEGORIES).map(([key, label]) => ({ key, label })),
+    placeDesignations: placeCatalog(),
     templates: (await workspaceTemplates(req.session.userId!)).filter((t) => t.status === "active").map((t) => ({ key: t.key, label: t.label, builtIn: t.builtIn })),
     aiProvider: getActiveProvider().name,
     aiDemo: getActiveProvider().name === "demo",
@@ -286,7 +317,7 @@ router.post("/grants/sync", syncLimiter, async (req, res): Promise<void> => {
 
 // ── Applicants (organizations) ─────────────────────────────────────────────
 
-const APPLICANT_FIELDS = ["name", "applicantType", "ein", "uei", "state", "serviceArea", "mission", "focusAreas", "naicsCodes", "annualBudget", "maxCostSharePercent"] as const;
+const APPLICANT_FIELDS = ["name", "applicantType", "ein", "uei", "state", "serviceArea", "mission", "focusAreas", "naicsCodes", "annualBudget", "maxCostSharePercent", "principalAddress", "censusTract", "countyFips"] as const;
 
 function applicantValues(body: Record<string, unknown>, creating: boolean): Record<string, unknown> | string {
   const values: Record<string, unknown> = {};
@@ -313,6 +344,21 @@ function applicantValues(body: Record<string, unknown>, creating: boolean): Reco
     const text = optionalText(body[field], max);
     if (text === false) return `${field} must be text`;
     values[field] = text;
+  }
+  if (body.principalAddress !== undefined) {
+    const text = optionalText(body.principalAddress, 300);
+    if (text === false) return "principalAddress must be text";
+    values.principalAddress = text;
+  }
+  if (body.censusTract !== undefined) {
+    const tract = optionalText(body.censusTract, 20);
+    if (tract === false || (tract && !TRACT_GEOID.test(tract))) return "censusTract must be the 11-digit census tract GEOID (state, county and tract), for example 37063001503";
+    values.censusTract = tract;
+  }
+  if (body.countyFips !== undefined) {
+    const fips = optionalText(body.countyFips, 10);
+    if (fips === false || (fips && !COUNTY_FIPS.test(fips))) return "countyFips must be the 5-digit county FIPS code, for example 37063";
+    values.countyFips = fips;
   }
   if (body.focusAreas !== undefined) {
     const list = stringList(body.focusAreas, 25, 80);
@@ -426,6 +472,54 @@ router.put("/grants/applicants/:id/readiness/:kind", async (req, res): Promise<v
     .onConflictDoUpdate({ target: [grantReadinessItemsTable.applicantId, grantReadinessItemsTable.kind], set: values });
   const items = await db.select().from(grantReadinessItemsTable).where(eq(grantReadinessItemsTable.applicantId, applicant.id));
   res.json(readinessView(applicant, items));
+});
+
+// ── Place designations ────────────────────────────────────────────────────
+
+/**
+ * Records what a person found on the agency's own tool for one designation.
+ * Grant Studio never decides a designation; "unknown" clears the finding.
+ */
+router.put("/grants/applicants/:id/places/:kind", async (req, res): Promise<void> => {
+  const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
+  if (!applicant) return;
+  const kind = param(req, "kind");
+  if (!isPlaceKind(kind)) return fail(res, 404, "Unknown place designation");
+  const body = pick(req.body, ["status", "place", "geoRef", "checkedOn", "validThrough", "note"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  if (!PLACE_STATUSES.includes(body.status as any)) return fail(res, 400, `status must be one of: ${PLACE_STATUSES.join(", ")}`);
+  const place = optionalText(body.place, 200);
+  if (place === false) return fail(res, 400, "place must be text");
+  const geoRef = optionalText(body.geoRef, 60);
+  if (geoRef === false || (geoRef && !validGeoRef(kind, geoRef))) {
+    const g = PLACE_DESIGNATIONS[kind].geography;
+    return fail(res, 400, g === "census tract" ? "geoRef must be the 11-digit census tract GEOID" : g === "county" ? "geoRef must be the 5-digit county FIPS code (or an 11-digit tract GEOID)" : g === "ZIP Code Tabulation Area" ? "geoRef must be the 5-digit ZCTA" : "geoRef is too long");
+  }
+  const checkedOn = isoDate(body.checkedOn);
+  if (checkedOn === false) return fail(res, 400, "checkedOn must be a date (YYYY-MM-DD)");
+  const validThrough = isoDate(body.validThrough);
+  if (validThrough === false) return fail(res, 400, "validThrough must be a date (YYYY-MM-DD)");
+  const note = optionalText(body.note, 1000);
+  if (note === false) return fail(res, 400, "note must be text");
+  const status = body.status as PlaceRecord["status"];
+  if (status !== "unknown" && !checkedOn) return fail(res, 400, "Record the date you checked the official tool (checkedOn).");
+  if (checkedOn && checkedOn > new Date().toISOString().slice(0, 10)) return fail(res, 400, "checkedOn cannot be in the future.");
+  const designations = { ...((applicant.placeDesignations ?? {}) as PlaceDesignations) };
+  if (status === "unknown" && !place && !geoRef && !note) delete designations[kind];
+  else {
+    designations[kind] = {
+      status,
+      place: place ?? null,
+      geoRef: geoRef ?? null,
+      checkedOn: checkedOn ?? null,
+      validThrough: validThrough ?? null,
+      note: note ?? null,
+      recordedBy: status === "unknown" ? null : await actorOf(req),
+      recordedAt: status === "unknown" ? null : new Date().toISOString(),
+    };
+  }
+  const [row] = await db.update(grantApplicantsTable).set({ placeDesignations: designations as Record<string, unknown> }).where(eq(grantApplicantsTable.id, applicant.id)).returning();
+  res.json({ places: placesView(row) });
 });
 
 // ── Fact library ───────────────────────────────────────────────────────────
@@ -686,8 +780,16 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     db.select().from(grantReadinessItemsTable).where(eq(grantReadinessItemsTable.applicantId, applicant.id)),
   ]);
   const libraryFacts = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id)).orderBy(desc(grantFactsTable.updatedAt));
+  const letters = await db.select().from(grantSupportLettersTable).where(eq(grantSupportLettersTable.applicationId, app.id)).orderBy(asc(grantSupportLettersTable.createdAt));
   const budget = summarizeBudget(lines, app.indirectRatePercent, opp.awardCeiling);
   const packageApproved = approvals.some((a) => a.scope === "package");
+  const formatSet = Object.keys(app.formatProfile ?? {}).length > 0;
+  const profile = formatProfileOf(app.formatProfile);
+  const format = checkFormat(profile, sections);
+  const logicModel = (app.logicModel ?? {}) as LogicModel;
+  // The organization's own recorded decisions, for the rating's context.
+  const decisions = await db.select({ outcome: grantApplicationsTable.outcome, n: count() }).from(grantApplicationsTable).where(and(eq(grantApplicationsTable.applicantId, applicant.id), inArray(grantApplicationsTable.outcome, ["awarded", "declined"]))).groupBy(grantApplicationsTable.outcome);
+  const match = isApplicantType(applicant.applicantType) ? matchOpportunity(matchInput(applicant), opp, readiness) : null;
   const compliance = evaluateCompliance({
     applicantType: applicant.applicantType as ApplicantType,
     federal: !opp.jurisdiction,
@@ -698,14 +800,37 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     budget,
     readiness,
     packageApproved,
+    wordsPerPage: format.wordsPerPage,
+    format: formatSet ? format : undefined,
+    letters,
+  });
+  const rating = rateCompetitiveness({
+    match,
+    sections,
+    requirements,
+    checks: compliance.checks,
+    daysLeft: daysUntil(opp.closeDate),
+    rollingDeadline: opp.rollingDeadline,
+    forecast: opp.status === "forecasted",
+    estimatedFunding: opp.estimatedFunding,
+    awardCeiling: opp.awardCeiling,
+    history: {
+      awarded: Number(decisions.find((d) => d.outcome === "awarded")?.n ?? 0),
+      declined: Number(decisions.find((d) => d.outcome === "declined")?.n ?? 0),
+    },
   });
   return {
     application: app,
+    rating,
     applicant: { ...applicantSummary(applicant), readiness: readinessView(applicant, readiness) },
     opportunity: opportunityView(opp),
     templateLabel: (await findTemplate(applicant.userId, app.template))?.label ?? app.template,
     requirements,
-    sections: sections.map((s) => ({ ...s, limitCheck: checkLimit(s.content, s.limitType, s.limitValue) })),
+    sections: sections.map((s) => ({ ...s, limitCheck: checkLimit(s.content, s.limitType, s.limitValue, format.wordsPerPage), writingChecks: sectionWritingChecks(s) })),
+    format: { ...format, set: formatSet, fonts: FORMAT_FONTS, defaults: DEFAULT_FORMAT },
+    logicModel: { model: logicModel, gaps: logicModelGaps(logicModel), columns: Object.entries(LOGIC_MODEL_COLUMNS).map(([key, c]) => ({ key, ...c })) },
+    letters: letters.map(letterView),
+    letterStatuses: LETTER_STATUSES.map((key) => ({ key, label: LETTER_STATUS_LABELS[key] })),
     budgetLines: lines.map((l) => ({ ...l, total: lineTotal(l) })),
     budget,
     approvals,
@@ -730,7 +855,7 @@ router.get("/grants/applications/:id", async (req, res): Promise<void> => {
 router.patch("/grants/applications/:id", async (req, res): Promise<void> => {
   const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
   if (!owned) return;
-  const body = pick(req.body, ["title", "requestedAmount", "indirectRatePercent", "noticeText"]);
+  const body = pick(req.body, ["title", "requestedAmount", "indirectRatePercent", "noticeText", "formatProfile", "logicModel"]);
   if (typeof body === "string") return fail(res, 400, body);
   const values: Record<string, unknown> = {};
   if (body.title !== undefined) {
@@ -746,9 +871,23 @@ router.patch("/grants/applications/:id", async (req, res): Promise<void> => {
   const notice = optionalText(body.noticeText, 200_000);
   if (notice === false) return fail(res, 400, "noticeText must be text");
   if (notice !== undefined) values.noticeText = notice;
+  if (body.formatProfile !== undefined) {
+    if (body.formatProfile === null) values.formatProfile = {};
+    else {
+      const profile = parseFormatProfile(body.formatProfile);
+      if (typeof profile === "string") return fail(res, 400, profile);
+      values.formatProfile = profile;
+    }
+  }
+  if (body.logicModel !== undefined) {
+    const model = parseLogicModel(body.logicModel ?? {});
+    if (typeof model === "string") return fail(res, 400, model);
+    values.logicModel = model;
+  }
   if (Object.keys(values).length) {
     await db.update(grantApplicationsTable).set(values).where(eq(grantApplicationsTable.id, owned.app.id));
-    if (values.requestedAmount !== undefined || values.indirectRatePercent !== undefined) await invalidatePackage(owned.app.id);
+    // The package approval covers the amount, the budget and the format the file is exported in.
+    if (values.requestedAmount !== undefined || values.indirectRatePercent !== undefined || values.formatProfile !== undefined) await invalidatePackage(owned.app.id);
   }
   const [app] = await db.select().from(grantApplicationsTable).where(eq(grantApplicationsTable.id, owned.app.id)).limit(1);
   res.json(await workspace(app, owned.applicant));
@@ -1080,13 +1219,16 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
     budget: ws.budget,
     requirements: ws.requirements,
     approvals: ws.approvals,
+    format: ws.format.profile,
     generatedAt: new Date(),
   });
   if (!draft) {
     await db.update(grantApplicationsTable).set({ status: "exported", exportedAt: new Date() }).where(eq(grantApplicationsTable.id, owned.app.id));
     await logActivity("grant_package_exported", `Package exported: ${owned.app.title}`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   }
-  const name = `${owned.applicant.name}-${ws.opportunity.number ?? "application"}${draft ? "-DRAFT" : ""}`.replace(/[^A-Za-z0-9_-]+/g, "-").slice(0, 120);
+  // The notice's file name when one is recorded (already checked against Grants.gov's rules), otherwise a Grants.gov-safe default.
+  const recorded = ws.format.profile.fileName?.replace(/\.(?:docx|doc|pdf)$/i, "");
+  const name = recorded && !draft ? recorded : defaultFileStem(owned.applicant.name, ws.opportunity.number, draft);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
   res.setHeader("Content-Disposition", `attachment; filename="${name}.docx"`);
   res.setHeader("Cache-Control", "no-store");
@@ -1184,6 +1326,121 @@ router.post("/grants/sections/:sid/insert-snippet", async (req, res): Promise<vo
   res.json({ ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue) });
 });
 
+// ── Writing toolkit: logic model and letters of support ───────────────────
+
+/** Puts the application's logic model into a section as headings and lists (replace or append). Like any edit, it withdraws approvals. */
+router.post("/grants/sections/:sid/insert-logic-model", async (req, res): Promise<void> => {
+  const owned = await ownedChild(grantSectionsTable, param(req, "sid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, ["mode"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  if (body.mode !== "replace" && body.mode !== "append") return fail(res, 400, "mode must be replace or append");
+  if (owned.row.status === "approved") return fail(res, 409, "Reopen the section before changing it.");
+  const html = logicModelHtml((owned.app.logicModel ?? {}) as LogicModel);
+  if (!html) return fail(res, 400, "The logic model is empty. Fill it in on the Write step first.");
+  const base = body.mode === "append" && !owned.row.demoContent ? owned.row.content : "";
+  const content = sanitizeRichHtml(base + html);
+  const [row] = await db
+    .update(grantSectionsTable)
+    .set({ content, demoContent: false, status: "drafting", approvedBy: null, approvedAt: null })
+    .where(eq(grantSectionsTable.id, owned.row.id))
+    .returning();
+  await invalidatePackage(owned.app.id);
+  res.json({ ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue), writingChecks: sectionWritingChecks(row) });
+});
+
+const LETTER_FIELDS = ["name", "organization", "purpose", "email", "status", "requestedOn", "dueOn", "receivedOn", "requirementId", "note"] as const;
+const MAX_LETTERS_PER_APPLICATION = 60;
+
+function letterView(l: GrantSupportLetter) {
+  return { ...l, statusLabel: LETTER_STATUS_LABELS[l.status as keyof typeof LETTER_STATUS_LABELS] ?? l.status };
+}
+
+async function letterValues(body: Record<string, unknown>, creating: boolean, applicationId: string): Promise<Record<string, unknown> | string> {
+  const values: Record<string, unknown> = {};
+  for (const [field, max, required] of [["name", 160, true], ["organization", 200, false], ["purpose", 500, false], ["note", 1000, false]] as const) {
+    if (!creating && body[field] === undefined) continue;
+    const text = optionalText(body[field], max);
+    if (text === false) return `${field} must be text`;
+    if (required && !text) return `${field} is required`;
+    values[field] = text ?? null;
+  }
+  if (body.email !== undefined) {
+    const email = optionalText(body.email, 200);
+    if (email === false || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return "email must be an email address";
+    values.email = email;
+  }
+  if (body.status !== undefined || creating) {
+    const status = body.status ?? "to_request";
+    if (!LETTER_STATUSES.includes(status as any)) return `status must be one of: ${LETTER_STATUSES.join(", ")}`;
+    values.status = status;
+  }
+  for (const field of ["requestedOn", "dueOn", "receivedOn"] as const) {
+    const date = isoDate(body[field]);
+    if (date === false) return `${field} must be a date (YYYY-MM-DD)`;
+    if (date !== undefined) values[field] = date;
+  }
+  if (body.requirementId !== undefined) {
+    if (body.requirementId === null || body.requirementId === "") values.requirementId = null;
+    else {
+      const [reqRow] = await db.select({ id: grantRequirementsTable.id }).from(grantRequirementsTable).where(and(eq(grantRequirementsTable.id, String(body.requirementId)), eq(grantRequirementsTable.applicationId, applicationId))).limit(1);
+      if (!reqRow) return "requirementId must be a requirement of this application";
+      values.requirementId = reqRow.id;
+    }
+  }
+  // Recording a received letter without a date stamps today.
+  if (values.status === "received" && body.receivedOn === undefined) values.receivedOn = new Date().toISOString().slice(0, 10);
+  if (values.status === "requested" && body.requestedOn === undefined && creating) values.requestedOn = new Date().toISOString().slice(0, 10);
+  return values;
+}
+
+async function ownedLetter(id: string, userId: string, res: Response): Promise<{ letter: GrantSupportLetter; app: GrantApplication } | null> {
+  const [row] = await db
+    .select({ letter: grantSupportLettersTable, app: grantApplicationsTable })
+    .from(grantSupportLettersTable)
+    .innerJoin(grantApplicationsTable, eq(grantSupportLettersTable.applicationId, grantApplicationsTable.id))
+    .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
+    .where(and(eq(grantSupportLettersTable.id, id), eq(grantApplicantsTable.userId, userId)))
+    .limit(1);
+  if (!row) fail(res, 404, "Letter not found");
+  return row ?? null;
+}
+
+router.post("/grants/applications/:id/letters", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, LETTER_FIELDS);
+  if (typeof body === "string") return fail(res, 400, body);
+  const values = await letterValues(body, true, owned.app.id);
+  if (typeof values === "string") return fail(res, 400, values);
+  const [{ n }] = await db.select({ n: count() }).from(grantSupportLettersTable).where(eq(grantSupportLettersTable.applicationId, owned.app.id));
+  if (Number(n) >= MAX_LETTERS_PER_APPLICATION) return fail(res, 400, `An application can track at most ${MAX_LETTERS_PER_APPLICATION} letters.`);
+  const [row] = await db.insert(grantSupportLettersTable).values({ id: randomUUID(), applicationId: owned.app.id, ...(values as any) }).returning();
+  res.status(201).json(letterView(row));
+});
+
+router.patch("/grants/letters/:lid", async (req, res): Promise<void> => {
+  const owned = await ownedLetter(param(req, "lid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, LETTER_FIELDS);
+  if (typeof body === "string") return fail(res, 400, body);
+  const values = await letterValues(body, false, owned.app.id);
+  if (typeof values === "string") return fail(res, 400, values);
+  if (Object.keys(values).length === 0) {
+    res.json(letterView(owned.letter));
+    return;
+  }
+  const [row] = await db.update(grantSupportLettersTable).set(values).where(eq(grantSupportLettersTable.id, owned.letter.id)).returning();
+  res.json(letterView(row));
+});
+
+router.delete("/grants/letters/:lid", async (req, res): Promise<void> => {
+  const owned = await ownedLetter(param(req, "lid"), req.session.userId!, res);
+  if (!owned) return;
+  await db.delete(grantSupportLettersTable).where(eq(grantSupportLettersTable.id, owned.letter.id));
+  res.status(204).end();
+});
+
 // ── Outcomes and pipeline ──────────────────────────────────────────────────
 
 router.post("/grants/applications/:id/outcome", async (req, res): Promise<void> => {
@@ -1209,7 +1466,8 @@ router.post("/grants/applications/:id/outcome", async (req, res): Promise<void> 
   if (note !== undefined) values.outcomeNote = note;
   if (outcome === "submitted") {
     const ws = await workspace(owned.app, owned.applicant);
-    Object.assign(values, { submittedOn: day, submittedAmount: ws.budget.requested || owned.app.requestedAmount || null, trackingNumber: tracking ?? owned.app.trackingNumber ?? null, awardedAmount: null });
+    // The rating is frozen at submission so the organization's award rate can later be measured by band.
+    Object.assign(values, { submittedOn: day, submittedAmount: ws.budget.requested || owned.app.requestedAmount || null, trackingNumber: tracking ?? owned.app.trackingNumber ?? null, awardedAmount: null, ratingAtSubmission: ws.rating.score, ratingBandAtSubmission: ws.rating.band });
   } else {
     if (tracking !== undefined) values.trackingNumber = tracking;
     values.awardedAmount = outcome === "awarded" ? amount : null;
@@ -1225,7 +1483,7 @@ router.delete("/grants/applications/:id/outcome", async (req, res): Promise<void
   if (!owned) return;
   if (!owned.app.outcome) return fail(res, 409, "No outcome is recorded.");
   const values = owned.app.outcome === "submitted"
-    ? { outcome: null, outcomeDate: null, submittedOn: null, submittedAmount: null, trackingNumber: null, awardedAmount: null, outcomeNote: null, outcomeRecordedBy: null }
+    ? { outcome: null, outcomeDate: null, submittedOn: null, submittedAmount: null, trackingNumber: null, awardedAmount: null, outcomeNote: null, outcomeRecordedBy: null, ratingAtSubmission: null, ratingBandAtSubmission: null }
     : { outcome: "submitted", outcomeDate: owned.app.submittedOn, awardedAmount: null };
   const [app] = await db.update(grantApplicationsTable).set(values).where(eq(grantApplicationsTable.id, owned.app.id)).returning();
   res.json(await workspace(app, owned.applicant));
@@ -1241,13 +1499,17 @@ router.get("/grants/pipeline", async (req, res): Promise<void> => {
     .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
     .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
     .where(and(...filters));
-  res.json(summarizePipeline(rows.map(({ app, opp }) => ({
-    status: app.status,
-    outcome: app.outcome,
-    requested: app.submittedAmount,
-    awardedAmount: app.awardedAmount,
-    daysLeft: daysUntil(opp.closeDate),
-  }))));
+  res.json({
+    ...summarizePipeline(rows.map(({ app, opp }) => ({
+      status: app.status,
+      outcome: app.outcome,
+      requested: app.submittedAmount,
+      awardedAmount: app.awardedAmount,
+      daysLeft: daysUntil(opp.closeDate),
+    }))),
+    /** Real award rates by the competitiveness band frozen at submission. */
+    calibration: calibration(rows.map(({ app }) => ({ band: app.ratingBandAtSubmission as RatingBand | null, outcome: app.outcome }))),
+  });
 });
 
 // ── Deadline calendars ─────────────────────────────────────────────────────

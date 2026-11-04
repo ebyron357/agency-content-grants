@@ -11,6 +11,8 @@ import { RichEditor } from '@/components/RichEditor';
 import { usePermissions } from '@/lib/account';
 import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
+import { CompetitivenessPanel, RatingChip } from '@/components/grants/Competitiveness';
+import { LogicModelPanel, ToolkitStep, WritingChecksPanel, isLogicModelSection, toolkitDone } from '@/components/grants/WritingToolkit';
 import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace, followJob, isPendingJob, type AiJob, type PendingJob } from '@/lib/grants';
 
 const KIND_LABELS: Record<string, string> = {
@@ -213,11 +215,11 @@ function AiJobNotice({ job }: { job: AiJob }) {
   );
 }
 
-function LimitMeter({ section, liveWords, liveChars }: { section: Section; liveWords: number; liveChars: number }) {
+function LimitMeter({ section, liveWords, liveChars, wordsPerPage = 500 }: { section: Section; liveWords: number; liveChars: number; wordsPerPage?: number }) {
   const unit = section.limitType;
   const limit = section.limitValue;
   if (!unit || !limit) return <span className="text-xs text-muted-foreground">{liveWords} words · no limit set</span>;
-  const used = unit === 'characters' ? liveChars : unit === 'pages' ? Math.round((liveWords / 500) * 10) / 10 : liveWords;
+  const used = unit === 'characters' ? liveChars : unit === 'pages' ? Math.round((liveWords / wordsPerPage) * 10) / 10 : liveWords;
   const pct = Math.min(100, Math.round((used / limit) * 100));
   const over = used > limit;
   return (
@@ -290,7 +292,7 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
               {section.reviewScore != null && <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">Reviewer score {section.reviewScore}</span>}
             </div>
           </div>
-          <LimitMeter section={live} liveWords={counts.words} liveChars={counts.chars} />
+          <LimitMeter section={live} liveWords={counts.words} liveChars={counts.chars} wordsPerPage={ws.format?.wordsPerPage} />
         </div>
         {aiJob && <AiJobNotice job={aiJob} />}
         {section.guidance && <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-muted-foreground"><span className="font-semibold text-foreground">Guidance: </span>{section.guidance}</p>}
@@ -340,6 +342,8 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
           </ul>
         </Panel>
       )}
+      <WritingChecksPanel section={section} />
+      {isLogicModelSection(section) && canWrite && <LogicModelPanel ws={ws} section={section} dirty={dirty} />}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel>
           <PanelHeader title="This section must answer" description="Mapped on the Requirements step." />
@@ -364,7 +368,7 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
                 <option value="">No limit</option>
                 <option value="words">Words</option>
                 <option value="characters">Characters</option>
-                <option value="pages">Pages (500 words each)</option>
+                <option value="pages">{`Pages (about ${ws.format?.wordsPerPage ?? 500} words each)`}</option>
               </select>
             </Field>
             <Field label="Maximum"><Input type="number" min={1} value={limitValue} onChange={(e) => setLimitValue(e.target.value)} className="w-32" disabled={!limitType} /></Field>
@@ -658,7 +662,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
   const [approving, setApproving] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [note, setNote] = useState('');
-  const stepFor: Record<string, string> = { eligibility: 'requirements', matrix_confirmed: 'requirements', matrix_covered: 'requirements', sections_written: 'write', limits: 'write', no_demo: 'write', sections_approved: 'write', budget: 'budget' };
+  const stepFor: Record<string, string> = { eligibility: 'requirements', matrix_confirmed: 'requirements', matrix_covered: 'requirements', sections_written: 'write', limits: 'write', no_demo: 'write', sections_approved: 'write', no_placeholders: 'write', budget: 'budget', format: 'toolkit', letters: 'toolkit' };
   const passed = ws.compliance.checks.filter((c) => c.ok).length;
 
   return (
@@ -680,6 +684,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
         </ul>
       </Panel>
       <div className="space-y-4">
+        {ws.rating && <CompetitivenessPanel rating={ws.rating} />}
         <Panel>
           <PanelHeader title="Package" description="A DOCX with every section, the budget, the compliance checklist and the approval record." />
           <div className="space-y-3 px-5 py-4">
@@ -752,6 +757,7 @@ const STEPS = [
   { key: 'requirements', label: 'Requirements' },
   { key: 'write', label: 'Write' },
   { key: 'budget', label: 'Budget' },
+  { key: 'toolkit', label: 'Format & letters' },
   { key: 'package', label: 'Review & package' },
 ];
 
@@ -775,6 +781,7 @@ export default function GrantApplication() {
     requirements: w.requirements.length > 0 && w.requirements.every((r) => r.confirmed && r.status !== 'open'),
     write: w.sections.every((s) => s.status === 'approved'),
     budget: w.budgetLines.length > 0 && w.budget.issues.length === 0,
+    toolkit: toolkitDone(w),
     package: w.compliance.readyToExport,
   };
   const passed = w.compliance.checks.filter((c) => c.ok).length;
@@ -796,6 +803,7 @@ export default function GrantApplication() {
                 <a href={calendarUrl('application', w.application.id)} download><CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add to calendar</a>
               </Button>
             )}
+            {w.rating && <RatingChip rating={w.rating} />}
             <StatusPill status={w.application.status} />
             <Button
               size="sm"
@@ -821,7 +829,7 @@ export default function GrantApplication() {
       </div>
       {w.aiDemo && <div className="mb-6"><Notice tone="warn" title="Demo mode">No AI provider is configured: drafting adds a labelled scaffold, extraction is unavailable and review runs rule checks only. Everything else works.</Notice></div>}
       <Tabs value={step} onValueChange={setStep}>
-        <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+        <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
           {STEPS.map((s, i) => (
             <TabsTrigger key={s.key} value={s.key} className="gap-2 py-2">
               {done[s.key] ? <CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden="true" /> : <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px]" aria-hidden="true">{i + 1}</span>}
@@ -833,6 +841,7 @@ export default function GrantApplication() {
         <TabsContent value="requirements"><RequirementsStep ws={w} /></TabsContent>
         <TabsContent value="write"><WriteStep ws={w} /></TabsContent>
         <TabsContent value="budget"><BudgetStep ws={w} /></TabsContent>
+        <TabsContent value="toolkit"><ToolkitStep ws={w} /></TabsContent>
         <TabsContent value="package"><PackageStep ws={w} goTo={setStep} /></TabsContent>
       </Tabs>
     </PageShell>

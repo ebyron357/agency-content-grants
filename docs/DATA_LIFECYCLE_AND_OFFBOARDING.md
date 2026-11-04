@@ -19,7 +19,8 @@ All workspace content belongs to the owner (`ebyron357`) or the client the owner
 | Export files (DOCX, PDF, HTML, Markdown, TXT) | Disk `/var/data/exports` + export records in PostgreSQL | Users |
 | Repurposed assets, publications, performance metrics | PostgreSQL | Users and publishing providers |
 | API keys (hashes), webhook subscriptions and delivery history | PostgreSQL | Admin |
-| Grant Studio organizations, fact library, saved writing, readiness items, applications, requirements, sections, budget lines and approvals | PostgreSQL | Users and AI drafting |
+| Grant Studio organizations (including the address, census tract, county and recorded place designations), fact library, saved writing, readiness items, applications (including format profile and logic model), requirements, sections, budget lines and approvals | PostgreSQL | Users and AI drafting |
+| Grant Studio letters of support: partner names, organizations, email addresses, dates and notes | PostgreSQL | Users |
 | Grant Studio opportunities and sync runs (public Grants.gov records) | PostgreSQL | System (daily sync) |
 | Background jobs (kind, payload, status, attempts, progress, result, last error) | PostgreSQL; finished jobs pruned after 30 days | System |
 | Workspaces; members (name, email, scrypt password hash, last sign-in); memberships and roles; invitations (email, role, token hash) | PostgreSQL | Owners, admins and the people invited |
@@ -58,7 +59,7 @@ Project and brand IDs are in the browser address bar (`/projects/<id>`, `/brands
 | An image | `DELETE /api/media/images/<id>` | Database record and file on disk |
 | A source | `DELETE /api/sources/<id>` (or **Reject** in the UI to exclude it without deleting) | Source record and stored PDF |
 | A document project | `DELETE /api/projects/<id>` | Project and everything under it in the database (document, sections, revisions, outline, research plan, sources, claims, export records) and its files on disk: inline images, uploaded source PDFs and generated exports |
-| A Grant Studio application | `DELETE /api/grants/applications/<id>` (or delete its organization) | Application, requirements, sections, budget lines and approvals. DOCX packages are generated on demand and are not stored |
+| A Grant Studio application | `DELETE /api/grants/applications/<id>` (or delete its organization) | Application, requirements, sections, budget lines, letters of support and approvals. DOCX packages are generated on demand and are not stored |
 | A Grant Studio organization | Organization → **Profile** → **Delete**, or `DELETE /api/grants/applicants/<id>` | Organization, its fact library, saved writing, readiness items and every application under it |
 | A brand | `DELETE /api/brands/<id>` after its projects are deleted (the database refuses while projects reference it) | Brand, audience profiles, facts and knowledge |
 | An API key / webhook | Settings → Automation → Revoke / Delete | Key or subscription |

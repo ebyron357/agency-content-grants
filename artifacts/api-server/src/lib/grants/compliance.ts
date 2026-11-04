@@ -1,6 +1,7 @@
 import { READINESS_KINDS, readinessKindsFor, type ApplicantType, type ReadinessKind } from "./eligibility";
 import { checkLimit } from "./text";
 import type { BudgetSummary } from "./budget";
+import { placeholders, type FormatCheck } from "./writing";
 
 /**
  * Package compliance: every check that must pass before the authorized
@@ -19,6 +20,12 @@ export interface ComplianceInput {
   budget: BudgetSummary;
   readiness: { kind: string; status: string; expiresOn: string | null }[];
   packageApproved: boolean;
+  /** Words per page from the format profile, for page limits. Defaults to 500. */
+  wordsPerPage?: number;
+  /** The format check, when the application has a format profile. */
+  format?: FormatCheck;
+  /** Letters of support being tracked for this application. */
+  letters?: { name: string; organization: string | null; status: string }[];
 }
 
 export interface ComplianceCheck {
@@ -76,7 +83,7 @@ export function evaluateCompliance(input: ComplianceInput): ComplianceReport {
   });
 
   const over = input.sections
-    .map((s) => ({ s, check: checkLimit(s.content, s.limitType, s.limitValue) }))
+    .map((s) => ({ s, check: checkLimit(s.content, s.limitType, s.limitValue, input.wordsPerPage) }))
     .filter(({ check }) => check.over)
     .map(({ s, check }) => `${s.title} (${check.used} of ${check.limit} ${check.unit})`);
   checks.push({
@@ -93,6 +100,39 @@ export function evaluateCompliance(input: ComplianceInput): ComplianceReport {
     ok: demo.length === 0,
     detail: demo.length ? `Replace the demo scaffold in: ${list(demo)}.` : "No demo text.",
   });
+
+  const unfilled = input.sections.filter((s) => !s.demoContent && placeholders(s.content).length > 0).map((s) => s.title);
+  checks.push({
+    id: "no_placeholders",
+    label: "No placeholders left to fill",
+    ok: unfilled.length === 0,
+    detail: unfilled.length ? `Fill the [Add: …] or TBD markers in: ${list(unfilled)}.` : "No placeholders.",
+  });
+
+  if (input.format) {
+    const f = input.format;
+    const blockingName = f.fileNameIssues.filter((i) => i.blocking);
+    const problems = [
+      f.over ? `About ${f.estimatedPages} pages against a ${f.pageLimit}-page limit at ${f.profile.font} ${f.profile.sizePt} pt, ${f.profile.lineSpacing}-spaced` : null,
+      ...blockingName.map((i) => `File name: ${i.message}`),
+    ].filter((p): p is string => Boolean(p));
+    checks.push({
+      id: "format",
+      label: "Fits the notice's format and page limit",
+      ok: problems.length === 0,
+      detail: problems.length ? `${list(problems)}.` : f.pageLimit ? `About ${f.estimatedPages} of ${f.pageLimit} pages (an estimate; check the exported file).` : "No overall page limit recorded.",
+    });
+  }
+
+  if (input.letters && input.letters.length > 0) {
+    const outstanding = input.letters.filter((l) => l.status === "to_request" || l.status === "requested").map((l) => (l.organization ? `${l.name} (${l.organization})` : l.name));
+    checks.push({
+      id: "letters",
+      label: "Letters of support received",
+      ok: outstanding.length === 0,
+      detail: outstanding.length ? `Still waiting for: ${list(outstanding)}. Mark a letter Declined if it will not come.` : "Every tracked letter is received or closed.",
+    });
+  }
 
   const unapproved = input.sections.filter((s) => s.status !== "approved").map((s) => s.title);
   checks.push({

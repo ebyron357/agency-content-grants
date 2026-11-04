@@ -1,5 +1,6 @@
 import { APPLICANT_TYPES, GRANTS_GOV_OTHERS_CODE, GRANTS_GOV_UNRESTRICTED_CODE, READINESS_KINDS, type ApplicantType, type ReadinessKind, readinessKindsFor } from "./eligibility";
 import { daysUntil } from "./gate";
+import { matchPlaces, type PlaceDesignations, type PlaceKind } from "./places";
 
 /**
  * Explained matching: hard filters first (each exclusion says why), then a fit
@@ -15,6 +16,8 @@ export interface MatchApplicant {
   state: string | null;
   annualBudget: number | null;
   maxCostSharePercent: number;
+  /** Place designations a person recorded (Opportunity Zone, HUBZone and so on). */
+  placeDesignations?: PlaceDesignations | null;
 }
 
 export interface MatchReadiness {
@@ -54,6 +57,8 @@ export interface MatchResult {
   /** True when a focus area or a mission term matched: the opportunity is on-topic, not only eligible. */
   relevant: boolean;
   daysLeft: number | null;
+  /** Place designations the notice mentions. */
+  placeKinds: PlaceKind[];
 }
 
 function normalize(text: string): string {
@@ -200,6 +205,14 @@ export function matchOpportunity(
     gaps.push(`Only ${daysLeft} day${daysLeft === 1 ? "" : "s"} until the closing date.`);
   }
 
+  // ── Place designations ───────────────────────────────────────────────────
+  // A notice that mentions a designation the organization recorded it is in
+  // earns 5 points; every mention is named, with what to check.
+  const places = matchPlaces(applicant.placeDesignations, [opportunity.title, opportunity.description ?? "", opportunity.eligibilityText ?? ""].join("\n"), now);
+  reasons.push(...places.reasons);
+  gaps.push(...places.gaps);
+  if (places.inMentioned) score += 5;
+
   // ── Readiness ──────────────────────────────────────────────────────────
   const byKind = new Map(readiness.map((item) => [item.kind, item]));
   let blockingMissing = 0;
@@ -230,5 +243,6 @@ export function matchOpportunity(
     missionTerms,
     relevant: matchedTopics.length > 0 || missionTerms.length > 0,
     daysLeft,
+    placeKinds: places.kinds,
   };
 }

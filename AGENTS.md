@@ -6,10 +6,11 @@ Finish the Agency Content and Grant Intelligence Platform as an evidence-first, 
 
 ## Current state and authorization
 
-`docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 26 October 2026:
+`docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 4 November 2026:
 
-- The release candidate on `main` is **VERIFIED COMPLETE** (Issue #8 UI/UX lock and all repository, CI, accessibility, security and production-mode rehearsal gates).
-- Production is **LIVE** on Render running `main` `6d9f488` (security headers and the 24 October dependency fix) but **NO-GO** until the authenticated `tests/production-smoke.sh` run and Render log review are recorded. Deploys and paid resources are owner-only; agents must not trigger production deploys or create paid resources.
+- The Content Machine release scope is **VERIFIED COMPLETE** (Issue #8 UI/UX lock and all repository, CI, accessibility, security and production-mode rehearsal gates; Issue #8 is closed).
+- `main` `997b735` is the release candidate. It adds the grant directory, Grant Studio, workspaces and roles, two-factor sign-in, background jobs and templates (PRs #26–#45). It is validated, including an upgrade and rollback rehearsal, but **not deployed**. Owner acceptance of Grant Studio and of the new security model is not yet recorded.
+- Production is **LIVE** on Render running `6d9f488` but **NO-GO** until the owner approves and deploys the candidate, and the authenticated `tests/production-smoke.sh` run and Render log review are recorded. Deploys and paid resources are owner-only; agents must not trigger production deploys or create paid resources.
 
 Agents may maintain, fix and verify the product within the approved scope below, prepare and verify deployments, and update the governing records. No agent may bypass a failing gate merely to meet a schedule.
 
@@ -162,4 +163,8 @@ A checkbox or project status may be marked complete only when:
 
 ## Current execution directive
 
-The original Content Machine closeout is implemented and verified. The November 2 grant directory and the November 3 Grant Studio are focused additions; preserve completed functionality and validate the new routes. The remaining steps are in `docs/GO_NO_GO_DECISION.md`: an operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4 and records the result in `docs/PROJECT_STATUS.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.
+The original Content Machine closeout is implemented and verified. The November 2 grant directory, the November 3 Grant Studio and the accounts, jobs and templates work are merged on `main`; preserve completed functionality and validate the new routes. The remaining steps are in `docs/GO_NO_GO_DECISION.md`:
+1. The owner records acceptance of the scope and the security model.
+2. The owner completes the deploy prerequisites (`MFA_ENCRYPTION_KEY`, backup) and deploys.
+3. An operator holding `ADMIN_PASSWORD` runs the production verification in `docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md` §4.
+4. The result is recorded in `docs/PROJECT_STATUS.md`, `docs/GO_NO_GO_DECISION.md`, Issue #8 and ClickUp `86e2tjzyc`. Follow `docs/PROJECT_COMPLETION_STANDARD.md` before declaring any further work complete.

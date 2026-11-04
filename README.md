@@ -11,14 +11,18 @@ Delivered capabilities:
 - Automation API with scoped keys and signed webhooks (`docs/automation-api.md`).
 - One dark command-center design system across every screen (`docs/DESIGN_SYSTEM.md`), accessibility-gated in CI.
 
-A curated grant resource directory at `/grants` is implemented: funding types, eligibility summaries, permitted uses, timing and official sources. See [`docs/GRANT_RESOURCES.md`](docs/GRANT_RESOURCES.md). Automated grant matching, proposal generation and submissions remain deferred.
+Grants:
+
+- A curated grant resource directory at `/grants`: funding types, eligibility summaries, permitted uses, timing and official sources ([`docs/GRANT_RESOURCES.md`](docs/GRANT_RESOURCES.md)).
+- Grant Studio at `/grant-studio`: organization profiles, readiness, daily Grants.gov and California Grants Portal matching with stated reasons, alerts and deadline calendars, a sourced fact library, grounded AI drafting and review, budgets, approvals, the final DOCX package, saved writing, outcomes and an editable template registry ([`docs/GRANT_STUDIO.md`](docs/GRANT_STUDIO.md)). It never submits an application and never presents a match as an eligibility decision.
+- Long-running AI and sync work runs on a durable background job queue ([`docs/BACKGROUND_JOBS.md`](docs/BACKGROUND_JOBS.md)).
 
 ## Status
 
-**Existing Content Machine is deployed; authenticated production verification remains outstanding in the October 26 status record.** The grant directory is implemented in PR #26 and is not yet deployed. The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
+**Production runs `6d9f488` (the Content Machine); authenticated production verification has not been recorded.** `main` (`997b735`, 4 November) adds the grant directory, Grant Studio, workspaces and roles, two-factor sign-in, background jobs and templates. It is validated but not deployed, and it waits on owner approval and a manual deploy. The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
 
 - Recorded production URL: `https://agency-content-grants.onrender.com` (sign-in at `/`); consult the status record for verified deployment identity.
-- Access model: one workspace account protected by the `ADMIN_PASSWORD` secret; no self-registration ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)).
+- Access model (on `main`): workspaces that own their data; personal member sign-in by invitation only, with seven roles enforced on every route; optional or required two-factor sign-in; an audit log. The team password (`ADMIN_PASSWORD`) signs in to the agency workspace as owner. There is no self-registration ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)). Production (`6d9f488`) still has the single team-password account.
 
 ## Architecture
 

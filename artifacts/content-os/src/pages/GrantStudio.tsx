@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReadinessRing, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
+import { CalibrationPanel } from '@/components/grants/Competitiveness';
 import { calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useApplications, useGrantMeta, useInvalidateGrants, type ApplicantType, usePipeline, usd, syncStatusText } from '@/lib/grants';
 
 const TYPE_CHOICES: { type: ApplicantType; title: string; body: string; icon: typeof HandHeart }[] = [
@@ -185,6 +186,7 @@ export default function GrantStudio() {
           ))}
         </dl>
       )}
+      {pipeline.data?.calibration && pipeline.data.calibration.decided + pipeline.data.calibration.bands.reduce((n, b) => n + b.pending, 0) > 0 && <CalibrationPanel calibration={pipeline.data.calibration} />}
 
       <div className="mb-6 grid gap-3 lg:grid-cols-2">
         <Notice

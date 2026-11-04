@@ -1,6 +1,6 @@
 # Document Ownership Map and Authority Index
 
-Updated 3 November 2026. Every fact has one current home. If two documents disagree, the **current** document listed here wins and the other must be corrected or labelled historical in the same PR.
+Updated 4 November 2026. Every fact has one current home. If two documents disagree, the **current** document listed here wins and the other must be corrected or labelled historical in the same PR.
 
 ## Current documents
 
@@ -14,6 +14,7 @@ Updated 3 November 2026. Every fact has one current home. If two documents disag
 | `docs/PROJECT_COMPLETION_STANDARD.md` | Universal completion standard | Product owner | Product owner approval |
 | `docs/DESIGN_SYSTEM.md` | Locked UI system (tokens, components, behaviour rules) | Product owner | Approved PR with accessibility gate green |
 | `docs/GRANT_STUDIO.md` | Grant Studio scope, data sources, matching, approvals, operation and tests | Product owner / maintainers | Approved PR |
+| `docs/BACKGROUND_JOBS.md` | Background job queue, worker, job kinds and operation | Technical lead | Approved PR |
 | `docs/GRANT_RESOURCES.md` | Grant directory scope, source provenance, maintenance and limits | Product owner / maintainers | Approved PR |
 | `docs/CI.md` | CI contract for PRs to `main` | Technical lead | Approved PR |
 | `docs/BRANCH_AND_PR_POLICY.md` | Branching and PR requirements | Technical lead | Approved PR |
@@ -28,7 +29,7 @@ Updated 3 November 2026. Every fact has one current home. If two documents disag
 | `docs/automation-api.md` | Automation API and webhook contract | Technical lead | Approved PR |
 | `docs/engineering-standards.md` | Access-first, reuse-first engineering rules | Technical lead | Approved PR |
 | `docs/decisions/*` | Recorded technical decisions | Technical lead | Approved PR |
-| `docs/evidence/release/2026-10-02/`, `docs/evidence/ui/closeout-2026-10-02/`, `docs/evidence/grant-studio/2026-11-03/` | Closeout and feature evidence | Program lead | Append-only |
+| `docs/evidence/release/2026-10-02/`, `docs/evidence/release/2026-11-04/`, `docs/evidence/ui/closeout-2026-10-02/`, `docs/evidence/grants/2026-11-02/`, `docs/evidence/grant-studio/2026-11-03/`, `docs/evidence/accounts/2026-11-04/`, `docs/evidence/jobs/2026-11-04/`, `docs/evidence/templates/2026-11-04/`, `docs/evidence/toolkit/2026-11-04/`, `docs/evidence/security/*` | Closeout, release-candidate, feature and security evidence | Program lead | Append-only |
 | `render.yaml`, `.env.example` | Deployment blueprint and configuration template | Technical lead | Approved PR |
 
 Section 40 of the completion standard names `docs/PROJECT_CLOSEOUT_STATUS.md`; that role is filled by `docs/PROJECT_STATUS.md` so there is only one status record.
@@ -42,6 +43,8 @@ These describe earlier stages. Each carries a "historical" banner pointing here.
 | `docs/history/PROJECT_STATUS_2026-09-24_PRE_CLOSEOUT.md` | Pre-closeout status, product strategy and competitive analysis (PR #11 era) |
 | `docs/history/GO_NO_GO_DECISION_2026-08-12.md` | 12 Aug 2026 closeout authorisation |
 | `docs/history/GO_NO_GO_DECISION_2026-10-02.md` | 2 Oct 2026 decision (release candidate GO; production NO-GO pending Render creation) |
+| `docs/history/PROJECT_STATUS_2026-10-02_PRE_SECURITY_REPAIR.md` | 2 Oct 2026 status, evidence matrix and release history, before the October dependency repairs |
+| `docs/history/PROJECT_STATUS_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md`, `docs/history/GO_NO_GO_DECISION_2026-11-04_PRE_GRANT_STUDIO_RECONCILIATION.md` | Early 4 Nov 2026 status and decision (`main` described as `3221c7b`; superseded the same day after PRs #29–#45 merged) |
 | `docs/history/PROJECT_STATUS_RECOVERY_BASELINE.md` | Recovery-baseline status |
 | `docs/PROGRAM_CHARTER.md`, `docs/STAGE_0_EXECUTION_PLAN.md`, `docs/REPOSITORY_BASELINE.md`, `docs/governance/GOVERNANCE_BASELINE.md`, `prompts/CURSOR_MASTER_ORCHESTRATOR.md` | Stage 0 planning and governance (July–August 2026) |
 | `docs/recovery/*`, `RECOVERY_PROVENANCE.md` | Replit source recovery (August 2026) |
