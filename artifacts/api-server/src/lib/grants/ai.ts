@@ -95,6 +95,9 @@ export async function extractRequirements(noticeText: string): Promise<AiOutcome
 
 export async function draftSection(ctx: DraftContext): Promise<AiOutcome<string>> {
   const facts = ctx.facts.length ? ctx.facts.map((f) => `- ${f}`).join("\n") : "- (none recorded)";
+  const saved = ctx.savedWriting?.length
+    ? `\n\nAPPROVED WRITING FROM THIS ORGANIZATION'S EARLIER APPLICATIONS (a person approved it; reuse its facts and phrasing, adapt it to this funder, and drop anything that does not fit):\n${ctx.savedWriting.map((w) => `--- ${w.title}\n${w.text}`).join("\n")}`
+    : "";
   const reqs = ctx.requirements.length
     ? ctx.requirements.map((r) => `- ${r.label}${r.points ? ` (${r.points} points)` : ""}${r.detail ? `: ${r.detail}` : ""}`).join("\n")
     : "- (no requirements mapped to this section yet)";
@@ -106,7 +109,7 @@ export async function draftSection(ctx: DraftContext): Promise<AiOutcome<string>
     },
     {
       role: "user",
-      content: `Write the "${ctx.section.title}" section, ${limitPhrase(ctx.section.limitType, ctx.section.limitValue)}.\n\nFUNDER: ${ctx.opportunity.agency ?? "Unknown agency"}\nOPPORTUNITY: ${ctx.opportunity.title}\nPURPOSE (from the notice): ${(ctx.opportunity.description ?? "Not available").slice(0, 3000)}\n\nAPPLICANT: ${ctx.applicant.name} (${ctx.applicant.applicantTypeLabel})\nMISSION: ${ctx.applicant.mission ?? "Not recorded"}\nSERVICE AREA: ${[ctx.applicant.serviceArea, ctx.applicant.state].filter(Boolean).join(", ") || "Not recorded"}\nFOCUS AREAS: ${ctx.applicant.focusAreas.join(", ") || "Not recorded"}\n\nVERIFIED FACTS YOU MAY USE:\n${facts}\n\nREQUIREMENTS THIS SECTION MUST ANSWER:\n${reqs}\n\nSECTION GUIDANCE: ${ctx.section.guidance ?? ""}\n\nCURRENT DRAFT (improve it, keep what is good):\n${ctx.section.content || "(empty)"}`,
+      content: `Write the "${ctx.section.title}" section, ${limitPhrase(ctx.section.limitType, ctx.section.limitValue)}.\n\nFUNDER: ${ctx.opportunity.agency ?? "Unknown agency"}\nOPPORTUNITY: ${ctx.opportunity.title}\nPURPOSE (from the notice): ${(ctx.opportunity.description ?? "Not available").slice(0, 3000)}\n\nAPPLICANT: ${ctx.applicant.name} (${ctx.applicant.applicantTypeLabel})\nMISSION: ${ctx.applicant.mission ?? "Not recorded"}\nSERVICE AREA: ${[ctx.applicant.serviceArea, ctx.applicant.state].filter(Boolean).join(", ") || "Not recorded"}\nFOCUS AREAS: ${ctx.applicant.focusAreas.join(", ") || "Not recorded"}\n\nVERIFIED FACTS YOU MAY USE:\n${facts}${saved}\n\nREQUIREMENTS THIS SECTION MUST ANSWER:\n${reqs}\n\nSECTION GUIDANCE: ${ctx.section.guidance ?? ""}\n\nCURRENT DRAFT (improve it, keep what is good):\n${ctx.section.content || "(empty)"}`,
     },
   ], { maxTokens: 3000, temperature: 0.4 });
   if (result.provider === "demo") {

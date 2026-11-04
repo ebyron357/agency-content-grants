@@ -12,6 +12,8 @@ export interface DraftContext {
   section: { title: string; guidance: string | null; limitType: string | null; limitValue: number | null; content: string };
   requirements: { label: string; detail: string | null; points: number | null }[];
   facts: string[];
+  /** Approved writing saved from earlier applications for the same section, as plain text. */
+  savedWriting?: { title: string; text: string }[];
 }
 
 export function limitPhrase(limitType: string | null, limitValue: number | null): string {
@@ -31,6 +33,9 @@ export function demoScaffold(ctx: DraftContext): string {
       `<ul>${items}</ul>` +
       (ctx.facts.length
         ? `<p><strong>Facts on file you can use here:</strong></p><ul>${ctx.facts.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
+        : "") +
+      (ctx.savedWriting?.length
+        ? `<p><strong>Approved writing on file for this section:</strong> ${ctx.savedWriting.map((w) => escapeHtml(w.title)).join("; ")}. Insert it from Reuse approved writing beside the editor.</p>`
         : "") +
       `<p>[Add evidence with a source for every statistic. Limit: ${escapeHtml(limitPhrase(ctx.section.limitType, ctx.section.limitValue))}.]</p>`,
   );

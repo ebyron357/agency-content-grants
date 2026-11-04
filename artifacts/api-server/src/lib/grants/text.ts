@@ -38,3 +38,19 @@ export function checkLimit(html: string, limitType: string | null, limitValue: n
     over: Boolean(unit && limitValue && used > limitValue),
   };
 }
+
+/** Plain text from section HTML, with paragraph and list breaks kept. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<\s*(br|\/p|\/li|\/h[1-6])\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}

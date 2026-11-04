@@ -95,3 +95,15 @@ Branch `feat/grant-studio-california` (stacked on `feat/grant-studio-deadlines`)
 | California opportunity | "California Grants Portal · CA state program"; fit reasons say "Eligibility includes nonprofits" (the portal's own term) and "A CA state program, and this organization is in CA"; no SAM.gov or Grants.gov gaps | `19-ca-opportunity.png` |
 
 axe found no serious or critical violations, and the mobile Matches page had no horizontal scroll. The integration test runs a fake portal through to a state application: rolling records published, an insecure link held back, residency and match-percentage exclusions, the `state_nonprofit` template with no SF-424 or SAM.gov rows, a readiness check that passes without federal registrations, closing of records that leave the open set, and failure recording.
+
+## Addendum, 4 November 2026: saved writing
+
+Branch `feat/grant-studio-writing` (stacked on `feat/grant-studio-capacity`). Migration `0021_grant_saved_writing`.
+
+| Check | Result | Screenshot |
+|---|---|---|
+| Save an approved section | The synthetic organization's approved "Organizational capacity" section was saved with **Save to library** | `20-save-to-library.png` |
+| Reuse in a second application | In a new application for another opportunity, **Replace** put the saved text into the capacity section (28 words) and reopened it for review | `21-reuse-writing.png` |
+| Saved writing tab | The organization lists its saved text with source, word count, rename and delete | `22-saved-writing-tab.png` |
+
+axe found no serious or critical violations on any of the three pages. The integration test covers the rules: only approved, non-demo sections can be saved; another operator gets 404 everywhere; replace and append work; insertion into an approved section is refused; and saved text survives deletion of its source application.

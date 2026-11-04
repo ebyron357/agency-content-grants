@@ -9,6 +9,7 @@ import {
   grantApprovalsTable,
   grantBudgetLinesTable,
   grantFactsTable,
+  grantSnippetsTable,
   grantOpportunitiesTable,
   grantReadinessItemsTable,
   grantRequirementsTable,
@@ -18,6 +19,7 @@ import {
   type GrantApplicant,
   type GrantApplication,
   type GrantFact,
+  type GrantSnippet,
   type GrantOpportunity,
 } from "@workspace/db";
 import { getActiveProvider } from "../lib/ai/router";
@@ -39,7 +41,7 @@ import { matchOpportunity, type MatchResult } from "../lib/grants/matching";
 import { alertSummaries, broadTopics, hasTopics, isNewFor, matchInput, newSince, scoreMatches, summarizeAlerts } from "../lib/grants/alerts";
 import { TEMPLATES, chooseTemplate, isTemplateKey, type TemplateKey } from "../lib/grants/templates";
 import { summarizeBudget, lineTotal } from "../lib/grants/budget";
-import { checkLimit } from "../lib/grants/text";
+import { checkLimit, htmlToText } from "../lib/grants/text";
 import { evaluateCompliance } from "../lib/grants/compliance";
 import { draftSection, extractRequirements, reviewSection, type DraftContext } from "../lib/grants/ai";
 import { buildApplicationPackage } from "../lib/grants/packageExport";
@@ -894,6 +896,9 @@ async function draftContext(sectionId: string, app: GrantApplication, applicant:
   const reqs = await db.select().from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, app.id));
   const relevant = reqs.filter((r) => r.sectionKey === section.key || (r.kind === "criterion" && !r.sectionKey));
   const library = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
+  // Up to two saved texts for the same section, newest first, as plain text (about 6,000 characters in all).
+  const savedWriting = (await db.select().from(grantSnippetsTable).where(and(eq(grantSnippetsTable.applicantId, applicant.id), eq(grantSnippetsTable.sectionKey, section.key))).orderBy(desc(grantSnippetsTable.updatedAt)).limit(2))
+    .map((w) => ({ title: w.title, text: htmlToText(w.content).slice(0, 3000) }));
   const facts = [
     applicant.annualBudget ? `Annual budget: $${applicant.annualBudget.toLocaleString("en-US")}` : null,
     applicant.ein ? `EIN on file: ${applicant.ein}` : null,
@@ -913,6 +918,7 @@ async function draftContext(sectionId: string, app: GrantApplication, applicant:
     section: { title: section.title, guidance: section.guidance, limitType: section.limitType, limitValue: section.limitValue, content: section.content },
     requirements: relevant.map((r) => ({ label: r.label, detail: r.detail, points: r.points })),
     facts,
+    savedWriting,
   };
 }
 
@@ -1100,6 +1106,97 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
   res.setHeader("Content-Disposition", `attachment; filename="${name}.docx"`);
   res.setHeader("Cache-Control", "no-store");
   res.send(buffer);
+});
+
+// ── Saved writing ──────────────────────────────────────────────────────────
+
+const MAX_SNIPPETS_PER_APPLICANT = 200;
+
+async function ownedSnippet(id: string, userId: string, res: Response): Promise<{ snippet: GrantSnippet; applicant: GrantApplicant } | null> {
+  const [row] = await db
+    .select({ snippet: grantSnippetsTable, applicant: grantApplicantsTable })
+    .from(grantSnippetsTable)
+    .innerJoin(grantApplicantsTable, eq(grantSnippetsTable.applicantId, grantApplicantsTable.id))
+    .where(and(eq(grantSnippetsTable.id, id), eq(grantApplicantsTable.userId, userId)))
+    .limit(1);
+  if (!row) fail(res, 404, "Saved writing not found");
+  return row ?? null;
+}
+
+function snippetView(w: GrantSnippet) {
+  const { words } = checkLimit(w.content, null, null);
+  return { ...w, words, preview: htmlToText(w.content).slice(0, 240) };
+}
+
+router.get("/grants/applicants/:id/snippets", async (req, res): Promise<void> => {
+  const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
+  if (!applicant) return;
+  const rows = await db.select().from(grantSnippetsTable).where(eq(grantSnippetsTable.applicantId, applicant.id)).orderBy(desc(grantSnippetsTable.updatedAt));
+  res.json(rows.map(snippetView));
+});
+
+router.post("/grants/sections/:sid/save-to-library", async (req, res): Promise<void> => {
+  const owned = await ownedChild(grantSectionsTable, param(req, "sid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body ?? {}, ["title"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  const section = owned.row;
+  if (section.status !== "approved") return fail(res, 409, "Approve the section before saving it for reuse.");
+  if (section.demoContent) return fail(res, 409, "Demo scaffold text cannot be saved.");
+  const title = optionalText(body.title, 160);
+  if (title === false) return fail(res, 400, "title must be text");
+  const [{ n }] = await db.select({ n: count() }).from(grantSnippetsTable).where(eq(grantSnippetsTable.applicantId, owned.applicant.id));
+  if (Number(n) >= MAX_SNIPPETS_PER_APPLICANT) return fail(res, 400, `An organization can keep at most ${MAX_SNIPPETS_PER_APPLICANT} saved texts.`);
+  const [row] = await db.insert(grantSnippetsTable).values({
+    id: randomUUID(),
+    applicantId: owned.applicant.id,
+    title: title || `${section.title} (${owned.app.title.slice(0, 80)})`,
+    sectionKey: section.key,
+    content: sanitizeRichHtml(section.content),
+    sourceApplicationId: owned.app.id,
+    sourceLabel: owned.app.title.slice(0, 200),
+    savedBy: await usernameOf(req.session.userId!),
+  }).returning();
+  res.status(201).json(snippetView(row));
+});
+
+router.patch("/grants/snippets/:wid", async (req, res): Promise<void> => {
+  const owned = await ownedSnippet(param(req, "wid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, ["title"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  const title = optionalText(body.title, 160);
+  if (!title) return fail(res, 400, "title is required");
+  const [row] = await db.update(grantSnippetsTable).set({ title }).where(eq(grantSnippetsTable.id, owned.snippet.id)).returning();
+  res.json(snippetView(row));
+});
+
+router.delete("/grants/snippets/:wid", async (req, res): Promise<void> => {
+  const owned = await ownedSnippet(param(req, "wid"), req.session.userId!, res);
+  if (!owned) return;
+  await db.delete(grantSnippetsTable).where(eq(grantSnippetsTable.id, owned.snippet.id));
+  res.status(204).end();
+});
+
+/** Puts saved writing into a section (replace or append). Like any edit, it withdraws approvals and the package approval. */
+router.post("/grants/sections/:sid/insert-snippet", async (req, res): Promise<void> => {
+  const owned = await ownedChild(grantSectionsTable, param(req, "sid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, ["snippetId", "mode"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  if (body.mode !== "replace" && body.mode !== "append") return fail(res, 400, "mode must be replace or append");
+  if (owned.row.status === "approved") return fail(res, 409, "Reopen the section before changing it.");
+  const [snippet] = await db.select().from(grantSnippetsTable).where(and(eq(grantSnippetsTable.id, String(body.snippetId ?? "")), eq(grantSnippetsTable.applicantId, owned.applicant.id))).limit(1);
+  if (!snippet) return fail(res, 404, "Saved writing not found");
+  const base = body.mode === "append" && !owned.row.demoContent ? owned.row.content : "";
+  const content = sanitizeRichHtml(base + snippet.content);
+  const [row] = await db
+    .update(grantSectionsTable)
+    .set({ content, demoContent: false, status: checkLimit(content, null, null).words ? "drafting" : "empty", approvedBy: null, approvedAt: null })
+    .where(eq(grantSectionsTable.id, owned.row.id))
+    .returning();
+  await invalidatePackage(owned.app.id);
+  res.json({ ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue) });
 });
 
 // ── Deadline calendars ─────────────────────────────────────────────────────
