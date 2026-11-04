@@ -9,6 +9,8 @@ export interface Me {
   workspace: { id: string; name: string; kind: string } | null;
   role: string | null;
   roleLabel: string | null;
+  /** What the role may do (api-server lib/permissions.ts). */
+  permissions?: string[];
   workspaces: { id: string; name: string; role: string }[];
 }
 
@@ -16,6 +18,7 @@ export interface RoleInfo {
   key: string;
   label: string;
   description: string;
+  permissions?: string[];
 }
 
 export interface TeamMember {
@@ -42,6 +45,7 @@ export interface Team {
   role: string | null;
   canManage: boolean;
   roles: RoleInfo[];
+  permissions?: { key: string; description: string }[];
   members: TeamMember[];
   invites: PendingInvite[];
 }
@@ -54,6 +58,20 @@ export function inviteLink(invitePath: string): string {
 }
 
 export const useMe = () => useQuery({ queryKey: ['account', 'me'], queryFn: () => apiGet<Me>('/auth/me') });
+/**
+ * What the signed-in role may do. Screens hide or explain actions the server
+ * would refuse; the server enforces the same rules either way.
+ */
+export function usePermissions() {
+  const me = useMe();
+  const held = me.data?.permissions;
+  return {
+    /** True when the role holds any of the permissions. Before /auth/me answers, nothing is offered. */
+    can: (...anyOf: string[]) => (me.data ? !held || anyOf.some((p) => held.includes(p)) : false),
+    roleLabel: me.data?.roleLabel ?? null,
+  };
+}
+
 export const useTeam = () => useQuery({ queryKey: ['account', 'team'], queryFn: () => apiGet<Team>('/workspace') });
 export const useClientWorkspaces = (enabled: boolean) =>
   useQuery({ queryKey: ['account', 'workspaces'], queryFn: () => apiGet<{ id: string; name: string; kind: string; members: number }[]>('/workspaces'), enabled });

@@ -9,6 +9,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, invitesTable, membersTable, membershipsTable, workspacesTable } from "@workspace/db";
 import type { Request, Response } from "express";
 import { hashPassword, verifyPassword } from "../lib/password";
+import { permissionsOf } from "../lib/permissions";
 import { ROLES, ensureAgencyWorkspace, hashToken, isRole, memberView, memberWorkspaces, membershipOf, normalizeEmail, passwordProblem, upgradeLegacySession, type WorkspaceAccess } from "../lib/workspaces";
 
 const router: IRouter = Router();
@@ -39,10 +40,12 @@ const adminUnlockLimiter = rateLimit({
   store: new PgRateLimitStore("admin-unlock"),
 });
 
-// Invitation lookups and acceptance: 20 per 15 minutes per IP.
+// Invitation lookups and acceptance: 20 failed attempts per 15 minutes per IP. Only
+// failures count, so guessing tokens is throttled while a team joining from one office is not.
 const inviteLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
+  skipSuccessfulRequests: true,
   message: { error: "Too many attempts. Try again in 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -207,8 +210,9 @@ router.post("/auth/admin-lock", (req, res): void => {
 
 /**
  * GET /api/auth/me
- * Returns { authenticated, isAdmin } for the current session so the UI can
- * reflect an admin elevation that survives a page reload.
+ * Returns the session's identity for the UI: whether it is signed in and
+ * admin-unlocked, the member and workspace, the role, and the permissions that
+ * role holds (lib/permissions.ts), so screens can offer only what will work.
  */
 router.get("/auth/me", async (req, res) => {
   const authenticated = req.session.authenticated === true;
@@ -229,14 +233,23 @@ router.get("/auth/me", async (req, res) => {
     }
     member = memberView(row);
     workspaces = (await memberWorkspaces(row.id)).map((w) => ({ id: w.workspace.id, name: w.workspace.name, role: w.role }));
+    // The membership is the source of truth for the role, so a change shows here at once.
+    const current = workspaces.find((w) => w.id === req.session.workspaceId);
+    if (!current) {
+      req.session.destroy(() => res.json({ authenticated: false, isAdmin: false }));
+      return;
+    }
+    req.session.role = current.role;
   }
+  const role = req.session.memberId ? req.session.role : (req.session.role ?? "owner");
   res.json({
     authenticated: true,
     isAdmin: req.session.isAdmin === true,
     member,
     workspace: workspace ? { id: workspace.id, name: workspace.name, kind: workspace.kind } : null,
-    role: req.session.role ?? null,
-    roleLabel: req.session.role && isRole(req.session.role) ? ROLES[req.session.role].label : null,
+    role: role ?? null,
+    roleLabel: role && isRole(role) ? ROLES[role].label : null,
+    permissions: permissionsOf(role),
     workspaces,
   });
 });

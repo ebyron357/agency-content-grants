@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { and, asc, count, desc, eq, isNull } from "drizzle-orm";
 import { db, invitesTable, membersTable, membershipsTable, workspacesTable } from "@workspace/db";
 import { logActivity } from "../lib/activity";
+import { PERMISSIONS, ROLE_PERMISSIONS } from "../lib/permissions";
 import { invalidateMembershipCache } from "../middleware/requireAuth";
 import {
   INVITE_TTL_DAYS,
@@ -73,7 +74,8 @@ router.get("/workspace", async (req, res): Promise<void> => {
     workspace: { id: workspace.id, name: workspace.name, kind: workspace.kind, createdAt: workspace.createdAt },
     role: req.session.role ?? null,
     canManage: manager,
-    roles: Object.entries(ROLES).map(([key, r]) => ({ key, ...r })),
+    roles: Object.entries(ROLES).map(([key, r]) => ({ key, ...r, permissions: ROLE_PERMISSIONS[key as Role] })),
+    permissions: Object.entries(PERMISSIONS).map(([key, description]) => ({ key, description })),
     members: members.map((m) => ({ ...memberView(m.member), role: m.role, since: m.since, isYou: m.member.id === req.session.memberId })),
     invites: invites
       .filter((i) => i.expiresAt.getTime() > Date.now())

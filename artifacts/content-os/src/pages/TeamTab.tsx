@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, Notice, selectClass } from '@/components/grants/GrantUi';
 import { errorMessage } from '@/lib/grants';
-import { accountApi, inviteLink, useClientWorkspaces, useInvalidateAccount, useMe, useTeam, type RoleInfo } from '@/lib/account';
+import { accountApi, inviteLink, useClientWorkspaces, useInvalidateAccount, useMe, useTeam, type RoleInfo, type Team } from '@/lib/account';
 
 function CopyLink({ link }: { link: string }) {
   const [copied, setCopied] = useState(false);
@@ -66,6 +66,52 @@ function InviteForm({ roles, canInviteOwner }: { roles: RoleInfo[]; canInviteOwn
       {error && <Notice tone="error">{error}</Notice>}
       {link && <CopyLink link={link} />}
     </form>
+  );
+}
+
+/** The role table the server enforces (api-server lib/permissions.ts), read from the API so it never drifts. */
+function RoleMatrix({ team }: { team: Team }) {
+  const permissions = team.permissions ?? [];
+  if (!permissions.length || team.roles.some((r) => !r.permissions)) return null;
+  return (
+    <Panel>
+      <PanelHeader title="What each role can do" description="Every request is checked against this table. Changing someone's role applies on their next action." />
+      <ul className="divide-y divide-border lg:hidden">
+        {team.roles.map((r) => (
+          <li key={r.key} className="px-5 py-3 text-sm">
+            <p className="font-medium text-foreground">{r.label}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{permissions.filter((p) => r.permissions!.includes(p.key)).map((p) => p.description).join(' · ')}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto lg:block">
+        <table className="w-full text-sm">
+          <caption className="sr-only">Permissions held by each role</caption>
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <th scope="col" className="px-5 py-2 font-medium">Permission</th>
+              {team.roles.map((r) => <th key={r.key} scope="col" className="px-2 py-2 text-center font-medium">{r.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {permissions.map((p) => (
+              <tr key={p.key} className="border-b border-border last:border-0">
+                <th scope="row" className="px-5 py-2 text-left font-normal text-foreground">{p.description}</th>
+                {team.roles.map((r) => {
+                  const held = r.permissions!.includes(p.key);
+                  return (
+                    <td key={r.key} className="px-2 py-2 text-center">
+                      {held ? <Check className="mx-auto h-4 w-4 text-emerald-400" aria-hidden="true" /> : <span className="text-muted-foreground" aria-hidden="true">–</span>}
+                      <span className="sr-only">{held ? 'Yes' : 'No'}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }
 
@@ -246,6 +292,8 @@ export default function TeamTab() {
           )}
         </Panel>
       )}
+
+      <RoleMatrix team={t} />
 
       {self.member && (
         <Panel>
