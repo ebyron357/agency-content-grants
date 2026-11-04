@@ -8,6 +8,8 @@ import { evaluateCompliance } from "./compliance";
 import { TEMPLATES, chooseTemplate } from "./templates";
 import { readinessKindsFor } from "./eligibility";
 import { broadTopics, hasTopics, isNewFor, newSince, scoreMatches, summarizeAlerts } from "./matchSet";
+import { MAX_FACTS_PER_DRAFT, factLine, factsForSection, factsMappedToSection, isFactCategory } from "./facts";
+import { demoScaffold } from "./ai";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
 
 // Shapes recorded from api.grants.gov on 3 November 2026 (public notice data, trimmed).
@@ -358,5 +360,45 @@ describe("match alerts", () => {
     expect(broadTopics(["health", "literacy"], many)).toEqual(["health"]);
     // Too few matches to judge.
     expect(broadTopics(["health"], many.slice(0, 10))).toEqual([]);
+  });
+});
+
+describe("fact library", () => {
+  const fact = (id: string, category: string, confirmedAt: string | null, extra: Record<string, unknown> = {}) => ({ id, category, label: `Fact ${id}`, body: `Body ${id}`, source: null, asOf: null, confirmedAt, ...extra });
+
+  it("formats a fact with its source and date, or says the source is missing", () => {
+    expect(factLine(fact("a", "need", "2026-11-01", { source: "Census ACS 2024", asOf: "2024-12-31" }))).toBe("Fact a: Body a (source: Census ACS 2024, as of 2024-12-31)");
+    expect(factLine(fact("b", "need", "2026-11-01"))).toBe("Fact b: Body b (source not recorded)");
+    expect(isFactCategory("need")).toBe(true);
+    expect(isFactCategory("toString")).toBe(false);
+  });
+
+  it("gives drafting only confirmed facts, the section's categories first, within bounds", () => {
+    const facts = [
+      fact("staff1", "staff", "2026-11-02"),
+      fact("need1", "need", "2026-11-01"),
+      fact("need2", "need", null),
+      fact("need3", "need", "2026-11-03"),
+    ];
+    expect(factsForSection(facts, "need").map((f) => f.id)).toEqual(["need3", "need1", "staff1"]);
+    expect(factsMappedToSection(facts, "need").map((f) => f.id)).toEqual(["need1", "need3"]);
+    // An unmapped section uses every confirmed fact.
+    expect(factsMappedToSection(facts, "custom_section").map((f) => f.id)).toEqual(["staff1", "need1", "need3"]);
+    const many = Array.from({ length: 40 }, (_, i) => fact(`m${i}`, "need", "2026-11-01"));
+    expect(factsForSection(many, "need")).toHaveLength(MAX_FACTS_PER_DRAFT);
+    const huge = Array.from({ length: 10 }, (_, i) => fact(`h${i}`, "need", "2026-11-01", { body: "x".repeat(1900) }));
+    expect(factsForSection(huge, "need").length).toBeLessThan(10);
+  });
+
+  it("lists facts on file in the demo scaffold, escaped", () => {
+    const html = demoScaffold({
+      applicant: { name: "Org", applicantTypeLabel: "Nonprofit", mission: null, serviceArea: null, state: null, focusAreas: [] },
+      opportunity: { title: "Opp", agency: null, description: null },
+      section: { title: "Statement of need", guidance: null, limitType: null, limitValue: null, content: "" },
+      requirements: [],
+      facts: ["Child poverty: 31% <b>in</b> Halifax County (source: ACS 2024)"],
+    });
+    expect(html).toMatch(/Facts on file you can use here/);
+    expect(html).toContain("Child poverty: 31% &lt;b&gt;in&lt;/b&gt; Halifax County");
   });
 });

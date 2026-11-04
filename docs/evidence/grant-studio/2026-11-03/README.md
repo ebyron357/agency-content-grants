@@ -55,3 +55,14 @@ Branch `feat/grant-studio-alerts` (stacked on `feat/grant-studio-clean`). Migrat
 **Simulated:** every demo opportunity was stored before the demo organizations were added, so none would be new. For screenshots 12 and 13, the literacy organization's `matches_seen_at` was set to just before the first sync in the demo database. The integration test checks the real path against a real database: an opportunity stored after the organization is added, one `grant.new_matches` webhook event and then none, mark as seen, and isolation.
 
 axe found no serious or critical violations. Local checks: API unit tests 171 passed (34 Grant Studio); database-backed API tests 352 passed (5 Grant Studio integration); Content OS 27 passed; Playwright 6 passed under the CI condition and 3 against the live-data demo; format, typecheck and build pass.
+
+## Addendum, 4 November 2026: fact library
+
+Branch `feat/grant-studio-library` (stacked on `feat/grant-studio-alerts`). Migration `0018_grant_fact_library`.
+
+| Check | Result | Screenshot |
+|---|---|---|
+| Fact library tab | Three synthetic facts, labelled synthetic: two confirmed, one unconfirmed and marked "Not confirmed, so drafting does not use it" | `15-fact-library.png` |
+| Write step | The Statement of need lists only its confirmed need fact, with source, date and **Copy**; the programs fact stays with its own sections | `16-write-facts.png` |
+
+axe found no serious or critical violations on either page. The integration test shows that the demo draft includes the confirmed fact with its source and leaves out the unconfirmed one. Local checks: API unit tests 37 Grant Studio; integration 6; Playwright 6 under the CI condition (now including adding a confirmed fact) and 3 against the live-data demo.

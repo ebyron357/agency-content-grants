@@ -8,6 +8,7 @@ import {
   grantApplicationsTable,
   grantApprovalsTable,
   grantBudgetLinesTable,
+  grantFactsTable,
   grantOpportunitiesTable,
   grantReadinessItemsTable,
   grantRequirementsTable,
@@ -16,6 +17,7 @@ import {
   usersTable,
   type GrantApplicant,
   type GrantApplication,
+  type GrantFact,
   type GrantOpportunity,
 } from "@workspace/db";
 import { getActiveProvider } from "../lib/ai/router";
@@ -43,6 +45,7 @@ import { draftSection, extractRequirements, reviewSection, type DraftContext } f
 import { buildApplicationPackage } from "../lib/grants/packageExport";
 import { isGrantSyncRunning, refreshOpportunityDetail, runGrantSyncOnce } from "../lib/grants/ingest";
 import { daysUntil } from "../lib/grants/gate";
+import { FACT_CATEGORIES, SECTION_FACT_CATEGORIES, factLine, factsForSection, isFactCategory } from "../lib/grants/facts";
 
 /**
  * Grant Studio API (docs/GRANT_STUDIO.md).
@@ -396,6 +399,98 @@ router.put("/grants/applicants/:id/readiness/:kind", async (req, res): Promise<v
   res.json(readinessView(applicant, items));
 });
 
+// ── Fact library ───────────────────────────────────────────────────────────
+
+const FACT_FIELDS = ["category", "label", "body", "source", "asOf", "confirmed"] as const;
+const MAX_FACTS_PER_APPLICANT = 300;
+
+async function ownedFact(id: string, userId: string, res: Response): Promise<{ fact: GrantFact; applicant: GrantApplicant } | null> {
+  const [row] = await db
+    .select({ fact: grantFactsTable, applicant: grantApplicantsTable })
+    .from(grantFactsTable)
+    .innerJoin(grantApplicantsTable, eq(grantFactsTable.applicantId, grantApplicantsTable.id))
+    .where(and(eq(grantFactsTable.id, id), eq(grantApplicantsTable.userId, userId)))
+    .limit(1);
+  if (!row) fail(res, 404, "Fact not found");
+  return row ?? null;
+}
+
+function factValues(body: Record<string, unknown>, creating: boolean): Record<string, unknown> | string {
+  const values: Record<string, unknown> = {};
+  if (creating || body.category !== undefined) {
+    if (!isFactCategory(body.category)) return `category must be one of: ${Object.keys(FACT_CATEGORIES).join(", ")}`;
+    values.category = body.category;
+  }
+  for (const [field, max, required] of [["label", 160, true], ["body", 2000, true], ["source", 500, false]] as const) {
+    if (!creating && body[field] === undefined) continue;
+    const text = optionalText(body[field], max);
+    if (text === false) return `${field} must be text`;
+    if (required && !text) return `${field} is required`;
+    values[field] = text ?? null;
+  }
+  if (body.asOf !== undefined) {
+    const date = isoDate(body.asOf);
+    if (date === false) return "asOf must be a date (YYYY-MM-DD)";
+    values.asOf = date ?? null;
+  }
+  if (body.confirmed !== undefined && typeof body.confirmed !== "boolean") return "confirmed must be true or false";
+  return values;
+}
+
+function factView(f: GrantFact) {
+  return { ...f, confirmed: Boolean(f.confirmedAt), categoryLabel: FACT_CATEGORIES[f.category as keyof typeof FACT_CATEGORIES]?.label ?? f.category };
+}
+
+router.get("/grants/applicants/:id/facts", async (req, res): Promise<void> => {
+  const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
+  if (!applicant) return;
+  const facts = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id)).orderBy(asc(grantFactsTable.category), desc(grantFactsTable.updatedAt));
+  res.json({
+    categories: Object.entries(FACT_CATEGORIES).map(([key, c]) => ({ key, ...c })),
+    facts: facts.map(factView),
+  });
+});
+
+router.post("/grants/applicants/:id/facts", async (req, res): Promise<void> => {
+  const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
+  if (!applicant) return;
+  const body = pick(req.body, FACT_FIELDS);
+  if (typeof body === "string") return fail(res, 400, body);
+  const values = factValues(body, true);
+  if (typeof values === "string") return fail(res, 400, values);
+  const [{ n }] = await db.select({ n: count() }).from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
+  if (Number(n) >= MAX_FACTS_PER_APPLICANT) return fail(res, 400, `An organization can hold at most ${MAX_FACTS_PER_APPLICANT} facts.`);
+  const confirmation = body.confirmed === true ? { confirmedBy: await usernameOf(req.session.userId!), confirmedAt: new Date() } : {};
+  const [row] = await db.insert(grantFactsTable).values({ id: randomUUID(), applicantId: applicant.id, ...(values as any), ...confirmation }).returning();
+  res.status(201).json(factView(row));
+});
+
+router.patch("/grants/facts/:fid", async (req, res): Promise<void> => {
+  const owned = await ownedFact(param(req, "fid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, FACT_FIELDS);
+  if (typeof body === "string") return fail(res, 400, body);
+  const values = factValues(body, false);
+  if (typeof values === "string") return fail(res, 400, values);
+  const contentChanged = ["category", "label", "body", "source", "asOf"].some((k) => values[k] !== undefined && values[k] !== (owned.fact as any)[k]);
+  // Editing a confirmed fact withdraws the confirmation unless the same request confirms it again.
+  if (body.confirmed === true) Object.assign(values, { confirmedBy: await usernameOf(req.session.userId!), confirmedAt: new Date() });
+  else if (body.confirmed === false || contentChanged) Object.assign(values, { confirmedBy: null, confirmedAt: null });
+  if (Object.keys(values).length === 0) {
+    res.json(factView(owned.fact));
+    return;
+  }
+  const [row] = await db.update(grantFactsTable).set(values).where(eq(grantFactsTable.id, owned.fact.id)).returning();
+  res.json(factView(row));
+});
+
+router.delete("/grants/facts/:fid", async (req, res): Promise<void> => {
+  const owned = await ownedFact(param(req, "fid"), req.session.userId!, res);
+  if (!owned) return;
+  await db.delete(grantFactsTable).where(eq(grantFactsTable.id, owned.fact.id));
+  res.status(204).end();
+});
+
 // ── Matches and opportunities ─────────────────────────────────────────────
 
 router.get("/grants/applicants/:id/matches", async (req, res): Promise<void> => {
@@ -551,6 +646,7 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     db.select().from(grantApprovalsTable).where(eq(grantApprovalsTable.applicationId, app.id)).orderBy(asc(grantApprovalsTable.createdAt)),
     db.select().from(grantReadinessItemsTable).where(eq(grantReadinessItemsTable.applicantId, applicant.id)),
   ]);
+  const libraryFacts = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id)).orderBy(desc(grantFactsTable.updatedAt));
   const budget = summarizeBudget(lines, app.indirectRatePercent, opp.awardCeiling);
   const packageApproved = approvals.some((a) => a.scope === "package");
   const compliance = evaluateCompliance({
@@ -575,6 +671,11 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     approvals,
     compliance,
     aiDemo: getActiveProvider().name === "demo",
+    library: {
+      total: libraryFacts.length,
+      confirmed: libraryFacts.filter((f) => f.confirmedAt).map(factView),
+      sectionCategories: SECTION_FACT_CATEGORIES,
+    },
   };
 }
 
@@ -772,10 +873,12 @@ async function draftContext(sectionId: string, app: GrantApplication, applicant:
   const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
   const reqs = await db.select().from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, app.id));
   const relevant = reqs.filter((r) => r.sectionKey === section.key || (r.kind === "criterion" && !r.sectionKey));
+  const library = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
   const facts = [
     applicant.annualBudget ? `Annual budget: $${applicant.annualBudget.toLocaleString("en-US")}` : null,
     applicant.ein ? `EIN on file: ${applicant.ein}` : null,
     app.requestedAmount ? `Amount requested: $${app.requestedAmount.toLocaleString("en-US")}` : null,
+    ...factsForSection(library, section.key).map(factLine),
   ].filter((f): f is string => Boolean(f));
   return {
     applicant: {

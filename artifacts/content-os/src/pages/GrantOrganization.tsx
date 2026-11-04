@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FactLibrary } from '@/components/grants/FactLibrary';
 import { DeadlineChip, Field, Notice, ReadinessRing, ReasonList, ScoreBadge, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { awardRange, deadlineLabel, errorMessage, grantsApi, useApplicant, useGrantMeta, useInvalidateGrants, useMatches, type Applicant, type ReadinessRow } from '@/lib/grants';
 
@@ -345,11 +346,13 @@ export default function GrantOrganization() {
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="readiness">Readiness</TabsTrigger>
           <TabsTrigger value="applications">Applications ({a.applications?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="library">Fact library</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
         </TabsList>
         <TabsContent value="matches"><MatchesTab applicant={a} /></TabsContent>
         <TabsContent value="readiness"><ReadinessTab applicant={a} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab applicant={a} /></TabsContent>
+        <TabsContent value="library"><FactLibrary applicantId={a.id} /></TabsContent>
         <TabsContent value="profile"><ProfileTab applicant={a} /></TabsContent>
       </Tabs>
     </PageShell>

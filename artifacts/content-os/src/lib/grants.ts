@@ -162,6 +162,27 @@ export interface ComplianceCheck {
   detail: string;
 }
 
+export interface FactCategoryInfo {
+  key: string;
+  label: string;
+  hint: string;
+}
+
+export interface Fact {
+  id: string;
+  applicantId: string;
+  category: string;
+  categoryLabel: string;
+  label: string;
+  body: string;
+  source: string | null;
+  asOf: string | null;
+  confirmed: boolean;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+  updatedAt: string;
+}
+
 export interface Workspace {
   application: {
     id: string;
@@ -185,6 +206,8 @@ export interface Workspace {
   budget: BudgetSummary;
   approvals: { id: string; scope: string; role: string; approvedBy: string; note: string | null; createdAt: string }[];
   compliance: { checks: ComplianceCheck[]; readyForApproval: boolean; readyToExport: boolean };
+  /** The organization's fact library: confirmed facts and which categories each section draws on. */
+  library: { total: number; confirmed: Fact[]; sectionCategories: Record<string, string[]> };
   aiDemo: boolean;
 }
 
@@ -206,11 +229,14 @@ export const keys = {
   opportunity: (id: string, applicantId?: string) => ['grants', 'opportunity', id, applicantId ?? ''] as const,
   applications: ['grants', 'applications'] as const,
   workspace: (id: string) => ['grants', 'workspace', id] as const,
+  facts: (id: string) => ['grants', 'facts', id] as const,
 };
 
 export const useGrantMeta = () => useQuery({ queryKey: keys.meta, queryFn: () => apiGet<GrantMeta>('/grants/meta') });
 export const useApplicants = () => useQuery({ queryKey: keys.applicants, queryFn: () => apiGet<Applicant[]>('/grants/applicants') });
 export const useApplicant = (id: string) => useQuery({ queryKey: keys.applicant(id), queryFn: () => apiGet<Applicant>(`/grants/applicants/${id}`) });
+export const useFacts = (id: string) =>
+  useQuery({ queryKey: keys.facts(id), queryFn: () => apiGet<{ categories: FactCategoryInfo[]; facts: Fact[] }>(`/grants/applicants/${id}/facts`) });
 export const useApplications = () => useQuery({ queryKey: keys.applications, queryFn: () => apiGet<ApplicationSummary[]>('/grants/applications') });
 export interface MatchesResponse {
   total: number;
@@ -246,6 +272,9 @@ export const grantsApi = {
   createApplicant: (body: Partial<Applicant>) => apiPost('/grants/applicants', body) as Promise<Applicant>,
   updateApplicant: (id: string, body: Partial<Applicant>) => apiPatch(`/grants/applicants/${id}`, body) as Promise<Applicant>,
   deleteApplicant: (id: string) => apiDelete(`/grants/applicants/${id}`),
+  createFact: (applicantId: string, body: Record<string, unknown>) => apiPost(`/grants/applicants/${applicantId}/facts`, body) as Promise<Fact>,
+  updateFact: (id: string, body: Record<string, unknown>) => apiPatch(`/grants/facts/${id}`, body) as Promise<Fact>,
+  deleteFact: (id: string) => apiDelete(`/grants/facts/${id}`),
   markMatchesSeen: (id: string) => apiPost(`/grants/applicants/${id}/matches/seen`, {}) as Promise<{ matchesSeenAt: string }>,
   setReadiness: (id: string, kind: string, body: { status: string; expiresOn: string | null; note: string | null }) => apiPut(`/grants/applicants/${id}/readiness/${kind}`, body) as Promise<Readiness>,
   startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,

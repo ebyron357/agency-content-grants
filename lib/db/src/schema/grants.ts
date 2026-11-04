@@ -218,3 +218,27 @@ export type GrantRequirement = typeof grantRequirementsTable.$inferSelect;
 export type GrantSection = typeof grantSectionsTable.$inferSelect;
 export type GrantBudgetLine = typeof grantBudgetLinesTable.$inferSelect;
 export type GrantApproval = typeof grantApprovalsTable.$inferSelect;
+
+/**
+ * The organization's fact library: reusable, sourced statements (history,
+ * programs, outcomes, staff, partners, finances, community need). Only facts a
+ * person has confirmed are given to AI drafting, which may use nothing else.
+ */
+export const grantFactsTable = pgTable("grant_facts", {
+  id: text("id").primaryKey(),
+  applicantId: text("applicant_id").notNull().references(() => grantApplicantsTable.id, { onDelete: "cascade" }),
+  /** One of FACT_CATEGORIES in the API's grants/facts module. */
+  category: text("category").notNull(),
+  label: text("label").notNull(),
+  body: text("body").notNull(),
+  /** Where the fact comes from: a document, report or URL. */
+  source: text("source"),
+  /** ISO date the fact was true as of. */
+  asOf: text("as_of"),
+  confirmedBy: text("confirmed_by"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [index("idx_grant_facts_applicant").on(table.applicantId)]);
+
+export type GrantFact = typeof grantFactsTable.$inferSelect;

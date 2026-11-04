@@ -75,6 +75,18 @@ test("Grant Studio: add an organization, record readiness and see matches", asyn
   await expect(row.getByText("Saved.")).toBeVisible();
   await expectNoSeriousViolations(page, "readiness");
 
+  await page.getByRole("tab", { name: "Fact library" }).click();
+  await page.getByLabel("Category").selectOption("need");
+  await page.getByLabel(/^Label/).fill("Grade 3 reading proficiency");
+  await page.getByRole("textbox", { name: /^Fact / }).fill("41% of third graders read at grade level (synthetic).");
+  await page.getByLabel(/^Source/).fill("Synthetic test source");
+  await page.getByLabel(/I checked this fact/).first().check();
+  await page.getByRole("button", { name: "Add fact" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Fact added." })).toBeVisible();
+  await expect(page.getByText("Grade 3 reading proficiency")).toBeVisible();
+  await expect(page.getByText("Confirmed", { exact: true })).toBeVisible();
+  await expectNoSeriousViolations(page, "fact library");
+
   await page.getByRole("tab", { name: "Profile" }).click();
   await expectNoSeriousViolations(page, "profile");
 

@@ -218,6 +218,17 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
   const counts = useMemo(() => countHtml(draft), [draft]);
   const dirty = draft !== section.content;
   const mapped = ws.requirements.filter((r) => r.sectionKey === section.key || (r.kind === 'criterion' && !r.sectionKey));
+  const wanted = ws.library.sectionCategories[section.key];
+  const sectionFacts = ws.library.confirmed.filter((f) => !wanted || wanted.includes(f.category));
+  const [copied, setCopied] = useState('');
+  async function copyFact(text: string, id: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(id);
+    } catch {
+      setCopied('');
+    }
+  }
   const live: Section = { ...section, limitType: (limitType || null) as Section['limitType'], limitValue: limitValue ? Number(limitValue) : null };
 
   return (
@@ -311,6 +322,34 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
           </form>
         </Panel>
       </div>
+      <Panel>
+        <PanelHeader
+          title="Facts on file for this section"
+          description={sectionFacts.length ? 'Confirmed facts from the fact library. Drafting uses them; copy one to quote it yourself.' : undefined}
+        />
+        {sectionFacts.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-muted-foreground">
+            No confirmed facts fit this section yet.{' '}
+            <Link href={`/grant-studio/organizations/${ws.applicant.id}`} className="font-medium text-brand hover:underline">Add them in the fact library</Link>{' '}
+            so drafting can cite them.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {sectionFacts.map((f) => (
+              <li key={f.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{f.label}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{f.body}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{f.source ? `Source: ${f.source}` : 'No source recorded'}{f.asOf ? ` · as of ${f.asOf}` : ''}</p>
+                </div>
+                <Button size="sm" variant="ghost" className="shrink-0" onClick={() => copyFact(f.source ? `${f.body} (${f.source})` : f.body, f.id)}>
+                  {copied === f.id ? 'Copied' : 'Copy'}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
     </div>
   );
 }

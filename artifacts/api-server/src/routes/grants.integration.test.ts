@@ -335,6 +335,51 @@ describe("Grant Studio end to end", () => {
     expect(seen.data.matches.find((m: any) => m.opportunity.id === FRESH_OPP).isNew).toBe(false);
   }, 30_000);
 
+  it("keeps a confirmed, sourced fact library that drafting uses and editing re-opens", async () => {
+    const api = client(await login(OWNER));
+    const org = (await api("POST", "/grants/applicants", { name: "Pine Street Readers", applicantType: "nonprofit_501c3", focusAreas: ["literacy"] })).data;
+    const meta = await api("GET", `/grants/applicants/${org.id}/facts`);
+    expect(meta.data.categories.map((c: any) => c.key)).toContain("need");
+    expect((await api("POST", `/grants/applicants/${org.id}/facts`, { category: "bogus", label: "x", body: "y" })).status).toBe(400);
+    expect((await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "", body: "y" })).status).toBe(400);
+    expect((await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "x", body: "y", asOf: "soon" })).status).toBe(400);
+
+    const confirmed = await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "Third-grade reading", body: "41% of third graders read at grade level.", source: "State report card 2025", asOf: "2025-08-01", confirmed: true });
+    expect(confirmed.status).toBe(201);
+    expect(confirmed.data.confirmed).toBe(true);
+    expect(confirmed.data.confirmedBy).toBeTruthy();
+    const draftOnly = await api("POST", `/grants/applicants/${org.id}/facts`, { category: "need", label: "Unverified claim", body: "Most families lack books." });
+    expect(draftOnly.data.confirmed).toBe(false);
+
+    // Another operator can neither read nor change the library.
+    const other = client(await login(OTHER));
+    expect((await other("GET", `/grants/applicants/${org.id}/facts`)).status).toBe(404);
+    expect((await other("PATCH", `/grants/facts/${confirmed.data.id}`, { body: "hijack" })).status).toBe(404);
+    expect((await other("DELETE", `/grants/facts/${confirmed.data.id}`)).status).toBe(404);
+
+    // Drafting (demo provider) lists confirmed facts only.
+    const app = await api("POST", "/grants/applications", { applicantId: org.id, opportunityId: NONPROFIT_OPP, eligibilityConfirmed: true });
+    const ws = (await api("GET", `/grants/applications/${app.data.id}`)).data;
+    expect(ws.library.total).toBe(2);
+    expect(ws.library.confirmed.map((f: any) => f.id)).toEqual([confirmed.data.id]);
+    expect(ws.library.sectionCategories.need).toEqual(["need"]);
+    const need = ws.sections.find((sec: any) => sec.key === "need");
+    const drafted = await api("POST", `/grants/sections/${need.id}/draft`);
+    expect(drafted.status).toBe(200);
+    const content = (await api("GET", `/grants/applications/${app.data.id}`)).data.sections.find((sec: any) => sec.key === "need").content;
+    expect(content).toContain("41% of third graders read at grade level.");
+    expect(content).toContain("State report card 2025");
+    expect(content).not.toContain("Most families lack books.");
+
+    // Editing a confirmed fact withdraws its confirmation; confirming again restores it.
+    const edited = await api("PATCH", `/grants/facts/${confirmed.data.id}`, { body: "43% of third graders read at grade level." });
+    expect(edited.data.confirmed).toBe(false);
+    const reconfirmed = await api("PATCH", `/grants/facts/${confirmed.data.id}`, { confirmed: true });
+    expect(reconfirmed.data.confirmed).toBe(true);
+    expect((await api("DELETE", `/grants/facts/${draftOnly.data.id}`)).status).toBe(204);
+    expect((await api("GET", `/grants/applicants/${org.id}/facts`)).data.facts).toHaveLength(1);
+  }, 30_000);
+
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {
     const close = inDays(45);
     const hits: Record<string, any[]> = {

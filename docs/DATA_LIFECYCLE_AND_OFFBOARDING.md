@@ -19,7 +19,7 @@ All workspace content belongs to the owner (`ebyron357`) or the client the owner
 | Export files (DOCX, PDF, HTML, Markdown, TXT) | Disk `/var/data/exports` + export records in PostgreSQL | Users |
 | Repurposed assets, publications, performance metrics | PostgreSQL | Users and publishing providers |
 | API keys (hashes), webhook subscriptions and delivery history | PostgreSQL | Admin |
-| Grant Studio organizations, readiness items, applications, requirements, sections, budget lines and approvals | PostgreSQL | Users and AI drafting |
+| Grant Studio organizations, fact library, readiness items, applications, requirements, sections, budget lines and approvals | PostgreSQL | Users and AI drafting |
 | Grant Studio opportunities and sync runs (public Grants.gov records) | PostgreSQL | System (daily sync) |
 | Sessions, sign-in rate-limit counters, activity log | PostgreSQL | System |
 | Application logs | Render logs (retention per Render plan) | System |
@@ -57,7 +57,7 @@ Project and brand IDs are in the browser address bar (`/projects/<id>`, `/brands
 | A source | `DELETE /api/sources/<id>` (or **Reject** in the UI to exclude it without deleting) | Source record and stored PDF |
 | A document project | `DELETE /api/projects/<id>` | Project and everything under it in the database (document, sections, revisions, outline, research plan, sources, claims, export records) and its files on disk: inline images, uploaded source PDFs and generated exports |
 | A Grant Studio application | `DELETE /api/grants/applications/<id>` (or delete its organization) | Application, requirements, sections, budget lines and approvals. DOCX packages are generated on demand and are not stored |
-| A Grant Studio organization | Organization → **Profile** → **Delete**, or `DELETE /api/grants/applicants/<id>` | Organization, readiness items and every application under it |
+| A Grant Studio organization | Organization → **Profile** → **Delete**, or `DELETE /api/grants/applicants/<id>` | Organization, its fact library, readiness items and every application under it |
 | A brand | `DELETE /api/brands/<id>` after its projects are deleted (the database refuses while projects reference it) | Brand, audience profiles, facts and knowledge |
 | An API key / webhook | Settings → Automation → Revoke / Delete | Key or subscription |
 | The whole workspace | Decommission (runbook §11): delete the Render service, disk and database after taking any required final backup | All data. Render PITR and disk snapshots expire on Render's retention schedule; logical backups held outside Render must be deleted separately |

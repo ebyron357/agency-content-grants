@@ -112,6 +112,9 @@ export function demoScaffold(ctx: DraftContext): string {
       `<h3>${escapeHtml(ctx.section.title)}</h3>` +
       (ctx.section.guidance ? `<p>${escapeHtml(ctx.section.guidance)}</p>` : "") +
       `<ul>${items}</ul>` +
+      (ctx.facts.length
+        ? `<p><strong>Facts on file you can use here:</strong></p><ul>${ctx.facts.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
+        : "") +
       `<p>[Add evidence with a source for every statistic. Limit: ${escapeHtml(limitPhrase(ctx.section.limitType, ctx.section.limitValue))}.]</p>`,
   );
 }
