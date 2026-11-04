@@ -24,6 +24,8 @@ const GrantStudio = lazy(() => import("@/pages/GrantStudio"));
 const GrantOrganization = lazy(() => import("@/pages/GrantOrganization"));
 const GrantOpportunity = lazy(() => import("@/pages/GrantOpportunity"));
 const GrantApplication = lazy(() => import("@/pages/GrantApplication"));
+const GrantTemplates = lazy(() => import("@/pages/GrantTemplates"));
+const GrantTemplateEditor = lazy(() => import("@/pages/GrantTemplateEditor"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -66,6 +68,8 @@ function AppLayout() {
             <Route path="/grant-studio/organizations/:id" component={GrantOrganization} />
             <Route path="/grant-studio/opportunities/:id" component={GrantOpportunity} />
             <Route path="/grant-studio/applications/:id" component={GrantApplication} />
+            <Route path="/grant-studio/templates" component={GrantTemplates} />
+            <Route path="/grant-studio/templates/:key" component={GrantTemplateEditor} />
             <Route component={NotFound} />
           </Switch>
         </Suspense>

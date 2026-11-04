@@ -190,6 +190,13 @@
       "when": 1788777600000,
       "tag": "0025_job_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788864000000,
+      "tag": "0026_grant_templates",
+      "breakpoints": true
     }
   ]
 }

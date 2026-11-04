@@ -39,7 +39,8 @@ import {
 } from "../lib/grants/eligibility";
 import { matchOpportunity, type MatchResult } from "../lib/grants/matching";
 import { alertSummaries, broadTopics, hasTopics, isNewFor, matchInput, newSince, scoreMatches, summarizeAlerts } from "../lib/grants/alerts";
-import { TEMPLATES, chooseTemplate, isTemplateKey, type TemplateKey } from "../lib/grants/templates";
+import { chooseRegistryTemplate } from "../lib/grants/templateRegistry";
+import { findTemplate, workspaceTemplates } from "./grant-templates";
 import { summarizeBudget, lineTotal } from "../lib/grants/budget";
 import { checkLimit, htmlToText } from "../lib/grants/text";
 import { OUTCOMES, isOutcome, outcomeTransitionError, summarizePipeline } from "../lib/grants/pipeline";
@@ -255,7 +256,7 @@ function opportunityView(o: GrantOpportunity) {
 
 // ── Meta and sync ──────────────────────────────────────────────────────────
 
-router.get("/grants/meta", async (_req, res): Promise<void> => {
+router.get("/grants/meta", async (req, res): Promise<void> => {
   const [opps] = await db.select({ total: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true));
   const bySource = await db.select({ source: grantOpportunitiesTable.source, n: count() }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.publishable, true)).groupBy(grantOpportunitiesTable.source);
   const [lastRun] = await db.select().from(grantSyncRunsTable).orderBy(desc(grantSyncRunsTable.startedAt)).limit(1);
@@ -265,7 +266,7 @@ router.get("/grants/meta", async (_req, res): Promise<void> => {
     readinessKinds: Object.entries(READINESS_KINDS).map(([key, v]) => ({ key, label: v.label, blocking: v.blocking })),
     readinessStatuses: READINESS_STATUSES,
     budgetCategories: Object.entries(BUDGET_CATEGORIES).map(([key, label]) => ({ key, label })),
-    templates: Object.values(TEMPLATES).map((t) => ({ key: t.key, label: t.label })),
+    templates: (await workspaceTemplates(req.session.userId!)).filter((t) => t.status === "active").map((t) => ({ key: t.key, label: t.label, builtIn: t.builtIn })),
     aiProvider: getActiveProvider().name,
     aiDemo: getActiveProvider().name === "demo",
     opportunities: Number(opps.total),
@@ -623,7 +624,7 @@ router.post("/grants/applications", async (req, res): Promise<void> => {
   if (body.eligibilityConfirmed !== true) return fail(res, 400, "Confirm eligibility against the official notice before starting an application.");
   const note = optionalText(body.eligibilityNote, 2000);
   if (note === false) return fail(res, 400, "eligibilityNote must be text");
-  if (body.template !== undefined && !isTemplateKey(body.template)) return fail(res, 400, "Unknown template");
+  if (body.template !== undefined && typeof body.template !== "string") return fail(res, 400, "Unknown template");
   const applicant = await ownedApplicant(body.applicantId, req.session.userId!, res);
   if (!applicant) return;
   const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, body.opportunityId)).limit(1);
@@ -634,8 +635,11 @@ router.post("/grants/applications", async (req, res): Promise<void> => {
     res.status(200).json({ id: existing.id, existing: true });
     return;
   }
-  const templateKey: TemplateKey = (body.template as TemplateKey) ?? chooseTemplate(applicant.applicantType as ApplicantType, opp.title, opp.jurisdiction);
-  const template = TEMPLATES[templateKey];
+  // A chosen template must be one this workspace can use; otherwise the registry picks one.
+  const available = await workspaceTemplates(req.session.userId!);
+  const templateKey = (body.template as string | undefined) ?? chooseRegistryTemplate(available, applicant.applicantType as ApplicantType, opp.title, opp.jurisdiction);
+  const template = available.find((t) => t.key === templateKey && t.status === "active");
+  if (!template) return fail(res, 400, "Unknown or archived template");
   const username = await actorOf(req);
   const id = randomUUID();
   await db.transaction(async (tx) => {
@@ -700,7 +704,7 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     application: app,
     applicant: { ...applicantSummary(applicant), readiness: readinessView(applicant, readiness) },
     opportunity: opportunityView(opp),
-    templateLabel: TEMPLATES[app.template as TemplateKey]?.label ?? app.template,
+    templateLabel: (await findTemplate(applicant.userId, app.template))?.label ?? app.template,
     requirements,
     sections: sections.map((s) => ({ ...s, limitCheck: checkLimit(s.content, s.limitType, s.limitValue) })),
     budgetLines: lines.map((l) => ({ ...l, total: lineTotal(l) })),

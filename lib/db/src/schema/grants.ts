@@ -285,3 +285,32 @@ export const grantSnippetsTable = pgTable("grant_snippets", {
 }, (table) => [index("idx_grant_snippets_applicant").on(table.applicantId)]);
 
 export type GrantSnippet = typeof grantSnippetsTable.$inferSelect;
+
+/**
+ * Application templates a workspace made or customized (docs/GRANT_STUDIO.md).
+ * Built-in templates live in the API's lib/grants/templates.ts and are read
+ * only; a workspace duplicates one to change it. An application copies its
+ * template's sections and requirements when it starts, so editing a template
+ * never changes applications already under way.
+ */
+export const grantTemplatesTable = pgTable("grant_templates", {
+  id: text("id").primaryKey(),
+  /** The workspace principal that owns the template. */
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  description: text("description"),
+  /** The built-in template it started from, if any. */
+  basedOn: text("based_on"),
+  /** When it is chosen automatically: { applicantKind, jurisdiction, titleIncludes }. */
+  appliesTo: jsonb("applies_to").notNull(),
+  sections: jsonb("sections").notNull(),
+  requirements: jsonb("requirements").notNull(),
+  /** "active" or "archived". Archived templates are not offered for new applications. */
+  status: text("status").notNull().default("active"),
+  version: integer("version").notNull().default(1),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [index("idx_grant_templates_user").on(table.userId)]);
+
+export type GrantTemplate = typeof grantTemplatesTable.$inferSelect;
