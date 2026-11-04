@@ -42,6 +42,7 @@ import { alertSummaries, broadTopics, hasTopics, isNewFor, matchInput, newSince,
 import { TEMPLATES, chooseTemplate, isTemplateKey, type TemplateKey } from "../lib/grants/templates";
 import { summarizeBudget, lineTotal } from "../lib/grants/budget";
 import { checkLimit, htmlToText } from "../lib/grants/text";
+import { OUTCOMES, isOutcome, outcomeTransitionError, summarizePipeline } from "../lib/grants/pipeline";
 import { evaluateCompliance } from "../lib/grants/compliance";
 import { draftSection, extractRequirements, reviewSection, type DraftContext } from "../lib/grants/ai";
 import { buildApplicationPackage } from "../lib/grants/packageExport";
@@ -165,8 +166,10 @@ async function ownedChild<T extends typeof grantSectionsTable | typeof grantRequ
   return (found as any) ?? null;
 }
 
-/** Any edit after approval reopens the package for approval. */
+/** Any edit after approval reopens the package for approval, until a submission is recorded: then the record stands. */
 async function invalidatePackage(applicationId: string): Promise<void> {
+  const [app] = await db.select({ outcome: grantApplicationsTable.outcome }).from(grantApplicationsTable).where(eq(grantApplicationsTable.id, applicationId)).limit(1);
+  if (app?.outcome) return;
   await db.delete(grantApprovalsTable).where(and(eq(grantApprovalsTable.applicationId, applicationId), eq(grantApprovalsTable.scope, "package")));
   await db.update(grantApplicationsTable).set({ status: "draft" }).where(and(eq(grantApplicationsTable.id, applicationId), inArray(grantApplicationsTable.status, ["approved", "exported"])));
 }
@@ -1199,6 +1202,72 @@ router.post("/grants/sections/:sid/insert-snippet", async (req, res): Promise<vo
   res.json({ ...row, limitCheck: checkLimit(row.content, row.limitType, row.limitValue) });
 });
 
+// ── Outcomes and pipeline ──────────────────────────────────────────────────
+
+router.post("/grants/applications/:id/outcome", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, ["outcome", "date", "trackingNumber", "awardedAmount", "note"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  if (!isOutcome(body.outcome)) return fail(res, 400, `outcome must be one of: ${OUTCOMES.join(", ")}`);
+  const outcome = body.outcome;
+  const problem = outcomeTransitionError({ status: owned.app.status, outcome: owned.app.outcome }, outcome);
+  if (problem) return fail(res, 409, problem);
+  const date = isoDate(body.date);
+  if (date === false) return fail(res, 400, "date must be a date (YYYY-MM-DD)");
+  const tracking = optionalText(body.trackingNumber, 100);
+  if (tracking === false) return fail(res, 400, "trackingNumber must be text");
+  const note = optionalText(body.note, 2000);
+  if (note === false) return fail(res, 400, "note must be text");
+  const amount = optionalNumber(body.awardedAmount, 0, 1_000_000_000);
+  if (amount === false) return fail(res, 400, "awardedAmount must be a positive number");
+  if (outcome === "awarded" && !amount) return fail(res, 400, "Record the awarded amount.");
+  const day = date ?? new Date().toISOString().slice(0, 10);
+  const values: Record<string, unknown> = { outcome, outcomeDate: day, outcomeRecordedBy: await usernameOf(req.session.userId!) };
+  if (note !== undefined) values.outcomeNote = note;
+  if (outcome === "submitted") {
+    const ws = await workspace(owned.app, owned.applicant);
+    Object.assign(values, { submittedOn: day, submittedAmount: ws.budget.requested || owned.app.requestedAmount || null, trackingNumber: tracking ?? owned.app.trackingNumber ?? null, awardedAmount: null });
+  } else {
+    if (tracking !== undefined) values.trackingNumber = tracking;
+    values.awardedAmount = outcome === "awarded" ? amount : null;
+  }
+  const [app] = await db.update(grantApplicationsTable).set(values).where(eq(grantApplicationsTable.id, owned.app.id)).returning();
+  await logActivity("grant_outcome_recorded", `Application "${app.title}" marked ${outcome}`, { userId: req.session.userId }).catch(() => {});
+  res.json(await workspace(app, owned.applicant));
+});
+
+/** Undoes the latest outcome step: a decision returns to submitted, a submission returns to exported. */
+router.delete("/grants/applications/:id/outcome", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  if (!owned.app.outcome) return fail(res, 409, "No outcome is recorded.");
+  const values = owned.app.outcome === "submitted"
+    ? { outcome: null, outcomeDate: null, submittedOn: null, submittedAmount: null, trackingNumber: null, awardedAmount: null, outcomeNote: null, outcomeRecordedBy: null }
+    : { outcome: "submitted", outcomeDate: owned.app.submittedOn, awardedAmount: null };
+  const [app] = await db.update(grantApplicationsTable).set(values).where(eq(grantApplicationsTable.id, owned.app.id)).returning();
+  res.json(await workspace(app, owned.applicant));
+});
+
+router.get("/grants/pipeline", async (req, res): Promise<void> => {
+  const applicantId = typeof req.query.applicantId === "string" ? req.query.applicantId : null;
+  const filters = [eq(grantApplicantsTable.userId, req.session.userId!)];
+  if (applicantId) filters.push(eq(grantApplicantsTable.id, applicantId));
+  const rows = await db
+    .select({ app: grantApplicationsTable, opp: grantOpportunitiesTable })
+    .from(grantApplicationsTable)
+    .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
+    .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
+    .where(and(...filters));
+  res.json(summarizePipeline(rows.map(({ app, opp }) => ({
+    status: app.status,
+    outcome: app.outcome,
+    requested: app.submittedAmount,
+    awardedAmount: app.awardedAmount,
+    daysLeft: daysUntil(opp.closeDate),
+  }))));
+});
+
 // ── Deadline calendars ─────────────────────────────────────────────────────
 
 function sendCalendar(res: Response, name: string, body: string): void {
@@ -1243,7 +1312,7 @@ router.get("/grants/calendar.ics", async (req, res): Promise<void> => {
     .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
     .where(eq(grantApplicantsTable.userId, req.session.userId!));
   const deadlines = rows
-    .filter(({ app, opp }) => app.status !== "exported" && opp.closeDate && (daysUntil(opp.closeDate) ?? -1) >= 0)
+    .filter(({ app, opp }) => app.status !== "exported" && !app.outcome && opp.closeDate && (daysUntil(opp.closeDate) ?? -1) >= 0)
     .map(({ app, applicant, opp }) => ({
       uid: `application-${app.id}`,
       date: opp.closeDate!,

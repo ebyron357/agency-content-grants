@@ -13,6 +13,7 @@ import { demoScaffold } from "./draftScaffold";
 import { buildDeadlineCalendar, dueReminder, escapeIcsText, fileStem, foldIcsLine } from "./calendar";
 import { caAmountRange, caDate, caMatching, normalizeCaRecord } from "./california";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
+import { outcomeTransitionError, summarizePipeline } from "./pipeline";
 
 // Shapes recorded from api.grants.gov on 3 November 2026 (public notice data, trimmed).
 const SEARCH_HIT = {
@@ -532,5 +533,31 @@ describe("saved writing", () => {
     });
     expect(html).toMatch(/Approved writing on file for this section/);
     expect(html).toContain("Capacity &lt;2026&gt;");
+  });
+});
+
+describe("outcomes and pipeline", () => {
+  it("records a submission only after export, and a decision only after a submission", () => {
+    expect(outcomeTransitionError({ status: "draft", outcome: null }, "submitted")).toMatch(/final package/);
+    expect(outcomeTransitionError({ status: "exported", outcome: null }, "submitted")).toBeNull();
+    expect(outcomeTransitionError({ status: "exported", outcome: null }, "awarded")).toMatch(/submission first/);
+    expect(outcomeTransitionError({ status: "exported", outcome: "submitted" }, "awarded")).toBeNull();
+    expect(outcomeTransitionError({ status: "draft", outcome: "submitted" }, "declined")).toBeNull();
+    expect(outcomeTransitionError({ status: "exported", outcome: "awarded" }, "submitted")).toMatch(/Clear it first/);
+    expect(outcomeTransitionError({ status: "exported", outcome: "awarded" }, "awarded")).toBeNull();
+  });
+
+  it("summarizes work in progress, decisions and the win rate", () => {
+    const summary = summarizePipeline([
+      { status: "draft", outcome: null, requested: null, awardedAmount: null, daysLeft: 10 },
+      { status: "draft", outcome: null, requested: null, awardedAmount: null, daysLeft: 60 },
+      { status: "exported", outcome: "submitted", requested: 50000, awardedAmount: null, daysLeft: -3 },
+      { status: "exported", outcome: "awarded", requested: 100000, awardedAmount: 80000, daysLeft: -40 },
+      { status: "exported", outcome: "declined", requested: 30000, awardedAmount: null, daysLeft: -90 },
+      { status: "exported", outcome: "declined", requested: 20000, awardedAmount: null, daysLeft: -100 },
+      { status: "exported", outcome: "withdrawn", requested: 999, awardedAmount: null, daysLeft: 5 },
+    ]);
+    expect(summary).toEqual({ inProgress: 2, dueWithin30Days: 1, awaitingDecision: 1, awarded: 1, declined: 2, withdrawn: 1, requestedSubmitted: 200000, awardedTotal: 80000, winRate: 0.33 });
+    expect(summarizePipeline([]).winRate).toBeNull();
   });
 });

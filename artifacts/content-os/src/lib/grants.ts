@@ -96,6 +96,8 @@ export interface ApplicationSummary {
   title: string;
   status: string;
   updatedAt: string;
+  outcome: 'submitted' | 'awarded' | 'declined' | 'withdrawn' | null;
+  awardedAmount: number | null;
   applicant?: { id: string; name: string };
   opportunity: { id: string; title: string; agency: string | null; closeDate: string | null; daysLeft: number | null };
 }
@@ -217,6 +219,14 @@ export interface Workspace {
     eligibilityConfirmedBy: string | null;
     eligibilityNote: string | null;
     exportedAt: string | null;
+    outcome: 'submitted' | 'awarded' | 'declined' | 'withdrawn' | null;
+    outcomeDate: string | null;
+    submittedOn: string | null;
+    trackingNumber: string | null;
+    submittedAmount: number | null;
+    awardedAmount: number | null;
+    outcomeNote: string | null;
+    outcomeRecordedBy: string | null;
   };
   applicant: Applicant;
   opportunity: Opportunity;
@@ -261,6 +271,18 @@ export const useApplicant = (id: string) => useQuery({ queryKey: keys.applicant(
 export const useFacts = (id: string) =>
   useQuery({ queryKey: keys.facts(id), queryFn: () => apiGet<{ categories: FactCategoryInfo[]; facts: Fact[] }>(`/grants/applicants/${id}/facts`) });
 export const useSnippets = (id: string) => useQuery({ queryKey: keys.snippets(id), queryFn: () => apiGet<Snippet[]>(`/grants/applicants/${id}/snippets`) });
+export interface PipelineSummary {
+  inProgress: number;
+  dueWithin30Days: number;
+  awaitingDecision: number;
+  awarded: number;
+  declined: number;
+  withdrawn: number;
+  requestedSubmitted: number;
+  awardedTotal: number;
+  winRate: number | null;
+}
+export const usePipeline = () => useQuery({ queryKey: ['grants', 'pipeline'], queryFn: () => apiGet<PipelineSummary>('/grants/pipeline') });
 export const useApplications = () => useQuery({ queryKey: keys.applications, queryFn: () => apiGet<ApplicationSummary[]>('/grants/applications') });
 export interface MatchesResponse {
   total: number;
@@ -303,6 +325,8 @@ export const grantsApi = {
   insertSnippet: (sectionId: string, snippetId: string, mode: 'replace' | 'append') => apiPost(`/grants/sections/${sectionId}/insert-snippet`, { snippetId, mode }),
   renameSnippet: (id: string, title: string) => apiPatch(`/grants/snippets/${id}`, { title }) as Promise<Snippet>,
   deleteSnippet: (id: string) => apiDelete(`/grants/snippets/${id}`),
+  recordOutcome: (applicationId: string, body: { outcome: string; date?: string | null; trackingNumber?: string | null; awardedAmount?: number | null; note?: string | null }) => apiPost(`/grants/applications/${applicationId}/outcome`, body),
+  undoOutcome: (applicationId: string) => apiDelete(`/grants/applications/${applicationId}/outcome`),
   markMatchesSeen: (id: string) => apiPost(`/grants/applicants/${id}/matches/seen`, {}) as Promise<{ matchesSeenAt: string }>,
   setReadiness: (id: string, kind: string, body: { status: string; expiresOn: string | null; note: string | null }) => apiPut(`/grants/applicants/${id}/readiness/${kind}`, body) as Promise<Readiness>,
   startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,

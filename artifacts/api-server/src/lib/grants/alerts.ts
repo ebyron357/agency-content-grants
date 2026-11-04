@@ -1,5 +1,5 @@
 import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantReadinessItemsTable, type GrantApplicant, type GrantOpportunity } from "@workspace/db";
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { dueReminder } from "./calendar";
 import { emitEvent } from "../webhooks/events";
 import { isApplicantType } from "./eligibility";
@@ -167,7 +167,7 @@ export async function emitDeadlineReminders(now: Date = new Date()): Promise<num
     .from(grantApplicationsTable)
     .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
     .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
-    .where(and(ne(grantApplicationsTable.status, "exported")));
+    .where(and(ne(grantApplicationsTable.status, "exported"), isNull(grantApplicationsTable.outcome)));
   let events = 0;
   for (const { app, applicant, opp } of rows) {
     const daysLeft = daysUntil(opp.closeDate, now);
