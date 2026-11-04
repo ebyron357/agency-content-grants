@@ -9,7 +9,7 @@ import { TEMPLATES, chooseTemplate } from "./templates";
 import { readinessKindsFor } from "./eligibility";
 import { broadTopics, hasTopics, isNewFor, newSince, scoreMatches, summarizeAlerts } from "./matchSet";
 import { MAX_FACTS_PER_DRAFT, factLine, factsForSection, factsMappedToSection, isFactCategory } from "./facts";
-import { demoScaffold } from "./ai";
+import { demoScaffold } from "./draftScaffold";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
 
 // Shapes recorded from api.grants.gov on 3 November 2026 (public notice data, trimmed).
