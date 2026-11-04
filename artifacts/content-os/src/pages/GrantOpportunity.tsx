@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation, useParams, useSearch } from 'wouter';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, ExternalLink } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReasonList, ScoreBadge, selectClass } from '@/components/grants/GrantUi';
-import { awardRange, deadlineLabel, errorMessage, grantsApi, useApplicants, useInvalidateGrants, useOpportunity } from '@/lib/grants';
+import { awardRange, calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useInvalidateGrants, useOpportunity } from '@/lib/grants';
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -127,8 +127,13 @@ export default function GrantOpportunity() {
                 Start application
               </Button>
             )}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <DeadlineChip daysLeft={o.daysLeft} label={deadlineLabel(o)} />
+              {o.closeDate && (
+                <Button asChild size="sm" variant="ghost" className="gap-1.5">
+                  <a href={calendarUrl('opportunity', o.id)} download><CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add to calendar</a>
+                </Button>
+              )}
             </div>
           </div>
         </Panel>

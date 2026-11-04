@@ -313,6 +313,13 @@ async function apiPut(path: string, body: unknown) {
   return res.json();
 }
 
+/** Calendar (.ics) downloads: one application, one opportunity, or every open application. */
+export function calendarUrl(kind: 'application' | 'opportunity' | 'all', id?: string): string {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  if (kind === 'all') return `${BASE}/api/grants/calendar.ics`;
+  return `${BASE}/api/grants/${kind === 'application' ? 'applications' : 'opportunities'}/${id}/deadline.ics`;
+}
+
 export function packageUrl(id: string, draft: boolean): string {
   const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
   return `${BASE}/api/grants/applications/${id}/package.docx${draft ? '?draft=1' : ''}`;

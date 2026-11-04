@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
-import { ArrowLeft, Check, CheckCircle2, Circle, Download, ExternalLink, FileText, Plus, Sparkles, Trash2, Wand2, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Check, CheckCircle2, Circle, Download, ExternalLink, FileText, Plus, Sparkles, Trash2, Wand2, XCircle } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { RichEditor } from '@/components/RichEditor';
 import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
-import { deadlineLabel, errorMessage, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
+import { calendarUrl, deadlineLabel, errorMessage, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace } from '@/lib/grants';
 
 const KIND_LABELS: Record<string, string> = {
   section: 'Section',
@@ -624,6 +624,11 @@ export default function GrantApplication() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <DeadlineChip daysLeft={w.opportunity.daysLeft} label={deadlineLabel(w.opportunity)} />
+            {w.opportunity.closeDate && (
+              <Button asChild size="sm" variant="ghost" className="gap-1.5">
+                <a href={calendarUrl('application', w.application.id)} download><CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add to calendar</a>
+              </Button>
+            )}
             <StatusPill status={w.application.status} />
             <Button
               size="sm"

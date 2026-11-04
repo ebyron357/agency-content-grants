@@ -127,6 +127,8 @@ export const grantApplicationsTable = pgTable("grant_applications", {
   noticeText: text("notice_text"),
   indirectRatePercent: doublePrecision("indirect_rate_percent").notNull().default(0),
   exportedAt: timestamp("exported_at", { withTimezone: true }),
+  /** The last deadline reminder threshold (days before closing) sent as a webhook event. */
+  deadlineAlertDays: integer("deadline_alert_days"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [uniqueIndex("uq_grant_application").on(table.applicantId, table.opportunityId)]);

@@ -45,6 +45,7 @@ import { draftSection, extractRequirements, reviewSection, type DraftContext } f
 import { buildApplicationPackage } from "../lib/grants/packageExport";
 import { isGrantSyncRunning, refreshOpportunityDetail, runGrantSyncOnce } from "../lib/grants/ingest";
 import { daysUntil } from "../lib/grants/gate";
+import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
 import { FACT_CATEGORIES, SECTION_FACT_CATEGORIES, factLine, factsForSection, isFactCategory } from "../lib/grants/facts";
 
 /**
@@ -1080,6 +1081,61 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
   res.setHeader("Content-Disposition", `attachment; filename="${name}.docx"`);
   res.setHeader("Cache-Control", "no-store");
   res.send(buffer);
+});
+
+// ── Deadline calendars ─────────────────────────────────────────────────────
+
+function sendCalendar(res: Response, name: string, body: string): void {
+  res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileStem(name)}.ics"`);
+  res.setHeader("Cache-Control", "no-store");
+  res.send(body);
+}
+
+router.get("/grants/applications/:id/deadline.ics", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, owned.app.opportunityId)).limit(1);
+  if (!opp?.closeDate) return fail(res, 409, "This opportunity has no closing date on record. Check the official notice.");
+  sendCalendar(res, `${owned.applicant.name} ${opp.number ?? "deadline"}`, buildDeadlineCalendar(`${owned.applicant.name}: grant deadlines`, [{
+    uid: `application-${owned.app.id}`,
+    date: opp.closeDate,
+    summary: `Grant due: ${owned.app.title}`,
+    description: `${owned.applicant.name} · ${opp.agency ?? "Funder not recorded"}${opp.number ? ` · ${opp.number}` : ""}\nOfficial listing: ${opp.officialUrl}`,
+    url: opp.officialUrl,
+  }]));
+});
+
+router.get("/grants/opportunities/:id/deadline.ics", async (req, res): Promise<void> => {
+  const [opp] = await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.id, param(req, "id")), eq(grantOpportunitiesTable.publishable, true))).limit(1);
+  if (!opp) return fail(res, 404, "Opportunity not found");
+  if (!opp.closeDate) return fail(res, 409, "This opportunity has no closing date on record. Check the official notice.");
+  sendCalendar(res, opp.number ?? opp.title, buildDeadlineCalendar("Grant deadlines", [{
+    uid: `opportunity-${opp.id}`,
+    date: opp.closeDate,
+    summary: `Grant closes: ${opp.title}`,
+    description: `${opp.agency ?? "Funder not recorded"}${opp.number ? ` · ${opp.number}` : ""}\nOfficial listing: ${opp.officialUrl}`,
+    url: opp.officialUrl,
+  }]));
+});
+
+router.get("/grants/calendar.ics", async (req, res): Promise<void> => {
+  const rows = await db
+    .select({ app: grantApplicationsTable, applicant: grantApplicantsTable, opp: grantOpportunitiesTable })
+    .from(grantApplicationsTable)
+    .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
+    .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
+    .where(eq(grantApplicantsTable.userId, req.session.userId!));
+  const deadlines = rows
+    .filter(({ app, opp }) => app.status !== "exported" && opp.closeDate && (daysUntil(opp.closeDate) ?? -1) >= 0)
+    .map(({ app, applicant, opp }) => ({
+      uid: `application-${app.id}`,
+      date: opp.closeDate!,
+      summary: `Grant due: ${app.title} (${applicant.name})`,
+      description: `${applicant.name} · ${opp.agency ?? "Funder not recorded"}${opp.number ? ` · ${opp.number}` : ""}\nOfficial listing: ${opp.officialUrl}`,
+      url: opp.officialUrl,
+    }));
+  sendCalendar(res, "grant-deadlines", buildDeadlineCalendar("Grant deadlines", deadlines));
 });
 
 export default router;

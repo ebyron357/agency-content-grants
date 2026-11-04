@@ -66,3 +66,16 @@ Branch `feat/grant-studio-library` (stacked on `feat/grant-studio-alerts`). Migr
 | Write step | The Statement of need lists only its confirmed need fact, with source, date and **Copy**; the programs fact stays with its own sections | `16-write-facts.png` |
 
 axe found no serious or critical violations on either page. The integration test shows that the demo draft includes the confirmed fact with its source and leaves out the unconfirmed one. Local checks: API unit tests 37 Grant Studio; integration 6; Playwright 6 under the CI condition (now including adding a confirmed fact) and 3 against the live-data demo.
+
+## Addendum, 4 November 2026: deadline calendars and reminders
+
+Branch `feat/grant-studio-deadlines` (stacked on `feat/grant-studio-library`). Migration `0019_grant_deadline_reminders`.
+
+- Integration test against a real database:
+  - the application and opportunity `.ics` files carry the right all-day date, and come back as `text/calendar` attachments;
+  - the combined calendar holds only the operator's own open applications;
+  - another operator gets 404;
+  - a closed opportunity gets 404;
+  - at 10 days left, the 14-day reminder event fires once across two runs, and moving the closing date to 5 days left fires the 7-day one.
+- Unit tests: RFC 5545 text escaping, 75-octet line folding that never splits a UTF-8 character, three alarms per event, unreadable dates skipped, and the threshold sequence.
+- Local checks: API unit tests 40 Grant Studio; integration 7; Playwright under the CI condition and against the live-data demo (results in the pull request).

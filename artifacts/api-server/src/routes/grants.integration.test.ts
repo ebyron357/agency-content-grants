@@ -18,7 +18,7 @@ import { db, grantApplicantsTable, grantOpportunitiesTable, grantSyncRunsTable, 
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
 import { syncGrantsGov } from "../lib/grants/ingest";
-import { emitMatchAlerts } from "../lib/grants/alerts";
+import { emitDeadlineReminders, emitMatchAlerts } from "../lib/grants/alerts";
 import type { FetchLike } from "../lib/grants/grantsgov";
 
 const OWNER = `grant-owner-${randomUUID()}`;
@@ -27,6 +27,7 @@ const NONPROFIT_OPP = randomUUID();
 const BUSINESS_OPP = randomUUID();
 const CLOSED_OPP = randomUUID();
 const FRESH_OPP = randomUUID();
+const DUE_OPP = randomUUID();
 
 let server: Server;
 let base = "";
@@ -107,7 +108,7 @@ beforeAll(async () => {
 afterAll(async () => {
   server?.close();
   await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.userId, [OWNER, OTHER]));
-  await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP]));
+  await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.id, [NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP, DUE_OPP]));
   await db.delete(webhookEventsTable).where(inArray(webhookEventsTable.userId, [OWNER, OTHER]));
   await db.delete(usersTable).where(inArray(usersTable.id, [OWNER, OTHER]));
 });
@@ -378,6 +379,38 @@ describe("Grant Studio end to end", () => {
     expect(reconfirmed.data.confirmed).toBe(true);
     expect((await api("DELETE", `/grants/facts/${draftOnly.data.id}`)).status).toBe(204);
     expect((await api("GET", `/grants/applicants/${org.id}/facts`)).data.facts).toHaveLength(1);
+  }, 30_000);
+
+  it("exports deadline calendars and sends each deadline reminder once", async () => {
+    const api = client(await login(OWNER));
+    await db.insert(grantOpportunitiesTable).values(opportunity(DUE_OPP, { title: "Due soon literacy grant", closeDate: inDays(10), eligibilityCodes: ["12"] }));
+    const org = (await api("POST", "/grants/applicants", { name: "Calendar Test Readers", applicantType: "nonprofit_501c3" })).data;
+    const app = (await api("POST", "/grants/applications", { applicantId: org.id, opportunityId: DUE_OPP, eligibilityConfirmed: true })).data;
+
+    const one = await api("GET", `/grants/applications/${app.id}/deadline.ics`);
+    expect(one.status).toBe(200);
+    expect(one.headers.get("content-type")).toMatch(/text\/calendar/);
+    expect(one.headers.get("content-disposition")).toMatch(/attachment; filename=".+\.ics"/);
+    const text = one.data.toString("utf8");
+    expect(text).toContain(`DTSTART;VALUE=DATE:${inDays(10).replace(/-/g, "")}`);
+    expect(text).toContain("Grant due: ");
+    expect((await api("GET", `/grants/opportunities/${DUE_OPP}/deadline.ics`)).status).toBe(200);
+    expect((await api("GET", `/grants/opportunities/${CLOSED_OPP}/deadline.ics`)).status).toBe(404);
+    const all = (await api("GET", "/grants/calendar.ics")).data.toString("utf8");
+    expect(all).toContain(`UID:application-${app.id}@grant-studio`);
+    const other = client(await login(OTHER));
+    expect((await other("GET", `/grants/applications/${app.id}/deadline.ics`)).status).toBe(404);
+    expect((await other("GET", "/grants/calendar.ics")).data.toString("utf8")).not.toContain(app.id);
+
+    // 10 days left: the 14-day reminder fires once; at 5 days the 7-day one fires.
+    const reminders = async () => (await db.select().from(webhookEventsTable).where(eq(webhookEventsTable.userId, OWNER))).filter((e) => e.type === "grant.deadline_approaching" && (e.payload as any).applicationId === app.id);
+    await emitDeadlineReminders();
+    await emitDeadlineReminders();
+    expect((await reminders()).map((e) => (e.payload as any).reminderDays)).toEqual([14]);
+    expect((await reminders())[0].payload).toMatchObject({ daysLeft: 10, applicationPath: `/grant-studio/applications/${app.id}` });
+    await db.update(grantOpportunitiesTable).set({ closeDate: inDays(5) }).where(eq(grantOpportunitiesTable.id, DUE_OPP));
+    await emitDeadlineReminders();
+    expect((await reminders()).map((e) => (e.payload as any).reminderDays).sort()).toEqual([14, 7]);
   }, 30_000);
 
   it("syncs Grants.gov through the connector, merging eligibility codes and gating records", async () => {

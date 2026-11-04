@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { INGEST_ELIGIBILITY_CODES } from "./eligibility";
 import { evaluateGate } from "./gate";
-import { emitMatchAlerts } from "./alerts";
+import { emitDeadlineReminders, emitMatchAlerts } from "./alerts";
 import {
   GRANTS_GOV_CONNECTOR_VERSION,
   GRANTS_GOV_SOURCE,
@@ -38,7 +38,7 @@ export interface SyncResult {
   fetched: number;
   upserted: number;
   details: number;
-  /** grant.new_matches events emitted after the sync. */
+  /** grant.new_matches and grant.deadline_approaching events emitted after the sync. */
   alerts?: number;
   status: "succeeded" | "failed";
   error?: string;
@@ -216,8 +216,9 @@ export async function syncGrantsGov(fetchImpl?: FetchLike): Promise<SyncResult> 
     let alerts = 0;
     try {
       alerts = (await emitMatchAlerts()).events;
+      alerts += await emitDeadlineReminders();
     } catch (err) {
-      console.warn("[grants-sync] match alerts failed", (err as Error).message);
+      console.warn("[grants-sync] alerts failed", (err as Error).message);
     }
     return { runId, fetched, upserted, details, alerts, status: "succeeded" };
   } catch (err) {

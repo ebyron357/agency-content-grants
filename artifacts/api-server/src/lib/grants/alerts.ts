@@ -1,5 +1,6 @@
 import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantReadinessItemsTable, type GrantApplicant, type GrantOpportunity } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
+import { dueReminder } from "./calendar";
 import { emitEvent } from "../webhooks/events";
 import { isApplicantType } from "./eligibility";
 import { daysUntil } from "./gate";
@@ -91,4 +92,43 @@ export async function emitMatchAlerts(now: Date = new Date()): Promise<AlertRunR
     await db.update(grantApplicantsTable).set({ alertedAt: now }).where(eq(grantApplicantsTable.id, applicant.id));
   }
   return { applicants: applicants.length, events };
+}
+
+/**
+ * Emits `grant.deadline_approaching` once per application as its closing date
+ * crosses each reminder threshold (14, 7 and 2 days). Exported applications
+ * are left alone: the package has gone to the authorized representative.
+ */
+export async function emitDeadlineReminders(now: Date = new Date()): Promise<number> {
+  const rows = await db
+    .select({ app: grantApplicationsTable, applicant: grantApplicantsTable, opp: grantOpportunitiesTable })
+    .from(grantApplicationsTable)
+    .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
+    .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
+    .where(and(ne(grantApplicationsTable.status, "exported")));
+  let events = 0;
+  for (const { app, applicant, opp } of rows) {
+    const daysLeft = daysUntil(opp.closeDate, now);
+    const threshold = dueReminder(daysLeft, app.deadlineAlertDays);
+    if (threshold === null) continue;
+    await emitEvent({
+      type: "grant.deadline_approaching",
+      userId: applicant.userId,
+      data: {
+        applicationId: app.id,
+        applicationTitle: app.title,
+        applicantId: applicant.id,
+        applicantName: applicant.name,
+        status: app.status,
+        closeDate: opp.closeDate,
+        daysLeft,
+        reminderDays: threshold,
+        officialUrl: opp.officialUrl,
+        applicationPath: `/grant-studio/applications/${app.id}`,
+      },
+    });
+    await db.update(grantApplicationsTable).set({ deadlineAlertDays: threshold }).where(eq(grantApplicationsTable.id, app.id));
+    events++;
+  }
+  return events;
 }

@@ -10,6 +10,7 @@ import { readinessKindsFor } from "./eligibility";
 import { broadTopics, hasTopics, isNewFor, newSince, scoreMatches, summarizeAlerts } from "./matchSet";
 import { MAX_FACTS_PER_DRAFT, factLine, factsForSection, factsMappedToSection, isFactCategory } from "./facts";
 import { demoScaffold } from "./ai";
+import { buildDeadlineCalendar, dueReminder, escapeIcsText, fileStem, foldIcsLine } from "./calendar";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
 
 // Shapes recorded from api.grants.gov on 3 November 2026 (public notice data, trimmed).
@@ -400,5 +401,43 @@ describe("fact library", () => {
     });
     expect(html).toMatch(/Facts on file you can use here/);
     expect(html).toContain("Child poverty: 31% &lt;b&gt;in&lt;/b&gt; Halifax County");
+  });
+});
+
+describe("deadline calendar", () => {
+  it("escapes text and folds long lines at 75 octets without splitting characters", () => {
+    expect(escapeIcsText("a,b;c\\d\ne")).toBe("a\\,b\\;c\\\\d\\ne");
+    const folded = foldIcsLine("SUMMARY:" + "é".repeat(60));
+    for (const part of folded.split("\r\n")) expect(Buffer.byteLength(part, "utf8")).toBeLessThanOrEqual(75);
+    expect(folded.split("\r\n ").join("")).toBe("SUMMARY:" + "é".repeat(60));
+  });
+
+  it("builds all-day events with three reminders and skips dates it cannot read", () => {
+    const ics = buildDeadlineCalendar("Grant deadlines", [
+      { uid: "a1", date: "2026-12-16", summary: "Grant due: Reading, writing", description: "Line one\nLine two", url: "https://www.grants.gov/search-results-detail/1" },
+      { uid: "bad", date: "12/16/2026", summary: "Skipped", description: "" },
+    ], new Date("2026-11-04T00:00:00Z"));
+    expect(ics.startsWith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n")).toBe(true);
+    expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
+    expect(ics).toContain("DTSTART;VALUE=DATE:20261216");
+    expect(ics).toContain("DTEND;VALUE=DATE:20261217");
+    expect(ics).toContain("SUMMARY:Grant due: Reading\\, writing");
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(3);
+    expect(ics).toContain("TRIGGER:-P14D");
+    expect(ics).not.toContain("Skipped");
+    expect(ics).toContain("Confirm the closing time and time zone");
+  });
+
+  it("fires each reminder threshold once as the deadline approaches", () => {
+    expect(dueReminder(30, null)).toBeNull();
+    expect(dueReminder(14, null)).toBe(14);
+    expect(dueReminder(10, 14)).toBeNull();
+    expect(dueReminder(7, 14)).toBe(7);
+    expect(dueReminder(5, null)).toBe(7);
+    expect(dueReminder(2, 7)).toBe(2);
+    expect(dueReminder(0, 2)).toBeNull();
+    expect(dueReminder(-1, null)).toBeNull();
+    expect(dueReminder(null, null)).toBeNull();
+    expect(fileStem("Readers Rising / HRSA-27-022")).toBe("Readers-Rising-HRSA-27-022");
   });
 });
