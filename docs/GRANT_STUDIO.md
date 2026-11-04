@@ -55,10 +55,27 @@ Grant Studio helps nonprofits and businesses take a federal grant from discovery
 
 **Refresh now** on the Grant Studio page starts a sync. The page shows the last sync time and the number of open opportunities. Migration `0020_grant_state_sources` adds `cost_share_percent`, `rolling_deadline` and `jurisdiction` to `grant_opportunities`. Migration `0019_grant_deadline_reminders` adds `deadline_alert_days` to `grant_applications`. Migration `0018_grant_fact_library` adds the `grant_facts` table (at most 300 facts per organization). Migration `0017_grant_match_alerts` adds `matches_seen_at` and `alerted_at` to `grant_applicants`. Migration `0016_add_grant_studio` adds the tables `grant_applicants`, `grant_readiness_items`, `grant_opportunities`, `grant_sync_runs`, `grant_applications`, `grant_requirements`, `grant_sections`, `grant_budget_lines` and `grant_approvals`. Deleting an organization deletes its readiness items, fact library and applications, with everything under them. **Delete** on an application removes it with its requirements, sections, budget lines and approvals.
 
+## Capacity (measured 4 November 2026)
+
+Production runs on Render's `0.5c-512mb` web instance and `0.1c-256mb` database (`render.yaml`). These figures come from the production build (`node ./dist/index.mjs`) on Linux with Node 22 (Render runs Node 24.15), against PostgreSQL 16 and live Grants.gov and California data. That is not Render itself, so treat them as estimates and re-measure after the first deploy.
+
+| Measure | Result |
+|---|---|
+| Web process at idle (whole app) | 233 MB resident |
+| First sync into an empty database (1,387 Grants.gov records with 1,342 details, then 156 California records) | 89 s; peak 248 MB resident (about 15 MB above idle) |
+| Grant tables after that sync (1,543 opportunities) | 4.0 MB; the whole test database was 13 MB. Later syncs update rows in place |
+| Matches page for one organization (100 results) | 0.23–0.32 s, 393 KB |
+| Grant Studio page with 20 organizations | 2.5 s per load before the summary cache; 2.6 s on the first load and about 15 ms after, with the cache |
+| Highest resident memory seen during the matching runs | 294 MB (before the cache); 261 MB with it |
+
+The web instance has about 220 MB of headroom over the observed peak, and grant data adds about 4 MB to the database. The plans fit at this scale. Re-measure if the opportunity count or the number of organizations grows by an order of magnitude. Changing plans is an owner cost decision.
+
+The Grant Studio page's alert summaries are cached in process. The deployment is a single instance, which the runbooks require. An entry is reused until the organization, its readiness, the opportunity store or the date changes.
+
 ## Tests
 
 - `artifacts/api-server/src/lib/grants/grants.unit.test.ts`: 45 hermetic tests covering normalization of recorded Grants.gov shapes, the gate, matching and relevance, match ordering and alert rules, fact selection and the demo outline, calendar files and reminder thresholds, California normalization from a recorded record, the rolling-deadline gate, state matching and state templates, budget, limits, templates, compliance and DOCX export.
-- `artifacts/api-server/src/routes/grants.integration.test.ts`: 8 tests against a real database. They cover authentication, the full nonprofit flow from organization to final DOCX, cross-operator isolation, business matching and template choice, new-match alerts (one webhook event, then none; mark as seen; isolation), the fact library (validation, isolation, confirmed-only drafting, re-confirmation after edits), deadline calendars and once-per-threshold reminders, a California sync with a fake portal through to a state application (residency, match percentage, no federal registrations, closing records that leave the open set, failure recording), and sync with a fake Grants.gov.
+- `artifacts/api-server/src/routes/grants.integration.test.ts`: 9 tests against a real database. They cover authentication, the full nonprofit flow from organization to final DOCX, cross-operator isolation, business matching and template choice, new-match alerts (one webhook event, then none; mark as seen; isolation), the fact library (validation, isolation, confirmed-only drafting, re-confirmation after edits), deadline calendars and once-per-threshold reminders, a California sync with a fake portal through to a state application (residency, match percentage, no federal registrations, closing records that leave the open set, failure recording), the summary cache (reuse, invalidation by readiness and by a new opportunity), and sync with a fake Grants.gov.
 - `artifacts/content-os/e2e/grant-studio.spec.ts`, plus `/grant-studio` in the accessibility gate: the real-session journey with axe (WCAG 2.0/2.1 A/AA) at desktop and 390 px, and no horizontal scroll.
 
 Evidence: [`evidence/grant-studio/2026-11-03/`](evidence/grant-studio/2026-11-03/README.md).
