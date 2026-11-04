@@ -29,6 +29,7 @@ import apiKeysRouter from "./api-keys";
 import webhooksRouter from "./webhooks";
 import mediaRouter from "./media";
 import grantsRouter from "./grants";
+import workspaceRouter from "./workspace";
 
 export const router = Router();
 
@@ -63,3 +64,4 @@ router.use(apiKeysRouter);
 router.use(webhooksRouter);
 router.use(mediaRouter);
 router.use(grantsRouter);
+router.use(workspaceRouter);

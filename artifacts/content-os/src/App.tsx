@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Login from "@/pages/Login";
+import InviteAccept from "@/pages/InviteAccept";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingState } from "@/components/layout/Page";
 
@@ -74,6 +75,11 @@ function AppLayout() {
 
 function AuthGate() {
   const { isAuthenticated, isLoading, refetch } = useAuth();
+  // Invitation links work whether or not someone is signed in.
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const path = window.location.pathname.slice(base.length);
+  const inviteToken = path.startsWith("/invite/") ? decodeURIComponent(path.slice("/invite/".length)) : null;
+  if (inviteToken) return <InviteAccept token={inviteToken} onDone={refetch} />;
 
   if (isLoading) {
     return (

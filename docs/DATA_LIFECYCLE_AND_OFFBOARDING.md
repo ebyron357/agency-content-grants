@@ -21,6 +21,7 @@ All workspace content belongs to the owner (`ebyron357`) or the client the owner
 | API keys (hashes), webhook subscriptions and delivery history | PostgreSQL | Admin |
 | Grant Studio organizations, fact library, saved writing, readiness items, applications, requirements, sections, budget lines and approvals | PostgreSQL | Users and AI drafting |
 | Grant Studio opportunities and sync runs (public Grants.gov records) | PostgreSQL | System (daily sync) |
+| Workspaces; members (name, email, scrypt password hash, last sign-in); memberships and roles; invitations (email, role, token hash) | PostgreSQL | Owners, admins and the people invited |
 | Sessions, sign-in rate-limit counters, activity log | PostgreSQL | System |
 | Application logs | Render logs (retention per Render plan) | System |
 
@@ -70,10 +71,10 @@ No automatic deletion of user content. Sessions expire after 7 days and are prun
 
 ## 6. User offboarding
 
-1. Rotate `ADMIN_PASSWORD` and `SESSION_SECRET` (signs everyone out; see `SECURITY_AND_ACCESS_HANDOFF.md` §3).
+1. Remove the person in **Settings → Team → Members** for each workspace they belong to. Their access ends on their next request.
 2. Revoke API keys the person created; remove them from the Render team and GitHub if applicable.
-3. Share the new password with the remaining users.
-4. Update the access register.
+3. If they knew the team password, rotate `ADMIN_PASSWORD` (and `SESSION_SECRET` to sign everyone out); see `SECURITY_AND_ACCESS_HANDOFF.md` §3.
+4. Update the access register. A removed member's account (name, email, password hash) remains so it can be invited again; deleting the account record itself is a database operation until a self-service delete ships.
 
 ## 7. Client offboarding
 

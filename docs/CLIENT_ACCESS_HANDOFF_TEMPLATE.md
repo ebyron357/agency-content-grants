@@ -7,8 +7,9 @@ Copy this into the client's handoff record (not into this repository) and fill i
 | Client / organisation | |
 | Handoff date (UTC) | |
 | Production URL (also the login URL) | `https://…onrender.com` |
-| How to sign in | Open the URL, enter the workspace password, choose **Sign in** (no username) |
-| Password delivered via | Password-manager share to: ____ on ____ |
+| How to sign in | Open the invitation link once to create an account; after that open the URL and sign in with email and password |
+| Workspace name | |
+| First owner invited (email) | ____ on ____ (link sent through: ____) |
 | People with access (names only) | |
 | Workspace owner / administrator | Emmanuel Andre Byron (`ebyron357`) |
 | Support contact and hours | |

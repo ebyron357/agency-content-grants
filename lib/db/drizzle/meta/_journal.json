@@ -169,6 +169,13 @@
       "when": 1788518400000,
       "tag": "0022_grant_outcomes",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788604800000,
+      "tag": "0023_workspaces_and_members",
+      "breakpoints": true
     }
   ]
 }
