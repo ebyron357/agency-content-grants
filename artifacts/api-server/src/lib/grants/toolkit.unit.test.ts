@@ -33,6 +33,7 @@ import {
 import { checkLimit } from "./text";
 import { evaluateCompliance } from "./compliance";
 import { buildApplicationPackage } from "./packageExport";
+import { calibration, rateCompetitiveness } from "./competitiveness";
 
 const NOW = new Date("2026-11-04T12:00:00Z");
 
@@ -302,5 +303,93 @@ describe("package checks and export with the toolkit", () => {
     expect(styles).toContain('w:line="480"');
     expect(document).toContain('w:top="1080"');
     expect(document).toContain("Two tutors");
+  });
+});
+
+describe("competitiveness rating", () => {
+  const base = {
+    match: { eligible: true, score: 80, exclusions: [] },
+    sections: [
+      { key: "need", title: "Statement of need", status: "approved", reviewScore: 90, demoContent: false },
+      { key: "approach", title: "Project description", status: "approved", reviewScore: 60, demoContent: false },
+    ],
+    requirements: [
+      { kind: "criterion", sectionKey: "need", points: 30, label: "Need" },
+      { kind: "criterion", sectionKey: "approach", points: 10, label: "Approach" },
+    ],
+    checks: [
+      { id: "eligibility", ok: true, label: "Eligibility confirmed" },
+      { id: "sections_written", ok: true, label: "Every section written" },
+      { id: "readiness", ok: true, label: "Registrations ready" },
+      { id: "package_approval", ok: false, label: "Package approved" },
+    ],
+    daysLeft: 40,
+    rollingDeadline: false,
+    forecast: false,
+    estimatedFunding: 1_000_000,
+    awardCeiling: 250_000,
+    history: { awarded: 0, declined: 0 },
+  };
+
+  it("adds traceable components to a 0–100 rating and a band", () => {
+    const r = rateCompetitiveness(base);
+    // fit 80/100*25=20; review (30*90+10*60)/40=82.5 → 29; completeness 2/2 → 25; readiness 8 + time 7 = 15
+    expect(r.components.map((c) => [c.key, c.points])).toEqual([["fit", 20], ["review", 29], ["completeness", 25], ["readinessTime", 15]]);
+    expect(r.score).toBe(89);
+    expect(r.band).toBe("strong");
+    expect(r.components.find((c) => c.key === "review")!.detail).toContain("criterion points");
+  });
+
+  it("never claims a probability and gives the funding context", () => {
+    const r = rateCompetitiveness(base);
+    expect(r.disclaimer).toContain("not a probability of approval");
+    expect(r.context[0]).toContain("about 4 awards");
+    expect(r.context[0]).toContain("number of applicants is not published");
+    expect(r.context[1]).toBe("No decisions recorded for this organization yet.");
+    expect(JSON.stringify(r)).not.toMatch(/\d+% (?:chance|likely|probability)/i);
+  });
+
+  it("counts unscored and demo sections as 0 and says what to do first", () => {
+    const r = rateCompetitiveness({ ...base, sections: [{ ...base.sections[0], reviewScore: null }, { ...base.sections[1], demoContent: true }] });
+    expect(r.components.find((c) => c.key === "review")!.points).toBe(0);
+    expect(r.actions[0]).toBe("Run Review on Statement of need (30 points), Project description (10 points).");
+    expect(r.band).not.toBe("strong");
+  });
+
+  it("weighs sections equally without criterion points, and asks for them", () => {
+    const r = rateCompetitiveness({ ...base, requirements: [] });
+    expect(r.components.find((c) => c.key === "review")!.points).toBe(Math.round((75 / 100) * 35));
+    expect(r.actions.join(" ")).toContain("Record the notice's review criteria with their points");
+  });
+
+  it("marks an excluded organization and names why", () => {
+    const r = rateCompetitiveness({ ...base, match: { eligible: false, score: 0, exclusions: ["The closing date has passed."] } });
+    expect(r.band).toBe("not_eligible");
+    expect(r.bandLabel).toBe("Not eligible as recorded");
+    expect(r.actions[0]).toContain("The closing date has passed.");
+  });
+
+  it("scores readiness and time, and shows a track record only with enough decisions", () => {
+    const late = rateCompetitiveness({ ...base, daysLeft: 5, checks: base.checks.map((c) => (c.id === "readiness" ? { ...c, ok: false } : c)) });
+    expect(late.components.find((c) => c.key === "readinessTime")!.points).toBe(1);
+    expect(late.actions.join(" ")).toContain("Readiness tab");
+    expect(rateCompetitiveness({ ...base, history: { awarded: 1, declined: 2 } }).context[1]).toContain("too few to judge");
+    expect(rateCompetitiveness({ ...base, history: { awarded: 2, declined: 3 } }).context[1]).toContain("40% (2 of 5 decisions)");
+    expect(rateCompetitiveness({ ...base, estimatedFunding: null }).context[0]).toContain("cannot be estimated");
+  });
+
+  it("measures award rates by the band frozen at submission once there are enough decisions", () => {
+    const rows = [
+      ...Array.from({ length: 4 }, () => ({ band: "strong" as const, outcome: "awarded" })),
+      { band: "strong" as const, outcome: "declined" },
+      { band: "strong" as const, outcome: "submitted" },
+      { band: "needs_work" as const, outcome: "declined" },
+      { band: null, outcome: "awarded" },
+    ];
+    const c = calibration(rows);
+    expect(c.bands.find((b) => b.band === "strong")).toMatchObject({ awarded: 4, declined: 1, pending: 1, awardRate: 0.8 });
+    expect(c.bands.find((b) => b.band === "needs_work")).toMatchObject({ declined: 1, awardRate: null });
+    expect(c.decided).toBe(6);
+    expect(c.minDecisions).toBe(5);
   });
 });

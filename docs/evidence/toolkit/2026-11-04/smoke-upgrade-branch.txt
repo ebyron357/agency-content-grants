@@ -1,11 +1,11 @@
-Content Machine production smoke — 20261104T194415Z UTC
+Content Machine production smoke — 20261104T195439Z UTC
 Target: https://localhost:8443
 
 == 1. Liveness, readiness and SHA parity
   PASS  GET /api/healthz returns 200
-  running commit: 674fcb8cc5b50e4b8911ac958d5288af9f39035c
-  PASS  Deployed commit matches EXPECTED_SHA 674fcb8cc5b50e4b8911ac958d5288af9f39035c
-  readyz: {"status":"not_ready","checks":{"configuration":"failed","database":"ok","storage":"ok"}}
+  running commit: 44aac09ee97eb9bbec281d75b237ceab67dd73d3
+  PASS  Deployed commit matches EXPECTED_SHA 44aac09ee97eb9bbec281d75b237ceab67dd73d3
+  readyz: {"status":"not_ready","checks":{"configuration":"failed","storage":"ok","database":"ok"}}
   (SMOKE_REQUIRE_READY=0: readiness recorded, not enforced)
   PASS  GET / serves the Content OS app shell
   PASS  App shell contains the React root
@@ -97,5 +97,5 @@ Target: https://localhost:8443
   PASS  DELETE smoke brand
   PASS  Deleted project is gone
 
-RESULT: 75 passed, 0 failed  (https://localhost:8443, 20261104T194415Z)
+RESULT: 75 passed, 0 failed  (https://localhost:8443, 20261104T195439Z)
 Evidence written to <scratch>/r2-smoke-new.txt

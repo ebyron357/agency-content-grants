@@ -360,6 +360,7 @@ export interface Workspace {
   budget: BudgetSummary;
   approvals: { id: string; scope: string; role: string; approvedBy: string; note: string | null; createdAt: string }[];
   compliance: { checks: ComplianceCheck[]; readyForApproval: boolean; readyToExport: boolean };
+  rating?: CompetitivenessRating;
   format?: FormatState;
   logicModel?: { model: LogicModel; gaps: string[]; columns: { key: keyof LogicModel; label: string; hint: string }[] };
   letters?: SupportLetter[];
@@ -413,6 +414,22 @@ export const useApplicant = (id: string) => useQuery({ queryKey: keys.applicant(
 export const useFacts = (id: string) =>
   useQuery({ queryKey: keys.facts(id), queryFn: () => apiGet<{ categories: FactCategoryInfo[]; facts: Fact[] }>(`/grants/applicants/${id}/facts`) });
 export const useSnippets = (id: string) => useQuery({ queryKey: keys.snippets(id), queryFn: () => apiGet<Snippet[]>(`/grants/applicants/${id}/snippets`) });
+export interface CompetitivenessRating {
+  score: number;
+  band: 'strong' | 'competitive' | 'needs_work' | 'not_ready' | 'not_eligible';
+  bandLabel: string;
+  components: { key: string; label: string; points: number; max: number; detail: string }[];
+  actions: string[];
+  context: string[];
+  disclaimer: string;
+}
+
+export interface Calibration {
+  bands: { band: string; label: string; awarded: number; declined: number; pending: number; awardRate: number | null }[];
+  decided: number;
+  minDecisions: number;
+}
+
 export interface PipelineSummary {
   inProgress: number;
   dueWithin30Days: number;
@@ -423,6 +440,7 @@ export interface PipelineSummary {
   requestedSubmitted: number;
   awardedTotal: number;
   winRate: number | null;
+  calibration?: Calibration;
 }
 export const usePipeline = () => useQuery({ queryKey: ['grants', 'pipeline'], queryFn: () => apiGet<PipelineSummary>('/grants/pipeline') });
 export const useApplications = () => useQuery({ queryKey: keys.applications, queryFn: () => apiGet<ApplicationSummary[]>('/grants/applications') });

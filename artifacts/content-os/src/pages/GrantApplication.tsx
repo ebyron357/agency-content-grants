@@ -11,6 +11,7 @@ import { RichEditor } from '@/components/RichEditor';
 import { usePermissions } from '@/lib/account';
 import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/components/grants/GrantUi';
 import { cn } from '@/lib/utils';
+import { CompetitivenessPanel, RatingChip } from '@/components/grants/Competitiveness';
 import { LogicModelPanel, ToolkitStep, WritingChecksPanel, isLogicModelSection, toolkitDone } from '@/components/grants/WritingToolkit';
 import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace, followJob, isPendingJob, type AiJob, type PendingJob } from '@/lib/grants';
 
@@ -683,6 +684,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
         </ul>
       </Panel>
       <div className="space-y-4">
+        {ws.rating && <CompetitivenessPanel rating={ws.rating} />}
         <Panel>
           <PanelHeader title="Package" description="A DOCX with every section, the budget, the compliance checklist and the approval record." />
           <div className="space-y-3 px-5 py-4">
@@ -801,6 +803,7 @@ export default function GrantApplication() {
                 <a href={calendarUrl('application', w.application.id)} download><CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add to calendar</a>
               </Button>
             )}
+            {w.rating && <RatingChip rating={w.rating} />}
             <StatusPill status={w.application.status} />
             <Button
               size="sm"

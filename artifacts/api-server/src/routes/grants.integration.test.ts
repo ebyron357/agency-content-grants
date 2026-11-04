@@ -587,6 +587,11 @@ describe("Grant Studio end to end", () => {
     const submitted = await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "submitted", date: "2026-11-04", trackingNumber: "GRANT12345678" });
     expect(submitted.status).toBe(200);
     expect(submitted.data.application).toMatchObject({ outcome: "submitted", submittedOn: "2026-11-04", trackingNumber: "GRANT12345678", submittedAmount: 40000 });
+    // The competitiveness rating is frozen at submission (it is a rating, never a probability).
+    expect(submitted.data.rating.disclaimer).toContain("not a probability of approval");
+    expect(submitted.data.application.ratingAtSubmission).toBe(submitted.data.rating.score);
+    expect(submitted.data.application.ratingBandAtSubmission).toBe(submitted.data.rating.band);
+    expect(submitted.data.rating.components.map((c: any) => c.key)).toEqual(["fit", "review", "completeness", "readinessTime"]);
     expect((await client(await login(OTHER))("POST", `/grants/applications/${app.id}/outcome`, { outcome: "declined" })).status).toBe(404);
     // A submitted application gets no more deadline reminders and leaves the deadline calendar.
     expect((await api("GET", "/grants/calendar.ics")).data.toString("utf8")).not.toContain(app.id);
@@ -598,11 +603,16 @@ describe("Grant Studio end to end", () => {
     expect((await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "awarded" })).status).toBe(400);
     const awarded = await api("POST", `/grants/applications/${app.id}/outcome`, { outcome: "awarded", awardedAmount: 35000, date: "2027-02-01", note: "Partial award" });
     expect(awarded.data.application).toMatchObject({ outcome: "awarded", awardedAmount: 35000, outcomeDate: "2027-02-01", submittedOn: "2026-11-04" });
-    expect((await api("GET", `/grants/pipeline?applicantId=${org.id}`)).data).toMatchObject({ inProgress: 0, awarded: 1, awardedTotal: 35000, requestedSubmitted: 40000, winRate: 1 });
+    const pipeline = (await api("GET", `/grants/pipeline?applicantId=${org.id}`)).data;
+    expect(pipeline).toMatchObject({ inProgress: 0, awarded: 1, awardedTotal: 35000, requestedSubmitted: 40000, winRate: 1 });
+    // One decision is too few to state an award rate for its band.
+    const band = pipeline.calibration.bands.find((b: any) => b.band === submitted.data.rating.band);
+    expect(band).toMatchObject({ awarded: 1, awardRate: null });
+    expect(pipeline.calibration).toMatchObject({ decided: 1, minDecisions: 5 });
 
     // Undo steps back: awarded → submitted → no outcome.
     expect((await api("DELETE", `/grants/applications/${app.id}/outcome`)).data.application).toMatchObject({ outcome: "submitted", awardedAmount: null, outcomeDate: "2026-11-04" });
-    expect((await api("DELETE", `/grants/applications/${app.id}/outcome`)).data.application).toMatchObject({ outcome: null, submittedAmount: null });
+    expect((await api("DELETE", `/grants/applications/${app.id}/outcome`)).data.application).toMatchObject({ outcome: null, submittedAmount: null, ratingAtSubmission: null, ratingBandAtSubmission: null });
     expect((await api("DELETE", `/grants/applications/${app.id}/outcome`)).status).toBe(409);
     await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, org.id));
     await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, oppId));

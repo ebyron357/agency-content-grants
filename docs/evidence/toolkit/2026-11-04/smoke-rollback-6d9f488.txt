@@ -1,4 +1,4 @@
-Content Machine production smoke — 20261104T194425Z UTC
+Content Machine production smoke — 20261104T195449Z UTC
 Target: https://localhost:8443
 
 == 1. Liveness, readiness and SHA parity
@@ -97,5 +97,5 @@ Target: https://localhost:8443
   PASS  DELETE smoke brand
   PASS  Deleted project is gone
 
-RESULT: 75 passed, 0 failed  (https://localhost:8443, 20261104T194425Z)
+RESULT: 75 passed, 0 failed  (https://localhost:8443, 20261104T195449Z)
 Evidence written to <scratch>/r2-smoke-rollback.txt

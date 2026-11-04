@@ -75,6 +75,7 @@ import {
   sectionWritingChecks,
   type LogicModel,
 } from "../lib/grants/writing";
+import { calibration, rateCompetitiveness, type RatingBand } from "../lib/grants/competitiveness";
 import { FACT_CATEGORIES, SECTION_FACT_CATEGORIES, factLine, factsForSection, isFactCategory } from "../lib/grants/facts";
 
 /**
@@ -786,6 +787,9 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   const profile = formatProfileOf(app.formatProfile);
   const format = checkFormat(profile, sections);
   const logicModel = (app.logicModel ?? {}) as LogicModel;
+  // The organization's own recorded decisions, for the rating's context.
+  const decisions = await db.select({ outcome: grantApplicationsTable.outcome, n: count() }).from(grantApplicationsTable).where(and(eq(grantApplicationsTable.applicantId, applicant.id), inArray(grantApplicationsTable.outcome, ["awarded", "declined"]))).groupBy(grantApplicationsTable.outcome);
+  const match = isApplicantType(applicant.applicantType) ? matchOpportunity(matchInput(applicant), opp, readiness) : null;
   const compliance = evaluateCompliance({
     applicantType: applicant.applicantType as ApplicantType,
     federal: !opp.jurisdiction,
@@ -800,8 +804,24 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     format: formatSet ? format : undefined,
     letters,
   });
+  const rating = rateCompetitiveness({
+    match,
+    sections,
+    requirements,
+    checks: compliance.checks,
+    daysLeft: daysUntil(opp.closeDate),
+    rollingDeadline: opp.rollingDeadline,
+    forecast: opp.status === "forecasted",
+    estimatedFunding: opp.estimatedFunding,
+    awardCeiling: opp.awardCeiling,
+    history: {
+      awarded: Number(decisions.find((d) => d.outcome === "awarded")?.n ?? 0),
+      declined: Number(decisions.find((d) => d.outcome === "declined")?.n ?? 0),
+    },
+  });
   return {
     application: app,
+    rating,
     applicant: { ...applicantSummary(applicant), readiness: readinessView(applicant, readiness) },
     opportunity: opportunityView(opp),
     templateLabel: (await findTemplate(applicant.userId, app.template))?.label ?? app.template,
@@ -1446,7 +1466,8 @@ router.post("/grants/applications/:id/outcome", async (req, res): Promise<void> 
   if (note !== undefined) values.outcomeNote = note;
   if (outcome === "submitted") {
     const ws = await workspace(owned.app, owned.applicant);
-    Object.assign(values, { submittedOn: day, submittedAmount: ws.budget.requested || owned.app.requestedAmount || null, trackingNumber: tracking ?? owned.app.trackingNumber ?? null, awardedAmount: null });
+    // The rating is frozen at submission so the organization's award rate can later be measured by band.
+    Object.assign(values, { submittedOn: day, submittedAmount: ws.budget.requested || owned.app.requestedAmount || null, trackingNumber: tracking ?? owned.app.trackingNumber ?? null, awardedAmount: null, ratingAtSubmission: ws.rating.score, ratingBandAtSubmission: ws.rating.band });
   } else {
     if (tracking !== undefined) values.trackingNumber = tracking;
     values.awardedAmount = outcome === "awarded" ? amount : null;
@@ -1462,7 +1483,7 @@ router.delete("/grants/applications/:id/outcome", async (req, res): Promise<void
   if (!owned) return;
   if (!owned.app.outcome) return fail(res, 409, "No outcome is recorded.");
   const values = owned.app.outcome === "submitted"
-    ? { outcome: null, outcomeDate: null, submittedOn: null, submittedAmount: null, trackingNumber: null, awardedAmount: null, outcomeNote: null, outcomeRecordedBy: null }
+    ? { outcome: null, outcomeDate: null, submittedOn: null, submittedAmount: null, trackingNumber: null, awardedAmount: null, outcomeNote: null, outcomeRecordedBy: null, ratingAtSubmission: null, ratingBandAtSubmission: null }
     : { outcome: "submitted", outcomeDate: owned.app.submittedOn, awardedAmount: null };
   const [app] = await db.update(grantApplicationsTable).set(values).where(eq(grantApplicationsTable.id, owned.app.id)).returning();
   res.json(await workspace(app, owned.applicant));
@@ -1478,13 +1499,17 @@ router.get("/grants/pipeline", async (req, res): Promise<void> => {
     .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
     .innerJoin(grantOpportunitiesTable, eq(grantApplicationsTable.opportunityId, grantOpportunitiesTable.id))
     .where(and(...filters));
-  res.json(summarizePipeline(rows.map(({ app, opp }) => ({
-    status: app.status,
-    outcome: app.outcome,
-    requested: app.submittedAmount,
-    awardedAmount: app.awardedAmount,
-    daysLeft: daysUntil(opp.closeDate),
-  }))));
+  res.json({
+    ...summarizePipeline(rows.map(({ app, opp }) => ({
+      status: app.status,
+      outcome: app.outcome,
+      requested: app.submittedAmount,
+      awardedAmount: app.awardedAmount,
+      daysLeft: daysUntil(opp.closeDate),
+    }))),
+    /** Real award rates by the competitiveness band frozen at submission. */
+    calibration: calibration(rows.map(({ app }) => ({ band: app.ratingBandAtSubmission as RatingBand | null, outcome: app.outcome }))),
+  });
 });
 
 // ── Deadline calendars ─────────────────────────────────────────────────────

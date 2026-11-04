@@ -161,6 +161,9 @@ export const grantApplicationsTable = pgTable("grant_applications", {
   outcomeRecordedBy: text("outcome_recorded_by"),
   /** Font, size, spacing, margins, narrative page limit and package file name from the notice (writing toolkit). */
   formatProfile: jsonb("format_profile").$type<Record<string, unknown>>().notNull().default({}),
+  /** The competitiveness rating (0–100) and band frozen when the submission was recorded, for calibration against outcomes. */
+  ratingAtSubmission: integer("rating_at_submission"),
+  ratingBandAtSubmission: text("rating_band_at_submission"),
   /** The logic model: inputs, activities, outputs, outcomes and assumptions, each a list. */
   logicModel: jsonb("logic_model").$type<Record<string, string[]>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

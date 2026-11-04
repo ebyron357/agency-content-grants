@@ -104,6 +104,14 @@ test("toolkit UI end to end (local)", async ({ page }) => {
     await expect(page.getByText("Letters of support received")).toBeVisible();
     await expect(page.getByText("Fits the notice's format and page limit")).toBeVisible();
     await axe(page, "package checks");
+    // Competitiveness rating: components, actions and the not-a-probability label.
+    const rating = page.getByRole("heading", { name: "Competitiveness rating" }).locator("xpath=ancestor::section[1]");
+    await expect(rating.getByText(/not a probability of approval/).first()).toBeVisible();
+    await expect(rating.getByText("Reviewer scores")).toBeVisible();
+    await expect(rating.getByText(/about 4 awards at the \$250,000 ceiling/)).toBeVisible();
+    await expect(page.getByText(/competitiveness rating out of 100/).first()).toBeAttached();
+    await axe(page, "competitiveness rating");
+    await rating.screenshot({ path: `${OUT}/43-competitiveness-rating.png` });
     await page.getByRole("heading", { name: "Compliance checks" }).locator("xpath=ancestor::section[1]").screenshot({ path: `${OUT}/42-package-checks.png` });
 
     // Phone width on the new screens.
