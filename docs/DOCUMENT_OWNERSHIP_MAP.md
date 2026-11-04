@@ -1,6 +1,6 @@
 # Document Ownership Map and Authority Index
 
-Updated 2 November 2026. Every fact has one current home. If two documents disagree, the **current** document listed here wins and the other must be corrected or labelled historical in the same PR.
+Updated 3 November 2026. Every fact has one current home. If two documents disagree, the **current** document listed here wins and the other must be corrected or labelled historical in the same PR.
 
 ## Current documents
 
@@ -13,6 +13,7 @@ Updated 2 November 2026. Every fact has one current home. If two documents disag
 | `.cursor/rules/content-machine-governance.mdc` | Cursor pointer to `AGENTS.md` and current authority | Product owner | Product owner approval |
 | `docs/PROJECT_COMPLETION_STANDARD.md` | Universal completion standard | Product owner | Product owner approval |
 | `docs/DESIGN_SYSTEM.md` | Locked UI system (tokens, components, behaviour rules) | Product owner | Approved PR with accessibility gate green |
+| `docs/GRANT_STUDIO.md` | Grant Studio scope, data sources, matching, approvals, operation and tests | Product owner / maintainers | Approved PR |
 | `docs/GRANT_RESOURCES.md` | Grant directory scope, source provenance, maintenance and limits | Product owner / maintainers | Approved PR |
 | `docs/CI.md` | CI contract for PRs to `main` | Technical lead | Approved PR |
 | `docs/BRANCH_AND_PR_POLICY.md` | Branching and PR requirements | Technical lead | Approved PR |
@@ -27,7 +28,7 @@ Updated 2 November 2026. Every fact has one current home. If two documents disag
 | `docs/automation-api.md` | Automation API and webhook contract | Technical lead | Approved PR |
 | `docs/engineering-standards.md` | Access-first, reuse-first engineering rules | Technical lead | Approved PR |
 | `docs/decisions/*` | Recorded technical decisions | Technical lead | Approved PR |
-| `docs/evidence/release/2026-10-02/`, `docs/evidence/ui/closeout-2026-10-02/` | Closeout evidence | Program lead | Append-only |
+| `docs/evidence/release/2026-10-02/`, `docs/evidence/ui/closeout-2026-10-02/`, `docs/evidence/grant-studio/2026-11-03/` | Closeout and feature evidence | Program lead | Append-only |
 | `render.yaml`, `.env.example` | Deployment blueprint and configuration template | Technical lead | Approved PR |
 
 Section 40 of the completion standard names `docs/PROJECT_CLOSEOUT_STATUS.md`; that role is filled by `docs/PROJECT_STATUS.md` so there is only one status record.

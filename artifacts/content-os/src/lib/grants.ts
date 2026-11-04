@@ -1,0 +1,317 @@
+/**
+ * Grant Studio data layer: typed calls to /api/grants/* plus React Query hooks.
+ * The server is the source of truth for every check (matching, limits, budget,
+ * compliance); the UI only displays what it returns.
+ */
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
+
+export type ApplicantType = 'nonprofit_501c3' | 'nonprofit_other' | 'small_business' | 'for_profit';
+
+export interface ReadinessRow {
+  kind: string;
+  label: string;
+  blocking: boolean;
+  federal: boolean;
+  status: 'missing' | 'in_progress' | 'ready';
+  expiresOn: string | null;
+  note: string | null;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+}
+
+export interface Readiness {
+  items: ReadinessRow[];
+  score: number;
+  blockingOpen: number;
+}
+
+export interface Applicant {
+  id: string;
+  name: string;
+  applicantType: ApplicantType;
+  applicantTypeLabel: string;
+  ein: string | null;
+  uei: string | null;
+  state: string | null;
+  serviceArea: string | null;
+  mission: string | null;
+  focusAreas: string[];
+  naicsCodes: string[];
+  annualBudget: number | null;
+  maxCostSharePercent: number;
+  readiness: Readiness;
+  applicationCount?: number;
+  applications?: ApplicationSummary[];
+}
+
+export interface Opportunity {
+  id: string;
+  source: string;
+  number: string | null;
+  title: string;
+  agency: string | null;
+  status: string;
+  openDate: string | null;
+  closeDate: string | null;
+  daysLeft: number | null;
+  awardFloor: number | null;
+  awardCeiling: number | null;
+  estimatedFunding: number | null;
+  costSharing: boolean | null;
+  eligibilityCodes: string[];
+  eligibilityLabels: string[];
+  eligibilityText: string | null;
+  categories: string[];
+  assistanceListings: string[];
+  description: string | null;
+  officialUrl: string;
+  fetchedAt: string;
+  detailFetchedAt: string | null;
+}
+
+export interface Match {
+  eligible: boolean;
+  score: number;
+  reasons: string[];
+  exclusions: string[];
+  gaps: string[];
+  matchedTopics: string[];
+  missionTerms: string[];
+  relevant: boolean;
+  daysLeft: number | null;
+}
+
+export interface ApplicationSummary {
+  id: string;
+  title: string;
+  status: string;
+  updatedAt: string;
+  applicant?: { id: string; name: string };
+  opportunity: { id: string; title: string; agency: string | null; closeDate: string | null; daysLeft: number | null };
+}
+
+export interface Requirement {
+  id: string;
+  kind: string;
+  label: string;
+  detail: string | null;
+  sourceRef: string | null;
+  sectionKey: string | null;
+  points: number | null;
+  status: 'open' | 'covered' | 'not_applicable';
+  origin: 'template' | 'extracted' | 'manual';
+  confirmed: boolean;
+}
+
+export interface LimitCheck {
+  words: number;
+  characters: number;
+  pages: number;
+  used: number;
+  limit: number | null;
+  unit: string | null;
+  over: boolean;
+}
+
+export interface Section {
+  id: string;
+  key: string;
+  title: string;
+  guidance: string | null;
+  limitType: 'words' | 'characters' | 'pages' | null;
+  limitValue: number | null;
+  content: string;
+  status: 'empty' | 'drafting' | 'ready_for_review' | 'approved';
+  demoContent: boolean;
+  reviewScore: number | null;
+  reviewNotes: string[];
+  approvedBy: string | null;
+  approvedAt: string | null;
+  limitCheck: LimitCheck;
+}
+
+export interface BudgetLine {
+  id: string;
+  category: string;
+  description: string;
+  quantity: number;
+  unitCost: number;
+  matchPercent: number;
+  justification: string | null;
+  total: number;
+}
+
+export interface BudgetSummary {
+  categories: { category: string; label: string; total: number; requested: number; match: number }[];
+  directTotal: number;
+  indirectRatePercent: number;
+  indirect: number;
+  total: number;
+  requested: number;
+  match: number;
+  issues: string[];
+}
+
+export interface ComplianceCheck {
+  id: string;
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface Workspace {
+  application: {
+    id: string;
+    title: string;
+    status: string;
+    template: string;
+    requestedAmount: number | null;
+    indirectRatePercent: number;
+    noticeText: string | null;
+    eligibilityConfirmedAt: string | null;
+    eligibilityConfirmedBy: string | null;
+    eligibilityNote: string | null;
+    exportedAt: string | null;
+  };
+  applicant: Applicant;
+  opportunity: Opportunity;
+  templateLabel: string;
+  requirements: Requirement[];
+  sections: Section[];
+  budgetLines: BudgetLine[];
+  budget: BudgetSummary;
+  approvals: { id: string; scope: string; role: string; approvedBy: string; note: string | null; createdAt: string }[];
+  compliance: { checks: ComplianceCheck[]; readyForApproval: boolean; readyToExport: boolean };
+  aiDemo: boolean;
+}
+
+export interface GrantMeta {
+  applicantTypes: { key: ApplicantType; label: string; kind: 'nonprofit' | 'business' }[];
+  budgetCategories: { key: string; label: string }[];
+  aiProvider: string;
+  aiDemo: boolean;
+  opportunities: number;
+  lastSync: { status: string; startedAt: string; finishedAt: string | null; fetched: number; error: string | null } | null;
+  syncRunning: boolean;
+}
+
+export const keys = {
+  meta: ['grants', 'meta'] as const,
+  applicants: ['grants', 'applicants'] as const,
+  applicant: (id: string) => ['grants', 'applicant', id] as const,
+  matches: (id: string, q: string) => ['grants', 'matches', id, q] as const,
+  opportunity: (id: string, applicantId?: string) => ['grants', 'opportunity', id, applicantId ?? ''] as const,
+  applications: ['grants', 'applications'] as const,
+  workspace: (id: string) => ['grants', 'workspace', id] as const,
+};
+
+export const useGrantMeta = () => useQuery({ queryKey: keys.meta, queryFn: () => apiGet<GrantMeta>('/grants/meta') });
+export const useApplicants = () => useQuery({ queryKey: keys.applicants, queryFn: () => apiGet<Applicant[]>('/grants/applicants') });
+export const useApplicant = (id: string) => useQuery({ queryKey: keys.applicant(id), queryFn: () => apiGet<Applicant>(`/grants/applicants/${id}`) });
+export const useApplications = () => useQuery({ queryKey: keys.applications, queryFn: () => apiGet<ApplicationSummary[]>('/grants/applications') });
+export interface MatchesResponse {
+  total: number;
+  relevantTotal: number;
+  relevantOnly: boolean;
+  excluded: number;
+  considered: number;
+  matches: { opportunity: Opportunity; match: Match }[];
+}
+export const useMatches = (id: string, q: string, relevantOnly = false) =>
+  useQuery({
+    queryKey: [...keys.matches(id, q), relevantOnly],
+    queryFn: () => apiGet<MatchesResponse>(`/grants/applicants/${id}/matches?limit=100${relevantOnly ? '&relevantOnly=1' : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+  });
+export const useOpportunity = (id: string, applicantId?: string) =>
+  useQuery({
+    queryKey: keys.opportunity(id, applicantId),
+    queryFn: () => apiGet<{ opportunity: Opportunity; match: Match | null; existingApplicationId: string | null; detailError: string | null }>(`/grants/opportunities/${id}${applicantId ? `?applicantId=${encodeURIComponent(applicantId)}` : ''}`),
+  });
+export const useWorkspace = (id: string) => useQuery({ queryKey: keys.workspace(id), queryFn: () => apiGet<Workspace>(`/grants/applications/${id}`) });
+
+export const grantsApi = {
+  createApplicant: (body: Partial<Applicant>) => apiPost('/grants/applicants', body) as Promise<Applicant>,
+  updateApplicant: (id: string, body: Partial<Applicant>) => apiPatch(`/grants/applicants/${id}`, body) as Promise<Applicant>,
+  deleteApplicant: (id: string) => apiDelete(`/grants/applicants/${id}`),
+  setReadiness: (id: string, kind: string, body: { status: string; expiresOn: string | null; note: string | null }) => apiPut(`/grants/applicants/${id}/readiness/${kind}`, body) as Promise<Readiness>,
+  startApplication: (body: { applicantId: string; opportunityId: string; eligibilityConfirmed: boolean; eligibilityNote?: string }) => apiPost('/grants/applications', body) as Promise<{ id: string; existing: boolean }>,
+  updateApplication: (id: string, body: Record<string, unknown>) => apiPatch(`/grants/applications/${id}`, body) as Promise<Workspace>,
+  deleteApplication: (id: string) => apiDelete(`/grants/applications/${id}`),
+  addRequirement: (id: string, body: Partial<Requirement>) => apiPost(`/grants/applications/${id}/requirements`, body),
+  updateRequirement: (rid: string, body: Partial<Requirement>) => apiPatch(`/grants/requirements/${rid}`, body),
+  deleteRequirement: (rid: string) => apiDelete(`/grants/requirements/${rid}`),
+  confirmAll: (id: string) => apiPost(`/grants/applications/${id}/requirements/confirm-all`) as Promise<Workspace>,
+  extract: (id: string, noticeText: string) => apiPost(`/grants/applications/${id}/requirements/extract`, { noticeText }) as Promise<{ added: number; demo: boolean; message: string | null }>,
+  updateSection: (sid: string, body: Partial<Section>) => apiPatch(`/grants/sections/${sid}`, body) as Promise<Section>,
+  draftSection: (sid: string) => apiPost(`/grants/sections/${sid}/draft`) as Promise<{ section: Section; demo: boolean; message: string | null }>,
+  reviewSection: (sid: string) => apiPost(`/grants/sections/${sid}/review`) as Promise<{ section: Section; demo: boolean; message: string | null }>,
+  approveSection: (sid: string) => apiPost(`/grants/sections/${sid}/approve`) as Promise<Section>,
+  reopenSection: (sid: string) => apiPost(`/grants/sections/${sid}/reopen`) as Promise<Section>,
+  addBudgetLine: (id: string, body: Partial<BudgetLine>) => apiPost(`/grants/applications/${id}/budget-lines`, body),
+  updateBudgetLine: (lid: string, body: Partial<BudgetLine>) => apiPatch(`/grants/budget-lines/${lid}`, body),
+  deleteBudgetLine: (lid: string) => apiDelete(`/grants/budget-lines/${lid}`),
+  budgetJustification: (id: string) => apiPost(`/grants/applications/${id}/budget-justification`) as Promise<Section>,
+  approvePackage: (id: string, note: string) => apiPost(`/grants/applications/${id}/approve-package`, { confirmAuthorized: true, note: note || undefined }) as Promise<Workspace>,
+  sync: () => apiPost('/grants/sync') as Promise<{ status: string }>,
+};
+
+async function apiPut(path: string, body: unknown) {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const res = await fetch(`${BASE}/api${path}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`PUT ${path} failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+export function packageUrl(id: string, draft: boolean): string {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${BASE}/api/grants/applications/${id}/package.docx${draft ? '?draft=1' : ''}`;
+}
+
+/** Pulls the server's { error } message out of an api helper failure. */
+export function errorMessage(error: unknown): string {
+  const text = error instanceof Error ? error.message : String(error);
+  const json = text.slice(text.indexOf('{'));
+  try {
+    const parsed = JSON.parse(json);
+    if (parsed?.error) return String(parsed.error);
+  } catch {
+    // not JSON
+  }
+  return text.replace(/^(GET|POST|PATCH|PUT|DELETE) \S+ failed: \d+ ?/, '') || 'Something went wrong.';
+}
+
+export function useInvalidateGrants() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: ['grants'] });
+}
+
+export function useGrantMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult>) {
+  const invalidate = useInvalidateGrants();
+  return useMutation({ mutationFn: fn, onSuccess: () => invalidate() });
+}
+
+export const usd = (value: number | null | undefined) =>
+  value == null ? '—' : `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+
+export function awardRange(o: Pick<Opportunity, 'awardFloor' | 'awardCeiling'>): string {
+  if (o.awardFloor && o.awardCeiling) return `${usd(o.awardFloor)} – ${usd(o.awardCeiling)}`;
+  if (o.awardCeiling) return `Up to ${usd(o.awardCeiling)}`;
+  if (o.awardFloor) return `From ${usd(o.awardFloor)}`;
+  return 'Award amount not stated';
+}
+
+export function deadlineLabel(o: Pick<Opportunity, 'closeDate' | 'daysLeft' | 'status'>): string {
+  if (!o.closeDate) return o.status === 'forecasted' ? 'Forecast: date to be announced' : 'Closing date not stated';
+  if (o.daysLeft === 0) return `Closes today (${o.closeDate})`;
+  if (o.daysLeft != null && o.daysLeft > 0) return `Closes in ${o.daysLeft} day${o.daysLeft === 1 ? '' : 's'} · ${o.closeDate}`;
+  return `Closed ${o.closeDate}`;
+}

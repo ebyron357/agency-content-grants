@@ -1,11 +1,12 @@
 # GO / NO-GO Decision
 
-**Current decision record. Updated: 2 November 2026. Production evidence remains dated 26 October.** It replaces the 2 October 2026 decision, archived verbatim at [`history/GO_NO_GO_DECISION_2026-10-02.md`](history/GO_NO_GO_DECISION_2026-10-02.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+**Current decision record. Updated: 3 November 2026. Production evidence remains dated 26 October.** It replaces the 2 October 2026 decision, archived verbatim at [`history/GO_NO_GO_DECISION_2026-10-02.md`](history/GO_NO_GO_DECISION_2026-10-02.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
 ## Decision
 
 | Scope | Decision |
 |---|---|
+| Grant Studio | **Implemented on `feat/grant-studio`; local validation passed; pull request open, not merged or deployed.** Merge needs owner review and green hosted CI. See `GRANT_STUDIO.md` |
 | Grant information directory | **Implemented in PR #26; source validation passed, not deployed.** See `GRANT_RESOURCES.md`; no production promotion is implied |
 | Content Machine release scope (Issue #8 and the approved closeout) | **GO — VERIFIED COMPLETE** (unchanged since 2 October) |
 | Production environment | **LIVE on `main` `6d9f488`** (PR #23 merge, which includes the PR #22 security headers). Health, readiness, SHA parity, anonymous rejection and security headers verified anonymously on 26 October |
@@ -34,4 +35,4 @@ These continue to apply after production GO:
 - Never commit secrets, real customer data or credentials. Production secrets live only in the Render environment.
 - Production smoke tests use clearly labelled synthetic records and delete them.
 - No purchases, billing changes or new paid services without explicit owner approval.
-- The owner authorized the curated grant information directory on November 2. Automated matching, proposal generation, applicant data and submissions remain deferred.
+- The owner authorized the curated grant information directory on November 2 and requested Grant Studio on November 3 (matching, applicant data, writing tools and packages, with assisted submission). Grant Studio is accepted scope once the owner approves its pull request. Autonomous submission and automated eligibility decisions are excluded.
