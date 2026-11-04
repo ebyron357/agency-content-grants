@@ -1,6 +1,9 @@
 import { generateForStage } from "../ai/router";
 import { sanitizeRichHtml } from "../richText";
 import { checkLimit } from "./text";
+import { demoScaffold, limitPhrase, type DraftContext } from "./draftScaffold";
+
+export { demoScaffold, type DraftContext } from "./draftScaffold";
 
 /**
  * AI assistance for grant writing. Three rules hold everywhere:
@@ -89,39 +92,6 @@ export async function extractRequirements(noticeText: string): Promise<AiOutcome
   return { value: coerceRequirements(parseJsonBlock(result.content)), provider: result.provider, demo: false };
 }
 
-export interface DraftContext {
-  applicant: { name: string; applicantTypeLabel: string; mission: string | null; serviceArea: string | null; state: string | null; focusAreas: string[] };
-  opportunity: { title: string; agency: string | null; description: string | null };
-  section: { title: string; guidance: string | null; limitType: string | null; limitValue: number | null; content: string };
-  requirements: { label: string; detail: string | null; points: number | null }[];
-  facts: string[];
-}
-
-function limitPhrase(limitType: string | null, limitValue: number | null): string {
-  if (!limitType || !limitValue) return "no stated limit";
-  return `at most ${limitValue} ${limitType}`;
-}
-
-/** The labelled scaffold used when no AI provider is configured. */
-export function demoScaffold(ctx: DraftContext): string {
-  const items = ctx.requirements.length
-    ? ctx.requirements.map((r) => `<li><strong>${escapeHtml(r.label)}</strong>${r.points ? ` (${r.points} points)` : ""}: [Add how this section answers it.]</li>`).join("")
-    : "<li>[Add the points this section must cover from the notice.]</li>";
-  return sanitizeRichHtml(
-    `<p><em>Demo scaffold: no AI provider is configured. Replace this outline with your own writing before export.</em></p>` +
-      `<h3>${escapeHtml(ctx.section.title)}</h3>` +
-      (ctx.section.guidance ? `<p>${escapeHtml(ctx.section.guidance)}</p>` : "") +
-      `<ul>${items}</ul>` +
-      (ctx.facts.length
-        ? `<p><strong>Facts on file you can use here:</strong></p><ul>${ctx.facts.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>`
-        : "") +
-      `<p>[Add evidence with a source for every statistic. Limit: ${escapeHtml(limitPhrase(ctx.section.limitType, ctx.section.limitValue))}.]</p>`,
-  );
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
 
 export async function draftSection(ctx: DraftContext): Promise<AiOutcome<string>> {
   const facts = ctx.facts.length ? ctx.facts.map((f) => `- ${f}`).join("\n") : "- (none recorded)";

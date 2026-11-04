@@ -9,7 +9,7 @@ import { TEMPLATES, chooseTemplate } from "./templates";
 import { readinessKindsFor } from "./eligibility";
 import { broadTopics, hasTopics, isNewFor, newSince, scoreMatches, summarizeAlerts } from "./matchSet";
 import { MAX_FACTS_PER_DRAFT, factLine, factsForSection, factsMappedToSection, isFactCategory } from "./facts";
-import { demoScaffold } from "./ai";
+import { demoScaffold } from "./draftScaffold";
 import { buildDeadlineCalendar, dueReminder, escapeIcsText, fileStem, foldIcsLine } from "./calendar";
 import { htmlToBlocks, buildApplicationPackage } from "./packageExport";
 
