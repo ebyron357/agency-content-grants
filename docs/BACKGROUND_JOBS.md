@@ -33,6 +33,11 @@ A durable job queue in PostgreSQL (`jobs` table, migration `0025_job_queue`), wi
 | `grant_section_draft` | Draft a section with AI | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
 | `grant_section_review` | Review a section | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
 | `grant_requirements_extract` | Extract requirements from a notice | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
+| `source_sweep` | Check watched pages that are due | 2 | 5 min | 1 min, doubling, up to 10 min | 1 | Hourly (first run 2 min after start) |
+| `source_check` | Check a watched page | 2 | 2 min | 1 min, doubling, up to 10 min | 1 | From the sweep, a changedetection.io notification, or **Check now** |
+| `source_extract` | Extract opportunities from a changed page | 2 | 3 min | 15 s, doubling, up to 1 min | 1 | After a check finds a change |
+
+The three `source_*` kinds belong to the grant source registry ([`SOURCE_REGISTRY.md`](SOURCE_REGISTRY.md)). A page problem is recorded on the source and does not fail the job; extraction only ever makes drafts for review.
 
 **AI work.** **Draft with AI**, **Review** and **Extract requirements** each queue a job for the workspace (one per section, or per notice, at a time) and wait up to 3 seconds:
 - If the job finishes in that time (demo mode, or a quick provider), the request answers as before.
@@ -52,6 +57,7 @@ A durable job queue in PostgreSQL (`jobs` table, migration `0025_job_queue`), wi
 | `JOBS_WORKER_DISABLED` | unset | `true` stops the worker on this instance (jobs stay queued) |
 | `JOBS_WORKER_ENABLED` | unset | Under `NODE_ENV=test` the worker is off unless this is `true` |
 | `GRANTS_SYNC_DISABLED`, `GRANTS_SYNC_ENABLED`, `GRANTS_CA_DISABLED` | | As before (`GRANT_STUDIO.md`): they control the daily grant schedule and sources |
+| `SOURCE_WATCH_DISABLED`, `SOURCE_WATCH_ENABLED` | | `true` stops the hourly page sweep; under `NODE_ENV=test` the sweep is off unless `SOURCE_WATCH_ENABLED=true` (`SOURCE_REGISTRY.md`) |
 
 ## 5. Adding a kind
 

@@ -1,4 +1,4 @@
-import { defineJob, exponentialBackoff } from "./registry";
+import { defineJob, enqueue, exponentialBackoff } from "./registry";
 import { runGrantSync } from "../grants/ingest";
 import { runRequirementsExtract, runSectionDraft, runSectionReview } from "../grants/aiWork";
 
@@ -54,3 +54,51 @@ export const requirementsExtractJob = defineJob<{ applicationId: string; userId:
 
 /** Keys that keep one AI job per section (or application) queued or running at a time. */
 export const aiKey = (kind: "draft" | "review" | "extract", id: string) => `ai:${kind}:${id}`;
+
+// ── Source registry (docs/SOURCE_REGISTRY.md) ────────────────────────────────
+
+export const sourceExtractJob = defineJob<{ checkId: string }>({
+  kind: "source_extract",
+  label: "Extract opportunities from a changed page",
+  ...AI_LIMITS,
+  concurrency: 1,
+  run: async ({ payload }) => {
+    const { extractFromCheck } = await import("../grants/sources/service");
+    return { ...(await extractFromCheck(payload.checkId)) };
+  },
+});
+
+export const sourceCheckJob = defineJob<{ sourceId: string }>({
+  kind: "source_check",
+  label: "Check a watched page",
+  maxAttempts: 2,
+  timeoutMs: 2 * 60_000,
+  backoffMs: exponentialBackoff(60_000, 10 * 60_000),
+  concurrency: 1,
+  run: async ({ payload }) => {
+    const { checkSource } = await import("../grants/sources/service");
+    const result = await checkSource(payload.sourceId);
+    let extractJobId: string | null = null;
+    if (result.extract && result.checkId) extractJobId = (await enqueue(sourceExtractJob, { checkId: result.checkId }, { dedupeKey: `source:extract:${result.checkId}`, requestedBy: "system" })).job.id;
+    return { ...result, extractJobId };
+  },
+});
+
+/** Enqueues a check of every active page source whose schedule has come round. Runs hourly. */
+export const sourceSweepJob = defineJob<{ scheduleSlot?: string }>({
+  kind: "source_sweep",
+  label: "Check watched pages that are due",
+  maxAttempts: 2,
+  timeoutMs: 5 * 60_000,
+  backoffMs: exponentialBackoff(60_000, 10 * 60_000),
+  concurrency: 1,
+  run: async () => {
+    const { dueSources } = await import("../grants/sources/service");
+    const due = await dueSources();
+    for (const s of due) await enqueue(sourceCheckJob, { sourceId: s.id }, { dedupeKey: sourceCheckKey(s.id), requestedBy: "schedule" });
+    return { queued: due.length };
+  },
+});
+
+export const sourceCheckKey = (sourceId: string) => `source:check:${sourceId}`;
+export const SOURCE_SWEEP_KEY = "source_sweep";

@@ -1,7 +1,7 @@
 import { and, eq, gte } from "drizzle-orm";
 import { db, jobsTable } from "@workspace/db";
 import { enqueue } from "./registry";
-import { GRANT_SYNC_KEY, grantSyncJob } from "./definitions";
+import { GRANT_SYNC_KEY, SOURCE_SWEEP_KEY, grantSyncJob, sourceSweepJob } from "./definitions";
 import type { JobDefinition } from "./types";
 
 /**
@@ -28,6 +28,15 @@ export const SCHEDULES: Schedule[] = [
     startDelayMs: 60_000,
     dedupeKey: GRANT_SYNC_KEY,
     enabled: () => process.env.GRANTS_SYNC_DISABLED !== "true" && (process.env.NODE_ENV !== "test" || process.env.GRANTS_SYNC_ENABLED === "true"),
+  },
+  {
+    // Checks watched pages whose own schedule has come round (docs/SOURCE_REGISTRY.md). No page source is active until a person adds one.
+    name: "source-sweep-hourly",
+    job: sourceSweepJob,
+    everyMs: 60 * 60_000,
+    startDelayMs: 120_000,
+    dedupeKey: SOURCE_SWEEP_KEY,
+    enabled: () => process.env.SOURCE_WATCH_DISABLED !== "true" && (process.env.NODE_ENV !== "test" || process.env.SOURCE_WATCH_ENABLED === "true"),
   },
 ];
 

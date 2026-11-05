@@ -110,6 +110,13 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   // Background jobs: retry and cancel (the handlers also require an admin unlock).
   ...writes("/jobs/*", "workspace.configure"),
 
+  // The grant source registry and its review queue are shared reference data:
+  // owners and admins only, reads included (the handlers also require an admin unlock).
+  { method: "*", path: "/grant-sources", needs: "workspace.configure" },
+  { method: "*", path: "/grant-sources/*", needs: "workspace.configure" },
+  { method: "*", path: "/grant-source-drafts", needs: "workspace.configure" },
+  { method: "*", path: "/grant-source-drafts/*", needs: "workspace.configure" },
+
   // Workspace configuration (the handlers also require an admin unlock).
   { method: "POST", path: "/providers", needs: "workspace.configure" },
   { method: "POST", path: "/providers/*", needs: "workspace.configure" },
