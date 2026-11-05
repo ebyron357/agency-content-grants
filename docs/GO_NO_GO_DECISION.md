@@ -1,6 +1,6 @@
 # GO / NO-GO Decision
 
-**Current decision record. Updated: 4 November 2026, 23:50 UTC. Production evidence: the Render API, 23:00–23:25 UTC.** It replaces the 19:50 UTC version, which still said production ran `6d9f488`; that version is archived verbatim at [`history/GO_NO_GO_DECISION_2026-11-04_PRE_PRODUCTION_RECONCILIATION.md`](history/GO_NO_GO_DECISION_2026-11-04_PRE_PRODUCTION_RECONCILIATION.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+**Current decision record. Updated: 5 November 2026, 02:45 UTC. Production evidence: the Render API, 23:00–23:25 UTC on 4 November and 02:30–02:45 UTC on 5 November.** It replaces the 19:50 UTC version, which still said production ran `6d9f488`; that version is archived verbatim at [`history/GO_NO_GO_DECISION_2026-11-04_PRE_PRODUCTION_RECONCILIATION.md`](history/GO_NO_GO_DECISION_2026-11-04_PRE_PRODUCTION_RECONCILIATION.md). Evidence for every statement below is in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
 ## Decision
 
@@ -11,7 +11,8 @@
 | Release candidate `main` `fdb352c7459239da8727ee290e32265e79d29dcd` | **Technically ready to deploy.** It is production plus PRs #43–#46: the job queue, templates, AI work as jobs, place designations, the writing toolkit and the competitiveness rating. CI passed on PR #46's head, whose tree is identical. The upgrade from production `d2250c3` was rehearsed with members, two-factor and Grant Studio data written by `d2250c3`. Every record stayed usable, members signed in with their existing two-factor, the rollbacks to `d2250c3` and `6d9f488` worked on the new schema, and every smoke run passed 75/75. Evidence: [`evidence/upgrade/2026-11-04/`](evidence/upgrade/2026-11-04/README.md) and [`evidence/toolkit/2026-11-04/`](evidence/toolkit/2026-11-04/README.md). |
 | Scope and security-model acceptance | **PENDING — owner.** Grant Studio (#29 onward), the workspace, role and two-factor security model (#40–#42) and PR #46 were merged by `ebyron357`. No written owner approval is recorded, and none of PRs #29–#46 had a review. Most of this scope is now live without that approval. |
 | Deploy path | **OPEN.** While Blueprint Auto Sync is on, any merge that changes `render.yaml` deploys immediately. Owner action: set Auto Sync to No. |
-| Dependency audit (4 November, PR #46 head) | **PASS at the CI gate.** 0 critical, 0 high, 1 moderate (`minimatch`, dev only). |
+| Dependency audit (5 November, `main` `08df8bb`) | **PASS.** Pre-deploy re-audit: 0 critical, 0 high, 1 moderate (`minimatch`, dev only). [Evidence](evidence/predeploy/2026-11-05/README.md). |
+| Readiness probe | **Defect found, fix in review (PR #50).** Production logged 7 single storage `503`s from `/api/readyz`, caused by a probe-name collision between Render's same-millisecond health checks. There were no restarts. Including the fix in the deploy is recommended, because Render's deploy health check uses this endpoint. |
 | Production GO | **NO-GO.** Missing: the owner's decision on the unplanned deploy and the approvals, the deploy prerequisites, a deploy of a reviewed candidate (or a rollback), and the authenticated production verification. No code change is required. |
 | Closure state ([`PROJECT_COMPLETION_STANDARD.md`](PROJECT_COMPLETION_STANDARD.md) §44) | **BLOCKED — OWNER ACTION REQUIRED** |
 
@@ -26,7 +27,7 @@
    - Confirm database point-in-time recovery is available, or take a logical backup (runbook §7).
    - Download a copy of `/var/data`.
 4. **Owner: deploy or roll back.**
-   - **(a)** Run a Render manual deploy of `fdb352c7459239da8727ee290e32265e79d29dcd`, or of a later reviewed `main` commit, and use that SHA below. Confirm the logs show `[migrate] Migrations complete` (migrations `0025`–`0029`) and `Server listening`.
+   - **(a)** Run a Render manual deploy of the latest reviewed `main` commit, and use that SHA below. Today that is `08df8bbb130c74343437529a80eb4cfa4719af85`. Once PR #50 merges, it is the PR #50 merge commit (recommended). Confirm the logs show `[migrate] Migrations complete` (migrations `0025`–`0029`) and `Server listening`.
    - **(b)** Render → Events → the `6d9f488` deploy → **Rollback**. The older code was rehearsed on the newer schema with member and Grant Studio data present; that data is kept but unused, and only the team password signs in.
 5. **Operator holding `ADMIN_PASSWORD`: smoke test.** Run the smoke test (runbook §4) with this command:
 
