@@ -58,7 +58,38 @@ SMOKE_ADMIN_PASSWORD='<ADMIN_PASSWORD>' \
 bash tests/production-smoke.sh
 ```
 
-The script must end with `RESULT: N passed, 0 failed`. It checks health, readiness and SHA parity, anonymous rejection, login and a `Secure`/`HttpOnly` session cookie, project and document persistence, rich-text sanitisation, image and video persistence, ownership probes, all five export formats, logout, and then deletes every `[SMOKE]` record it created. It makes one AI outline call (a few cents at most). It writes `smoke-evidence-<UTC>.txt`; attach that file to Issue #8 / ClickUp.
+The script must end with `RESULT: N passed, 0 failed`. It writes `smoke-evidence-<UTC>.txt`; attach that file to Issue #8 / ClickUp. It makes one AI outline call (a few cents at most).
+
+**Content Machine checks:**
+
+- health, readiness and SHA parity;
+- anonymous rejection, including the Grant Studio, workspace, audit and jobs routes;
+- login and a `Secure`/`HttpOnly` session cookie;
+- project and document persistence;
+- rich-text sanitisation;
+- image and video persistence;
+- ownership probes;
+- all five export formats;
+- logout.
+
+**Grant Studio, workspace and jobs checks:**
+
+- The synced opportunity count and the last sync run. By default these require at least one publishable opportunity and a last run that did not fail.
+- Templates are listed.
+- A `[SMOKE]` organization is created with an unconfirmed fact and a place designation, matching runs for it, and then it is deleted.
+- A viewer invitation to an `example.invalid` address resolves and is then withdrawn. It is never accepted, so no account is created, and no email is sent (invitations are links).
+- The audit log records the invitation.
+- The jobs list needs admin elevation; the worker is enabled.
+
+The script deletes every `[SMOKE]` record it created. The audit log is append-only, so it keeps one "invited as viewer" entry per run, naming the `example.invalid` address.
+
+**What the script avoids:**
+
+- It starts no application and confirms or approves nothing.
+- It submits no two-factor code, because wrong codes count toward the per-address sign-in limit.
+- Member sign-in and two-factor are therefore checked by CI and the rehearsals ([`evidence/upgrade/2026-11-04`](evidence/upgrade/2026-11-04/README.md)), not by this script.
+
+**Which copy to run.** Run the script from the commit you deployed: the Grant Studio section needs `fdb352c` or later. Set `SMOKE_REQUIRE_GRANTS=0` only in a rehearsal without outbound access.
 
 Then:
 
