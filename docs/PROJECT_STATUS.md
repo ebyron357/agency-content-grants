@@ -62,9 +62,12 @@ Every one of these PRs was merged by `ebyron357` on 2–4 November. CI run IDs a
 Documentation and test PRs after #46, with no application code:
 
 - [#47](https://github.com/ebyron357/agency-content-grants/pull/47) was merged on 5 November as `main` `3dc6da0`. It holds these records and the upgrade rehearsal.
-- [#48](https://github.com/ebyron357/agency-content-grants/pull/48) is open. It extends `tests/production-smoke.sh` to Grant Studio, invitations, the audit log and jobs.
+- [#49](https://github.com/ebyron357/agency-content-grants/pull/49) was merged on 5 November as `main` `1ee5576`. It fixes an intermittent CI failure: four API test files shared one sign-in rate-limit counter, so a sign-in could get `429`. It changes test files only.
+- [#48](https://github.com/ebyron357/agency-content-grants/pull/48) extends `tests/production-smoke.sh` to Grant Studio, invitations, the audit log and jobs.
 
-Deploying `3dc6da0`, or the #48 merge, runs the same application code as `fdb352c`.
+Deploying `3dc6da0`, `1ee5576` or the #48 merge runs the same application code as `fdb352c`.
+
+A second intermittent test failure is known and not yet fixed. `grants.integration.test.ts` ("reuses hub alert summaries…") counts alert-cache hits, and it can fail when another test file changes grant opportunities in parallel. It is a test-isolation issue, not a product defect, and is described in #49.
 
 PRs closed without merging: #28 (a secret-scan false positive on `d3f1a0e`, replaced by #29) and #25 (superseded by #35; its branch is kept for possible `minimatch` work).
 
