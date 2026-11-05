@@ -35,6 +35,7 @@ import grantTemplatesRouter from "./grant-templates";
 import workspaceRouter from "./workspace";
 import accountRouter from "./account";
 import jobsRouter from "./jobs";
+import billingRouter from "./billing";
 
 export const router = Router();
 
@@ -84,3 +85,4 @@ router.use(grantsRouter);
 router.use(workspaceRouter);
 router.use(accountRouter);
 router.use(jobsRouter);
+router.use(billingRouter);

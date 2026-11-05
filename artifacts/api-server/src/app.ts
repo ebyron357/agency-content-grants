@@ -6,6 +6,7 @@ import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { router } from "./routes";
+import { billingWebhook } from "./routes/billing";
 import { logger } from "./lib/logger";
 import { seedDatabase } from "./lib/seed";
 import { requireAdmin } from "./middleware/requireAdmin";
@@ -78,6 +79,10 @@ app.use(
     credentials: true,
   }),
 );
+
+// Stripe webhooks are verified against the exact bytes Stripe sent, so this route
+// reads the raw body and must come before the JSON parser (docs/BILLING.md).
+app.post("/api/billing/webhook", ...billingWebhook);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

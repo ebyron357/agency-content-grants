@@ -27,6 +27,7 @@ export default defineConfig({
       "src/lib/grants/grants.unit.test.ts",
       "src/lib/grants/toolkit.unit.test.ts",
       "src/lib/permissions.unit.test.ts",
+      "src/lib/billing/billing.unit.test.ts",
       "src/lib/mfa.unit.test.ts",
       "src/lib/jobs/jobs.unit.test.ts",
       "src/lib/grants/templateRegistry.unit.test.ts",

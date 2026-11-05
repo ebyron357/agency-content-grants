@@ -4,6 +4,7 @@ import { and, asc, count, desc, eq, ilike, inArray, isNull, lt, or, type SQL } f
 import { activityLogTable, apiKeysTable, db, invitesTable, membersTable, membershipsTable, workspacesTable } from "@workspace/db";
 import { revokeMemberSessions } from "../lib/memberSessions";
 import { logActivity } from "../lib/activity";
+import { checkInvite, limitResponse } from "../lib/billing/service";
 import { PERMISSIONS, ROLE_PERMISSIONS } from "../lib/permissions";
 import { invalidateMembershipCache } from "../middleware/requireAuth";
 import {
@@ -126,6 +127,12 @@ router.post("/workspace/invites", async (req, res): Promise<void> => {
     .where(and(eq(membershipsTable.workspaceId, req.session.workspaceId!), eq(membersTable.email, email)))
     .limit(1);
   if (already) return fail(res, 409, "That person is already a member.");
+  // Plan limit on users (members plus open invitations); allowed whenever billing is off.
+  const allowed = await checkInvite(req.session, email);
+  if (!allowed.allowed) {
+    res.status(402).json(limitResponse(allowed));
+    return;
+  }
   // A new invitation for the same email replaces any open one.
   await db.update(invitesTable).set({ revokedAt: new Date() }).where(and(eq(invitesTable.workspaceId, req.session.workspaceId!), eq(invitesTable.email, email), isNull(invitesTable.acceptedAt), isNull(invitesTable.revokedAt)));
   const { token, hash } = newInviteToken();

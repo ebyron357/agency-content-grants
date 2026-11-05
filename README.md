@@ -64,6 +64,7 @@ Without an AI provider key, generation returns clearly labelled demo output.
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | one required in production | AI providers; production readiness fails without one |
 | `UPLOAD_DIR`, `SOURCE_UPLOAD_DIR`, `EXPORT_DIR` | production | Durable storage paths, checked by `/api/readyz` |
 | `TYPEFULLY_API_KEY` | optional | Real social publishing |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `APP_BASE_URL` | optional | Billing; off unless all three are set, and while off nothing is limited ([`docs/BILLING.md`](docs/BILLING.md)). `BILLING_DISABLED=true` turns it off again |
 | `JOBS_CONCURRENCY`, `JOBS_POLL_MS`, `JOBS_WORKER_DISABLED` | optional | Background job worker tuning ([`docs/BACKGROUND_JOBS.md`](docs/BACKGROUND_JOBS.md)) |
 | `RENDER_GIT_COMMIT` / `GIT_COMMIT` | automatic / optional | Commit reported by `/api/healthz` |
 | `ALLOWED_ORIGINS`, `AI_PROVIDER_TIMEOUT_MS`, `LOG_LEVEL`, `FRONTEND_DIST_PATH` | optional | Tuning |

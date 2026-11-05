@@ -14,6 +14,7 @@ Updated 4 November 2026. Every fact has one current home. If two documents disag
 | `docs/PROJECT_COMPLETION_STANDARD.md` | Universal completion standard | Product owner | Product owner approval |
 | `docs/DESIGN_SYSTEM.md` | Locked UI system (tokens, components, behaviour rules) | Product owner | Approved PR with accessibility gate green |
 | `docs/GRANT_STUDIO.md` | Grant Studio scope, data sources, matching, approvals, operation and tests | Product owner / maintainers | Approved PR |
+| `docs/BILLING.md` | Plans, limits, trials, Stripe Checkout, portal and webhook, and the owner's steps to switch billing on | Product owner | Approved PR |
 | `docs/BACKGROUND_JOBS.md` | Background job queue, worker, job kinds and operation | Technical lead | Approved PR |
 | `docs/GRANT_RESOURCES.md` | Grant directory scope, source provenance, maintenance and limits | Product owner / maintainers | Approved PR |
 | `docs/GRANT_PLATFORM_PLAN.md` | Proposed plan for grant discovery, matching, writing studio and assisted submission for nonprofits and businesses; phases and owner decisions | Product owner | Product owner approval |
