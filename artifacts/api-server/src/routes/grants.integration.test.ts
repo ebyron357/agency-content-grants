@@ -13,7 +13,7 @@ import session from "express-session";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
@@ -488,22 +488,61 @@ describe("Grant Studio end to end", () => {
   it("reuses hub alert summaries until the organization, its readiness or the opportunity store changes", async () => {
     const api = client(await login(OWNER));
     const org = (await api("POST", "/grants/applicants", { name: "Cache Test Readers", applicantType: "nonprofit_501c3", focusAreas: ["literacy"] })).data;
+    // Other test files add and close opportunities in the same database while this file runs, and any change to
+    // the opportunity store rightly recomputes every summary. So a phase below counts a hub load only when the store
+    // held still through it and through the load before it (which built the cached entries), and repeats otherwise.
+    const storeVersion = async () =>
+      JSON.stringify(
+        await db
+          .select({ changed: sql`max(${grantOpportunitiesTable.updatedAt})`, publishable: sql`count(*) filter (where ${grantOpportunitiesTable.publishable})` })
+          .from(grantOpportunitiesTable),
+      );
+    let lastVersion = "";
+    const hubLoad = async () => {
+      const before = await storeVersion();
+      const start = alertSummaryStats();
+      const data = (await api("GET", "/grants/applicants")).data as any[];
+      const end = alertSummaryStats();
+      const after = await storeVersion();
+      const consistent = after === before;
+      const stable = consistent && before === lastVersion;
+      lastVersion = consistent ? after : "";
+      return { data, stable, hits: end.hits - start.hits, misses: end.misses - start.misses };
+    };
+    const ATTEMPTS = 50;
+
     resetAlertSummaryCache();
-    const first = (await api("GET", "/grants/applicants")).data;
-    const owned = first.length;
-    expect(alertSummaryStats()).toMatchObject({ hits: 0, misses: owned });
-    await api("GET", "/grants/applicants");
-    expect(alertSummaryStats()).toMatchObject({ hits: owned, misses: owned });
-    // A readiness change rescoring only that organization.
-    await api("PUT", `/grants/applicants/${org.id}/readiness/irs_determination`, { status: "ready" });
-    await api("GET", "/grants/applicants");
-    expect(alertSummaryStats()).toMatchObject({ hits: owned * 2 - 1, misses: owned + 1 });
+    const first = await hubLoad();
+    const owned = first.data.length;
+    expect(first).toMatchObject({ hits: 0, misses: owned });
+
+    // Nothing changed: every summary is reused.
+    let measured = false;
+    for (let i = 0; i < ATTEMPTS && !measured; i++) {
+      const load = await hubLoad();
+      if (!load.stable) continue;
+      expect(load).toMatchObject({ hits: owned, misses: 0 });
+      measured = true;
+    }
+    expect(measured, `no hub load in ${ATTEMPTS} attempts ran without a concurrent opportunity-store change`).toBe(true);
+
+    // A readiness change rescores only that organization.
+    measured = false;
+    for (let i = 0; i < ATTEMPTS && !measured; i++) {
+      await api("PUT", `/grants/applicants/${org.id}/readiness/irs_determination`, { status: i % 2 === 0 ? "ready" : "in_progress" });
+      const load = await hubLoad();
+      if (!load.stable) continue;
+      expect(load).toMatchObject({ hits: owned - 1, misses: 1 });
+      measured = true;
+    }
+    expect(measured, `no hub load in ${ATTEMPTS} attempts ran without a concurrent opportunity-store change`).toBe(true);
+
     // A new opportunity changes the store, so every summary is recomputed and the new match counts.
     const extra = randomUUID();
     await db.insert(grantOpportunitiesTable).values(opportunity(extra, { title: "Literacy cache test grant", eligibilityCodes: ["12"] }));
-    const after = (await api("GET", "/grants/applicants")).data.find((a: any) => a.id === org.id);
-    expect(alertSummaryStats().misses).toBe(owned * 2 + 1);
-    expect(after.alerts.newMatches).toBe(1);
+    const changed = await hubLoad();
+    expect(changed).toMatchObject({ hits: 0, misses: owned });
+    expect(changed.data.find((a: any) => a.id === org.id).alerts.newMatches).toBe(1);
     await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, extra));
     await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, org.id));
   }, 30_000);
