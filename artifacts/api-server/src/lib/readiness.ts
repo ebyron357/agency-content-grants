@@ -1,5 +1,6 @@
 import { access, mkdir, unlink, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { pool } from "@workspace/db";
 import { getMediaRoot } from "./mediaStorage";
@@ -19,7 +20,9 @@ export function getExportRoot(): string {
 async function writable(directory: string): Promise<void> {
   await mkdir(directory, { recursive: true });
   await access(directory, constants.W_OK);
-  const probe = join(directory, `.readiness-${process.pid}-${Date.now()}`);
+  // Unique per check: Render can send two health checks in the same millisecond,
+  // and a clock-based name made the second exclusive create fail (EEXIST).
+  const probe = join(directory, `.readiness-${process.pid}-${randomUUID()}`);
   await writeFile(probe, "ready", { flag: "wx" });
   await unlink(probe);
 }

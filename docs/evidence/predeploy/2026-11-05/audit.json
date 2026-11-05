@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "info": 0,
+    "low": 0,
+    "moderate": 1,
+    "high": 0,
+    "critical": 0
+  },
+  "advisories": [
+    {
+      "module_name": "minimatch",
+      "severity": "moderate",
+      "title": "minimatch has potential denial of service via globparts amplification",
+      "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "vulnerable_versions": ">=7.0.0 <11.0.1",
+      "findings": [
+        "lib__api-spec>orval>@orval/angular>@orval/core>typedoc>minimatch"
+      ]
+    }
+  ]
+}
