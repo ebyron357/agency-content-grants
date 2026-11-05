@@ -51,9 +51,16 @@ async function waitFor(id: string, statuses: string[], ms = 5000) {
 let worker: JobWorker | null = null;
 let server: Server;
 let base = "";
+/**
+ * The sign-in rate limits are keyed by client address and stored in the shared test database. Test files run in
+ * parallel, so each file signs in from its own documentation-range address (RFC 5737) instead of sharing 127.0.0.1;
+ * otherwise sign-ins from other files can fill this file's counter and return 429.
+ */
+const CLIENT_ADDRESS = "198.51.100.14";
 
 beforeAll(() => {
   const app = express();
+  app.set("trust proxy", "loopback");
   app.use(express.json());
   app.use(session({ secret: "jobs-test-secret", resave: false, saveUninitialized: false, name: "sid" }));
   app.use("/api", router);
@@ -169,7 +176,7 @@ describe("job queue", () => {
   it("queues a grant refresh once and exposes it to the screens", async () => {
     let cookie = "";
     const call = async (method: string, path: string, body?: unknown) => {
-      const res = await fetch(`${base}/api${path}`, { method, headers: { ...(cookie ? { Cookie: cookie } : {}), "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+      const res = await fetch(`${base}/api${path}`, { method, headers: { "X-Forwarded-For": CLIENT_ADDRESS, ...(cookie ? { Cookie: cookie } : {}), "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
       const set = res.headers.get("set-cookie");
       if (set) cookie = set.split(";")[0];
       return { status: res.status, data: (await res.json().catch(() => null)) as any };

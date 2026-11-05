@@ -23,8 +23,16 @@ const WRITER_EMAIL = `writer-${Date.now()}@client-a.example`;
 /** Brands this file creates for the shared agency principal, removed afterwards so later suites (and /api/seed) see the database as they left it. */
 const agencyBrandIds: string[] = [];
 
+/**
+ * The sign-in rate limits are keyed by client address and stored in the shared test database. Test files run in
+ * parallel, so each file signs in from its own documentation-range address (RFC 5737) instead of sharing 127.0.0.1;
+ * otherwise sign-ins from other files can fill this file's counter and return 429.
+ */
+const CLIENT_ADDRESS = "198.51.100.12";
+
 function buildApp() {
   const app = express();
+  app.set("trust proxy", "loopback");
   app.use(express.json({ limit: "2mb" }));
   app.use(session({ secret: "workspace-test-secret", resave: false, saveUninitialized: false, name: "sid" }));
   app.use("/api", router);
@@ -37,7 +45,7 @@ function person() {
   return async (method: string, path: string, body?: unknown) => {
     const res = await fetch(`${base}/api${path}`, {
       method,
-      headers: { ...(cookie ? { Cookie: cookie } : {}), ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
+      headers: { "X-Forwarded-For": CLIENT_ADDRESS, ...(cookie ? { Cookie: cookie } : {}), ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const set = res.headers.get("set-cookie");
