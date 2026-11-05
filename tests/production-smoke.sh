@@ -4,6 +4,10 @@
 # Verifies a deployed environment end to end and leaves no business records
 # behind: every record it creates is prefixed "[SMOKE]" and deleted at the end,
 # and deleting the project also removes its uploaded image and export files.
+# Grant Studio checks use a [SMOKE] organization that is deleted at the end and
+# a viewer invitation to an example.invalid address that is withdrawn, never
+# accepted. No application is started, nothing is confirmed or approved, and
+# no two-factor code is submitted (wrong codes count toward the sign-in limit).
 #
 # Usage:
 #   BASE_URL=https://<service>.onrender.com \
@@ -13,6 +17,8 @@
 #
 # Optional:
 #   SMOKE_REQUIRE_READY=0   accept a 503 from /api/readyz (rehearsals only)
+#   SMOKE_REQUIRE_GRANTS=0  do not require synced grant opportunities or a
+#                           non-failed last sync (rehearsals without outbound access)
 #   SMOKE_CURL_OPTS="-k"    extra curl flags (e.g. self-signed TLS in a rehearsal)
 #   SMOKE_EVIDENCE=path     evidence log path (default ./smoke-evidence-<UTC>.txt)
 #
@@ -27,6 +33,7 @@ API="$BASE_URL/api"
 : "${SMOKE_ADMIN_PASSWORD:?SMOKE_ADMIN_PASSWORD is required}"
 EXPECTED_SHA="${EXPECTED_SHA:-}"
 REQUIRE_READY="${SMOKE_REQUIRE_READY:-1}"
+REQUIRE_GRANTS="${SMOKE_REQUIRE_GRANTS:-1}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 EVIDENCE="${SMOKE_EVIDENCE:-smoke-evidence-$STAMP.txt}"
 WORK="$(mktemp -d)"
@@ -35,6 +42,8 @@ PASS=0
 FAIL=0
 PROJECT_ID=""
 BRAND_ID=""
+APPLICANT_ID=""
+INVITE_ID=""
 
 # shellcheck disable=SC2206
 EXTRA=(${SMOKE_CURL_OPTS:-})
@@ -52,12 +61,14 @@ code() { "$@" -o /dev/null -w "%{http_code}"; }
 json() { "$@" -H "Content-Type: application/json"; }
 
 cleanup() {
-  if [[ -n "$PROJECT_ID" || -n "$BRAND_ID" ]]; then
+  if [[ -n "$PROJECT_ID" || -n "$BRAND_ID" || -n "$APPLICANT_ID" || -n "$INVITE_ID" ]]; then
     section "Cleanup of [SMOKE] records"
     login_session >/dev/null 2>&1
     [[ -n "$PROJECT_ID" ]] && check "DELETE smoke project" "204" "$(code acurl -X DELETE "$API/projects/$PROJECT_ID")"
     [[ -n "$BRAND_ID" ]] && check "DELETE smoke brand" "204" "$(code acurl -X DELETE "$API/brands/$BRAND_ID")"
     [[ -n "$PROJECT_ID" ]] && check "Deleted project is gone" "404" "$(code acurl "$API/projects/$PROJECT_ID")"
+    [[ -n "$APPLICANT_ID" ]] && check "DELETE smoke Grant Studio organization" "204" "$(code acurl -X DELETE "$API/grants/applicants/$APPLICANT_ID")"
+    [[ -n "$INVITE_ID" ]] && check "Withdraw smoke invitation" "204" "$(code acurl -X DELETE "$API/workspace/invites/$INVITE_ID")"
     acurl -X POST "$API/auth/logout" -o /dev/null
   fi
   rm -rf "$WORK"
@@ -113,7 +124,7 @@ done
 
 section "2. Unauthenticated access is rejected"
 RANDOM_ID="00000000-0000-4000-8000-000000000000"
-for path in /projects /brands /dashboard/stats "/projects/$RANDOM_ID" "/media/images/$RANDOM_ID" /exports/download/missing.pdf /api-keys; do
+for path in /projects /brands /dashboard/stats "/projects/$RANDOM_ID" "/media/images/$RANDOM_ID" /exports/download/missing.pdf /api-keys /grants/applicants /grants/opportunities /workspace /workspace/audit /jobs; do
   check "Anonymous GET /api$path is 401" "401" "$(code ncurl "$API$path")"
 done
 check "Anonymous POST /api/projects is 401" "401" "$(code json ncurl -X POST "$API/projects" --data '{}')"
@@ -210,6 +221,57 @@ for fmt in docx pdf html md txt; do
   check "Anonymous download of $fmt export is 401" "401" "$(code ncurl "$BASE_URL$FILE_URL")"
 done
 
-section "8. Logout ends the session"
+section "8. Grant Studio, workspace and background jobs"
+META="$(acurl "$API/grants/meta" -w "\n%{http_code}")"
+check "GET /api/grants/meta returns 200" "200" "$(tail -n1 <<<"$META")"
+META="$(sed '$d' <<<"$META")"
+OPPS="$(jq -r '.opportunities // 0' <<<"$META" 2>/dev/null || echo 0)"
+log "  publishable opportunities: $OPPS ($(jq -r '[.sources[]? | "\(.label) \(.opportunities)"] | join(", ")' <<<"$META" 2>/dev/null))"
+log "  last sync run: $(jq -c '.lastSync | if . then {source, status, startedAt, fetched, upserted} else null end' <<<"$META" 2>/dev/null); sync queued or running: $(jq -r '.syncRunning' <<<"$META" 2>/dev/null)"
+log "  AI provider: $(jq -r '.aiProvider' <<<"$META" 2>/dev/null)"
+if [[ "$REQUIRE_GRANTS" == "1" ]]; then
+  if [[ "$OPPS" =~ ^[0-9]+$ && "$OPPS" -ge 1 ]]; then pass "Grant sources have publishable opportunities"; else fail "Grant sources have publishable opportunities" "$OPPS"; fi
+  check "The most recent grant sync run did not fail" "no" "$(jq -r 'if .lastSync.status == "failed" then "yes" else "no" end' <<<"$META" 2>/dev/null)"
+else
+  log "  (SMOKE_REQUIRE_GRANTS=0: grant data recorded, not enforced)"
+fi
+check "GET /api/grants/opportunities returns 200" "200" "$(code acurl "$API/grants/opportunities")"
+TEMPLATES="$(acurl "$API/grants/templates" | jq -r '(.templates // []) | length' 2>/dev/null || echo 0)"
+if [[ "$TEMPLATES" =~ ^[0-9]+$ && "$TEMPLATES" -ge 1 ]]; then pass "Application templates are listed ($TEMPLATES)"; else fail "Application templates are listed" "$TEMPLATES"; fi
+
+APPLICANT_ID="$(json acurl -X POST "$API/grants/applicants" --data "$(jq -cn --arg n "[SMOKE] Grant Studio $STAMP" '{name: $n, applicantType: "nonprofit_501c3", state: "CA", mission: "Production smoke test organization. Not a real applicant.", focusAreas: ["smoke test"]}')" | jq -r '.id // empty')"
+[[ -n "$APPLICANT_ID" ]] && pass "Create [SMOKE] Grant Studio organization" || fail "Create [SMOKE] Grant Studio organization" "no id"
+check "Organization is readable after creation" "[SMOKE] Grant Studio $STAMP" "$(acurl "$API/grants/applicants/$APPLICANT_ID" | jq -r '.name // .applicant.name // empty')"
+FACT_BODY="[SMOKE] Synthetic fact for the production smoke test."
+FACT_ID="$(json acurl -X POST "$API/grants/applicants/$APPLICANT_ID/facts" --data "$(jq -cn --arg b "$FACT_BODY" '{category: "other", label: "[SMOKE] Fact", body: $b, confirmed: false}')" | jq -r '.id // empty')"
+check "Unconfirmed fact persists" "$FACT_BODY" "$(acurl "$API/grants/applicants/$APPLICANT_ID/facts" | jq -r --arg f "$FACT_ID" '(.facts // .)[]? | select(.id == $f) | .body')"
+check "Record a place designation" "200" "$(code json acurl -X PUT "$API/grants/applicants/$APPLICANT_ID/places/opportunity_zone" --data "$(jq -cn --arg d "$(date -u +%F)" '{status: "not_in", place: "[SMOKE] synthetic place", checkedOn: $d, note: "Production smoke test"}')")"
+check "Place designation persists" "not_in" "$(acurl "$API/grants/applicants/$APPLICANT_ID" | jq -r '(.places // .applicant.places // [])[] | select(.key == "opportunity_zone") | .record.status')"
+check "Matching runs for the organization" "200" "$(code acurl "$API/grants/applicants/$APPLICANT_ID/matches")"
+check "DELETE [SMOKE] Grant Studio organization" "204" "$(code acurl -X DELETE "$API/grants/applicants/$APPLICANT_ID")"
+check "Deleted organization is gone" "404" "$(code acurl "$API/grants/applicants/$APPLICANT_ID")"
+APPLICANT_ID=""
+
+check "GET /api/workspace reports the owner role" "owner" "$(acurl "$API/workspace" | jq -r '.role // empty')"
+SMOKE_EMAIL="smoke-$(tr '[:upper:]' '[:lower:]' <<<"$STAMP")@example.invalid"
+INVITE="$(json acurl -X POST "$API/workspace/invites" --data "$(jq -cn --arg e "$SMOKE_EMAIL" '{email: $e, role: "viewer"}')")"
+INVITE_ID="$(jq -r '.id // empty' <<<"$INVITE")"
+INVITE_TOKEN="$(jq -r '.invitePath // empty' <<<"$INVITE" | sed 's#^/invite/##')"
+[[ -n "$INVITE_ID" && -n "$INVITE_TOKEN" ]] && pass "Create a [SMOKE] viewer invitation (never accepted)" || fail "Create a [SMOKE] viewer invitation" "$(head -c 200 <<<"$INVITE")"
+check "Invitation link resolves for an anonymous visitor" "viewer" "$(ncurl "$API/auth/invites/$INVITE_TOKEN" | jq -r '.role // empty')"
+check "Withdraw the invitation" "204" "$(code acurl -X DELETE "$API/workspace/invites/$INVITE_ID")"
+INVITE_ID=""
+check "Withdrawn invitation link no longer works" "404" "$(code ncurl "$API/auth/invites/$INVITE_TOKEN")"
+check "Audit log records the invitation" "1" "$(acurl "$API/workspace/audit" | jq -r --arg e "$SMOKE_EMAIL" '[(.entries // [])[] | select((.description // "") | contains($e))] | if length >= 1 then 1 else 0 end')"
+
+check "Jobs list requires admin elevation" "403" "$(code acurl "$API/jobs")"
+check "Admin unlock with the admin password" "200" "$(code json acurl -X POST "$API/auth/admin-unlock" --data "$(jq -cn --arg p "$SMOKE_ADMIN_PASSWORD" '{password: $p}')")"
+JOBS="$(acurl "$API/jobs")"
+check "Background job worker is enabled" "true" "$(jq -r '.workerEnabled' <<<"$JOBS" 2>/dev/null)"
+log "  job counts: $(jq -c '.counts' <<<"$JOBS" 2>/dev/null)"
+log "  recent grant_sync jobs: $(jq -c '[(.jobs // [])[] | select(.kind == "grant_sync") | {status, attempts, createdAt}] | .[0:3]' <<<"$JOBS" 2>/dev/null)"
+check "Admin lock" "200" "$(code acurl -X POST "$API/auth/admin-lock")"
+
+section "9. Logout ends the session"
 check "Logout" "200" "$(code acurl -X POST "$API/auth/logout")"
 check "Data routes reject the logged-out session" "401" "$(code acurl "$API/projects")"

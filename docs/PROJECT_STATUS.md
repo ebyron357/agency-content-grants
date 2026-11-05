@@ -1,6 +1,6 @@
 # Content Machine — current project status
 
-Status updated: **4 November 2026, 23:50 UTC**. Production observations come from the Render API between 23:00 and 23:25 UTC ([evidence](evidence/production/2026-11-04/README.md)). This session cannot reach the production URL directly, because the network proxy blocks it. Owner: Emmanuel Andre Byron (`ebyron357`). This is the single current status record. ClickUp control task: `86e2tjzyc`. Governing issue [#8](https://github.com/ebyron357/agency-content-grants/issues/8) is **closed** (24 October, by `ebyron357`), but no authenticated production smoke result was ever recorded on it.
+Status updated: **5 November 2026, 01:30 UTC**. Production observations come from the Render API between 23:00 and 23:25 UTC ([evidence](evidence/production/2026-11-04/README.md)). This session cannot reach the production URL directly, because the network proxy blocks it. Owner: Emmanuel Andre Byron (`ebyron357`). This is the single current status record. ClickUp control task: `86e2tjzyc`. Governing issue [#8](https://github.com/ebyron357/agency-content-grants/issues/8) is **closed** (24 October, by `ebyron357`), but no authenticated production smoke result was ever recorded on it.
 
 ## Current verdict
 
@@ -105,7 +105,7 @@ Full detail:
   - Data volume was small in every rehearsal: one workspace, two members and one application.
   - Node 22 was used locally (CI and Render use 24.15).
   - Readiness was 503 locally only because no AI key was set.
-  - The smoke script does not probe Grant Studio, member sign-in, two-factor or jobs.
+  - The smoke script now probes Grant Studio, invitations, the audit log and the job queue ([evidence](evidence/smoke/2026-11-05/README.md)). It deliberately does not create member accounts or submit two-factor codes in production. Those paths are covered by CI and the upgrade rehearsal.
 
 ## Deploy prerequisites for `fdb352c`
 
@@ -135,7 +135,6 @@ No agent triggers a production deploy or rollback, changes Render settings, crea
 ## Recommendations (not blockers)
 
 - Turn on branch protection for `main`, requiring the `CI` checks and one approving review. Agents and the owner work under the same account, so the review is the only way to tell an owner decision apart from an agent merge.
-- Add a short Grant Studio and member-sign-in section to `tests/production-smoke.sh`, so production verification covers the new routes and not only CI. Use synthetic data and clean it up.
 - Close stale PR [#36](https://github.com/ebyron357/agency-content-grants/pull/36). It conflicts with `main`, and this record supersedes it.
 - Update [#27](https://github.com/ebyron357/agency-content-grants/pull/27), the grant platform plan (proposed, not on `main`). It predates R1 steps 1–5 (#40–#45) and #46, so its "what is built" section needs refreshing before it can be accepted.
 - Delete the stale `feat/grant-studio` branch, which holds the secret-scan false positive, and the merged feature branches. This is the owner's call.

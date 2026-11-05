@@ -35,7 +35,7 @@
    ```
 
    It must end `RESULT: N passed, 0 failed`.
-6. **Operator: check the new features** (option a).
+6. **Operator: check the new features** (option a). The smoke test already covers Grant Studio, invitations, the audit log and the job queue through the API. These checks cover the browser and the sync job.
    - In a browser, sign in with the team password and open Grant Studio.
    - Use **Refresh now** and confirm the sync job succeeds (Settings → Jobs).
    - Confirm Settings → Team loads.
