@@ -1,6 +1,7 @@
 import { defineJob, exponentialBackoff } from "./registry";
 import { runGrantSync } from "../grants/ingest";
 import { runRequirementsExtract, runSectionDraft, runSectionReview } from "../grants/aiWork";
+import { runNoticeChecklist } from "../grants/noticeWork";
 
 /**
  * The job kinds this API runs. Add a kind here, with its limits, and the
@@ -52,5 +53,22 @@ export const requirementsExtractJob = defineJob<{ applicationId: string; userId:
   run: ({ payload }) => runRequirementsExtract(payload.applicationId, payload.userId),
 });
 
+/**
+ * Reads an attached notice PDF page by page and proposes requirement rows with
+ * page citations. Reading a long notice and several AI requests take longer
+ * than the other AI work, so the timeout is 10 minutes. One attempt plus one
+ * retry: a run replaces its own unreviewed proposals, so running again is safe.
+ * File problems (not a PDF, password, scanned) are permanent and not retried.
+ */
+export const noticeChecklistJob = defineJob<{ noticeId: string; userId: string }>({
+  kind: "grant_notice_checklist",
+  label: "Read a notice PDF and propose its checklist",
+  maxAttempts: 2,
+  timeoutMs: 10 * 60_000,
+  backoffMs: exponentialBackoff(15_000, 60_000),
+  concurrency: 1,
+  run: ({ payload, signal, progress }) => runNoticeChecklist(payload.noticeId, payload.userId, { signal, progress }),
+});
+
 /** Keys that keep one AI job per section (or application) queued or running at a time. */
-export const aiKey = (kind: "draft" | "review" | "extract", id: string) => `ai:${kind}:${id}`;
+export const aiKey = (kind: "draft" | "review" | "extract" | "notice", id: string) => `ai:${kind}:${id}`;

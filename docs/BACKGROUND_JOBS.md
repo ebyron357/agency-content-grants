@@ -33,6 +33,9 @@ A durable job queue in PostgreSQL (`jobs` table, migration `0025_job_queue`), wi
 | `grant_section_draft` | Draft a section with AI | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
 | `grant_section_review` | Review a section | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
 | `grant_requirements_extract` | Extract requirements from a notice | 2 | 3 min | 15 s, doubling, up to 1 min | 2 | On request |
+| `grant_notice_checklist` | Read a notice PDF and propose its checklist | 2 | 10 min | 15 s, doubling, up to 1 min | 1 | On request |
+
+**Notice PDFs.** Attaching a notice PDF (upload or link) queues `grant_notice_checklist` for the application (one at a time) and waits up to 3 seconds, like the AI work below. The job fetches the file when it came from a link, reads it one page at a time, and proposes requirement rows with page citations. It reports its stage and the page or AI request it has reached as progress, which the Requirements step shows. A file problem (not a PDF, password protected, no text layer, a link that returns a web page) is permanent and is not retried. One runs at a time per worker, which keeps memory bounded on the 512 MB instance (`GRANT_STUDIO.md`, Notice PDF and requirement checklist).
 
 **AI work.** **Draft with AI**, **Review** and **Extract requirements** each queue a job for the workspace (one per section, or per notice, at a time) and wait up to 3 seconds:
 - If the job finishes in that time (demo mode, or a quick provider), the request answers as before.

@@ -189,9 +189,66 @@ export const grantRequirementsTable = pgTable("grant_requirements", {
   origin: text("origin").notNull().default("template"),
   confirmed: boolean("confirmed").notNull().default(false),
   position: integer("position").notNull().default(0),
+  /** The notice PDF a proposed row was read from (origin `notice`). */
+  noticeId: text("notice_id").references(() => grantNoticesTable.id, { onDelete: "set null" }),
+  /** The notice page the row cites (1-based). Every row proposed from a notice has one. */
+  page: integer("page"),
+  /** The notice's own words on that page, quoted verbatim. */
+  quote: text("quote"),
+  /** Who proposed it: `ai:<provider>`, or `demo_rules` (pattern matching, no AI key configured). */
+  extractedBy: text("extracted_by"),
+  /** The person who confirmed the row against the notice. */
+  confirmedBy: text("confirmed_by"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  /** A rejected row is kept for the record and leaves the compliance matrix. */
+  rejectedBy: text("rejected_by"),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-}, (table) => [index("idx_grant_requirements_app").on(table.applicationId)]);
+}, (table) => [index("idx_grant_requirements_app").on(table.applicationId), index("idx_grant_requirements_notice").on(table.noticeId)]);
+
+/**
+ * The funding notice (NOFO, RFA, solicitation) attached to an application as a
+ * PDF, uploaded or fetched from a link. One per application; attaching another
+ * replaces it. The file is kept in source storage; its text is kept page by page
+ * so every proposed requirement can cite the page it came from.
+ */
+export const grantNoticesTable = pgTable("grant_notices", {
+  id: text("id").primaryKey(),
+  applicationId: text("application_id").notNull().references(() => grantApplicationsTable.id, { onDelete: "cascade" }),
+  /** upload | link */
+  origin: text("origin").notNull(),
+  sourceUrl: text("source_url"),
+  fileName: text("file_name").notNull(),
+  /** The key in source storage (lib/sourceStorage.ts); null until a fetched file arrives. */
+  fileKey: text("file_key"),
+  fileBytes: integer("file_bytes").notNull().default(0),
+  sha256: text("sha256"),
+  /** queued | reading | extracting | ready | failed */
+  status: text("status").notNull().default("queued"),
+  /** pdfjs | docling */
+  extractor: text("extractor"),
+  /** Why another extractor than the configured one was used, when it was. */
+  extractorNote: text("extractor_note"),
+  pageCount: integer("page_count"),
+  pagesRead: integer("pages_read").notNull().default(0),
+  /** True when the notice had more pages than the cap and only the first ones were read. */
+  truncated: boolean("truncated").notNull().default(false),
+  /** The text of each page read, in order (index 0 is page 1). */
+  pages: jsonb("pages").$type<string[]>().notNull().default([]),
+  checklistProvider: text("checklist_provider"),
+  /** True when no AI provider was configured: the proposals came from labelled pattern matching. */
+  checklistDemo: boolean("checklist_demo").notNull().default(false),
+  /** Rows proposed by the last extraction, and rows it dropped for lacking a page citation found in the notice. */
+  proposed: integer("proposed").notNull().default(0),
+  dropped: integer("dropped").notNull().default(0),
+  error: text("error"),
+  uploadedBy: text("uploaded_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [uniqueIndex("uq_grant_notice_app").on(table.applicationId)]);
+
+export type GrantNotice = typeof grantNoticesTable.$inferSelect;
 
 /** A narrative section of the application. */
 export const grantSectionsTable = pgTable("grant_sections", {

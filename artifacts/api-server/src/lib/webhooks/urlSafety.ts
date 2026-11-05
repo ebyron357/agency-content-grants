@@ -125,8 +125,9 @@ function resolveAllOrThrow(hostname: string): Promise<{ address: string; family:
  * validated — no separate resolve-then-connect gap for DNS rebinding to
  * exploit. Literal IP hostnames (e.g. a webhook URL pointing straight at
  * `169.254.169.254`) go through this same path and are rejected the same way.
+ * Also used by the Grant Studio notice fetch (lib/grants/noticeFetch.ts).
  */
-function safeLookup(hostname: string, options: any, callback: (err: NodeJS.ErrnoException | null, address?: any, family?: number) => void): void {
+export function safeLookup(hostname: string, options: any, callback: (err: NodeJS.ErrnoException | null, address?: any, family?: number) => void): void {
   const wantsAll = typeof options === "object" && options?.all === true;
   if (net.isIP(hostname)) {
     if (!isPublicAddress(hostname)) {

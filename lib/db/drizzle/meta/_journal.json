@@ -218,6 +218,13 @@
       "when": 1789123200000,
       "tag": "0029_grant_rating_calibration",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789382400000,
+      "tag": "0032_grant_notice_checklist",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,7 @@ import { DeadlineChip, Field, Notice, StatusPill, selectClass } from '@/componen
 import { cn } from '@/lib/utils';
 import { CompetitivenessPanel, RatingChip } from '@/components/grants/Competitiveness';
 import { LogicModelPanel, ToolkitStep, WritingChecksPanel, isLogicModelSection, toolkitDone } from '@/components/grants/WritingToolkit';
+import { NoticePanel, provenanceText } from '@/components/grants/NoticeChecklist';
 import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace, followJob, isPendingJob, type AiJob, type PendingJob } from '@/lib/grants';
 
 const KIND_LABELS: Record<string, string> = {
@@ -77,6 +78,8 @@ function RequirementRow({ req, sections }: { req: Requirement; sections: Section
           {req.points ? ` · ${req.points} points` : ''}
           {req.sourceRef ? ` · ${req.sourceRef === 'template' ? 'from the template' : req.sourceRef}` : ''}
           {req.origin === 'extracted' ? ' · extracted by AI' : ''}
+          {req.origin === 'notice' ? ` · ${provenanceText(req).toLowerCase()}` : ''}
+          {req.confirmed && req.confirmedBy ? ` · confirmed by ${req.confirmedBy}` : ''}
         </p>
       </td>
       <td className="px-4 py-3">
@@ -113,9 +116,15 @@ function RequirementRow({ req, sections }: { req: Requirement; sections: Section
           >
             {req.confirmed ? <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" /> Confirmed</> : 'Confirm'}
           </Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Delete ${req.label}`} onClick={() => run('delete', () => grantsApi.deleteRequirement(req.id))}>
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          </Button>
+          {req.origin === 'notice' ? (
+            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Reject ${req.label}`} onClick={() => run('reject', () => grantsApi.rejectRequirement(req.id))}>
+              <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Delete ${req.label}`} onClick={() => run('delete', () => grantsApi.deleteRequirement(req.id))}>
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            </Button>
+          )}
         </div>
       </td>
     </tr>
@@ -138,8 +147,9 @@ function RequirementsStep({ ws }: { ws: Workspace }) {
 
   return (
     <div className="space-y-6">
+      <NoticePanel ws={ws} />
       <Panel>
-        <PanelHeader title="Funding notice" description="Paste the notice (NOFO, RFA or solicitation) to extract its requirements, limits and review criteria. Each extracted row needs your confirmation." icon={<FileText className="h-4 w-4 text-brand" aria-hidden="true" />} />
+        <PanelHeader title="Or paste the notice text" description="No PDF? Paste the notice (NOFO, RFA or solicitation) to extract its requirements, limits and review criteria with AI. Each extracted row needs your confirmation." icon={<FileText className="h-4 w-4 text-brand" aria-hidden="true" />} />
         {extracting && <AiJobNotice job={extracting} />}
         <div className="space-y-3 px-5 py-4">
           <Field label="Notice text">
@@ -167,7 +177,8 @@ function RequirementsStep({ ws }: { ws: Workspace }) {
           description={unconfirmed ? `${unconfirmed} row${unconfirmed === 1 ? '' : 's'} to confirm against the notice.` : 'Every row is confirmed.'}
           actions={unconfirmed > 0 ? <Button size="sm" variant="secondary" onClick={() => run('all', () => grantsApi.confirmAll(ws.application.id))}>Confirm all</Button> : undefined}
         />
-        <div className="overflow-x-auto">
+        {/* relative: the table's sr-only header text is absolutely positioned and must be clipped here, or the page scrolls sideways at 390 px. */}
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[720px] text-left">
             <caption className="sr-only">Requirements from the notice and the template</caption>
             <thead className="border-b border-border text-xs text-muted-foreground">
@@ -200,6 +211,7 @@ const AI_JOB_TEXT: Record<AiJob['kind'], string> = {
   grant_section_draft: 'Drafting this section with AI',
   grant_section_review: 'Reviewing this section',
   grant_requirements_extract: 'Reading the notice for requirements',
+  grant_notice_checklist: 'Reading the notice PDF',
 };
 
 /** Shows AI work running in the background; the page refreshes by itself when it finishes. */
@@ -827,7 +839,7 @@ export default function GrantApplication() {
           <div className="h-full rounded-full bg-brand" style={{ width: `${Math.round((passed / w.compliance.checks.length) * 100)}%` }} />
         </div>
       </div>
-      {w.aiDemo && <div className="mb-6"><Notice tone="warn" title="Demo mode">No AI provider is configured: drafting adds a labelled scaffold, extraction is unavailable and review runs rule checks only. Everything else works.</Notice></div>}
+      {w.aiDemo && <div className="mb-6"><Notice tone="warn" title="Demo mode">No AI provider is configured: drafting adds a labelled scaffold, extraction from pasted text is unavailable, a notice PDF is checked by labelled pattern matching (each row still cites its page) and review runs rule checks only. Everything else works.</Notice></div>}
       <Tabs value={step} onValueChange={setStep}>
         <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
           {STEPS.map((s, i) => (

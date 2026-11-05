@@ -144,8 +144,44 @@ export interface Requirement {
   sectionKey: string | null;
   points: number | null;
   status: 'open' | 'covered' | 'not_applicable';
-  origin: 'template' | 'extracted' | 'manual';
+  origin: 'template' | 'extracted' | 'manual' | 'notice';
   confirmed: boolean;
+  /** Rows proposed from an attached notice PDF: the page they cite and the notice's own words there. */
+  noticeId?: string | null;
+  page?: number | null;
+  quote?: string | null;
+  /** `ai:<provider>`, or `demo_rules` (pattern matching, no AI key). */
+  extractedBy?: string | null;
+  confirmedBy?: string | null;
+  confirmedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedAt?: string | null;
+}
+
+/** The funding notice PDF attached to an application (api-server routes/grants.ts, notice routes). */
+export interface GrantNotice {
+  id: string;
+  origin: 'upload' | 'link';
+  sourceUrl: string | null;
+  fileName: string;
+  fileBytes: number;
+  hasFile: boolean;
+  status: 'queued' | 'reading' | 'extracting' | 'ready' | 'failed';
+  extractor: 'pdfjs' | 'docling' | null;
+  extractorNote: string | null;
+  pageCount: number | null;
+  pagesRead: number;
+  truncated: boolean;
+  checklistProvider: string | null;
+  checklistDemo: boolean;
+  proposed: number;
+  dropped: number;
+  /** A failure, or a note about the run (demo labelling, pages not read). */
+  error: string | null;
+  uploadedBy: string;
+  createdAt: string;
+  counts: { proposed: number; confirmed: number; rejected: number };
+  limits: { maxPages: number; maxMegabytes: number };
 }
 
 export interface LimitCheck {
@@ -297,11 +333,13 @@ export interface Snippet {
 /** An AI job still queued or running for an application (api-server lib/jobs). */
 export interface AiJob {
   id: string;
-  kind: 'grant_section_draft' | 'grant_section_review' | 'grant_requirements_extract';
+  kind: 'grant_section_draft' | 'grant_section_review' | 'grant_requirements_extract' | 'grant_notice_checklist';
   status: 'queued' | 'running';
   sectionId: string | null;
   attempts: number;
   lastError: string | null;
+  /** What the job last reported: for the notice, the stage and the page or request it reached. */
+  progress?: { stage?: string; page?: number; pages?: number; chunk?: number; chunks?: number } | null;
 }
 
 /** What an AI request returns when its job is still running in the background. */
@@ -355,6 +393,9 @@ export interface Workspace {
   opportunity: Opportunity;
   templateLabel: string;
   requirements: Requirement[];
+  /** Rows a person rejected: kept for the record, outside the matrix. */
+  rejectedRequirements?: Requirement[];
+  notice?: GrantNotice | null;
   sections: Section[];
   budgetLines: BudgetLine[];
   budget: BudgetSummary;
@@ -497,6 +538,13 @@ export const grantsApi = {
   updateRequirement: (rid: string, body: Partial<Requirement>) => apiPatch(`/grants/requirements/${rid}`, body),
   deleteRequirement: (rid: string) => apiDelete(`/grants/requirements/${rid}`),
   confirmAll: (id: string) => apiPost(`/grants/applications/${id}/requirements/confirm-all`) as Promise<Workspace>,
+  rejectRequirement: (rid: string) => apiPost(`/grants/requirements/${rid}/reject`) as Promise<Requirement>,
+  restoreRequirement: (rid: string) => apiPost(`/grants/requirements/${rid}/restore`) as Promise<Requirement>,
+  attachNoticeFile: (id: string, file: File) => uploadNotice(id, file),
+  attachNoticeLink: (id: string, body: { url: string } | { useOfficialLink: true }) => apiPost(`/grants/applications/${id}/notice`, body) as Promise<Workspace | PendingJob>,
+  rerunNotice: (id: string) => apiPost(`/grants/applications/${id}/notice/rerun`) as Promise<Workspace | PendingJob>,
+  removeNotice: (id: string) => apiDelete(`/grants/applications/${id}/notice`),
+  noticePage: (id: string, page: number) => apiGet<{ page: number; pagesRead: number; pageCount: number | null; text: string }>(`/grants/applications/${id}/notice/pages/${page}`),
   extract: (id: string, noticeText: string) => apiPost(`/grants/applications/${id}/requirements/extract`, { noticeText }) as Promise<{ added: number; demo: boolean; message: string | null } | PendingJob>,
   updateSection: (sid: string, body: Partial<Section>) => apiPatch(`/grants/sections/${sid}`, body) as Promise<Section>,
   draftSection: (sid: string) => apiPost(`/grants/sections/${sid}/draft`) as Promise<{ section: Section; demo: boolean; message: string | null } | PendingJob>,
@@ -530,6 +578,24 @@ async function apiPut(path: string, body: unknown) {
     throw new Error(`PUT ${path} failed: ${res.status} ${text}`);
   }
   return res.json();
+}
+
+/** Uploads a notice PDF (multipart, field `pdf`). The server checks the type and the size limit again. */
+async function uploadNotice(id: string, file: File): Promise<Workspace | PendingJob> {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const form = new FormData();
+  form.append('pdf', file, file.name);
+  const res = await fetch(`${BASE}/api/grants/applications/${id}/notice`, { method: 'POST', credentials: 'include', body: form });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`POST /grants/applications/${id}/notice failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+export function noticeFileUrl(id: string): string {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${BASE}/api/grants/applications/${id}/notice/file`;
 }
 
 /** Calendar (.ics) downloads: one application, one opportunity, or every open application. */
