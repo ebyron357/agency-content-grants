@@ -1,0 +1,35 @@
+== Version
+  PASS  healthz reports fdb352c7459239da8727ee290e32265e79d29dcd
+== Owner (team password) reads the old records
+  PASS  Team password sign-in
+  PASS  Brand readable
+  PASS  Project readable
+  PASS  Project title intact
+  PASS  Same workspace as before
+  PASS  Applicant readable
+  PASS  Confirmed fact intact
+  PASS  Application readable
+  PASS  Section text written on d2250c3 intact
+  PASS  Budget line intact
+  PASS  Opportunity readable
+  PASS  Both members listed with roles
+  PASS  Writer still shows two-factor on
+  PASS  Audit log readable, with the seed events
+== Writer signs in with password and two-factor
+  PASS  Password accepted, second factor required
+  PASS  Wrong code refused
+  FAIL  Current authenticator code accepted (secret sealed by d2250c3 opens here) (expected 200, got 429)
+  FAIL  Writer role (expected writer, got null)
+  FAIL  Writer reads the application (expected 200, got 401)
+  FAIL  Writer can still edit the section (expected 200, got 401)
+== Reviewer (no two-factor) and role enforcement
+  PASS  Reviewer signs in with password only
+  PASS  Reviewer role
+  PASS  Reviewer reads the application
+  PASS  Reviewer cannot invite members
+  PASS  Anonymous request rejected
+RESULT: 22 passed, 4 failed
+  PASS  Designation recorded on fdb352c survived the rollbacks
+  PASS  Letter of support survived the rollbacks
+  PASS  Section edit made on fdb352c then d2250c3 kept
+RESULT: 3 passed, 0 failed

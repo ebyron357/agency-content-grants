@@ -6,11 +6,13 @@ Current procedure for deploying, verifying, rolling back, backing up and restori
 
 | Environment | Where | Data | Purpose |
 |---|---|---|---|
-| Production | Render, defined by [`render.yaml`](../render.yaml) (region `ohio`) | Render PostgreSQL `agency-content-grants-db` (database `content_machine`) + 10 GB disk `content-machine-data` at `/var/data` | Live use. **Not created yet** — see `PROJECT_STATUS.md` |
+| Production | Render, defined by [`render.yaml`](../render.yaml) (region `ohio`) | Render PostgreSQL `agency-content-grants-db` (database `content_machine`) + 10 GB disk `content-machine-data` at `/var/data` | Live use since October 2026 (service `srv-dbcl40dg1s2s73dln6g0`); the running commit is in `PROJECT_STATUS.md` |
 | CI | GitHub Actions (`.github/workflows/ci.yml`, `content-closeout.yml`) | Disposable PostgreSQL 16 service container (`*_test` database) | Gate for every PR to `main` |
 | Local | Developer machine | Local PostgreSQL 16 | Development; see `README.md` |
 
-There is no staging environment. Every change reaches production only through a reviewed PR merged to `main` and a manual Render deploy (`autoDeployTrigger: off`).
+There is no staging environment. Code changes reach production through a reviewed PR merged to `main` and a manual Render deploy (`autoDeployTrigger: off`).
+
+**Exception: Blueprint Auto Sync.** The service belongs to a Render Blueprint. Render's default is Auto Sync on, and then "each push to the linked branch that modifies your Blueprint file triggers a deploy of any added or modified resources" ([Render Blueprints](https://render.com/docs/infrastructure-as-code#disabling-automatic-sync)). That is how `d2250c3` (PR #42, which added `MFA_ENCRYPTION_KEY`) went live on 4 November without a manual deploy. To keep every deploy manual, the owner sets Render → Blueprints → this Blueprint → Settings → **Auto Sync: No**, and then applies each `render.yaml` change with **Manual Sync** as part of a release (section 5).
 
 The service is a single Node 24 process that serves the API and the built frontend from the same origin. Because it has a persistent disk it runs as **one instance**, and Render cannot do zero-downtime deploys for it: each deploy or restart has a short window (typically under a minute) where requests fail.
 
@@ -66,7 +68,7 @@ Then:
 
 ## 5. Routine release
 
-1. Merge a reviewed PR to `main` only with green **CI** checks.
+1. Merge a reviewed PR to `main` only with green **CI** checks. If the PR changes `render.yaml` and Auto Sync is still on, the merge itself deploys: complete the production gate first.
 2. Render → service → **Manual Deploy → Deploy latest commit** (or deploy a specific commit: `render deploys create <service-id> --commit <sha>` with the Render CLI).
 3. Migrations in `lib/db/drizzle` run automatically at startup; a failed migration stops the process and the previous deploy keeps serving.
 4. Run step 4 with `EXPECTED_SHA` set to the deployed commit.

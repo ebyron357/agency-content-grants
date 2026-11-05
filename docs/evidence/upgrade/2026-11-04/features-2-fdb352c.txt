@@ -1,0 +1,13 @@
+  PASS  Team password sign-in
+  PASS  Competitiveness rating computed for the old application (0-100)
+  PASS  Format profile present for the old application
+  PASS  New package check present (no placeholders)
+  PASS  Record a place designation on the old applicant
+  PASS  Designation saved
+  PASS  Track a letter of support on the old application
+  PASS  Templates list
+  PASS  Jobs list refused before admin unlock
+  PASS  Admin unlock with the team password
+  PASS  Jobs list (Settings -> Jobs)
+  jobs by kind/status: ["grant_sync=queued x1"]
+RESULT: 11 passed, 0 failed

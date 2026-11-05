@@ -19,7 +19,7 @@ Grants:
 
 ## Status
 
-**Production runs `6d9f488` (the Content Machine); authenticated production verification has not been recorded.** `main` (`997b735`, 4 November) adds the grant directory, Grant Studio, workspaces and roles, two-factor sign-in, background jobs and templates. It is validated but not deployed, and it waits on owner approval and a manual deploy. The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
+**Production runs `d2250c3` (the Content Machine, the grant directory, Grant Studio, workspaces and roles, and two-factor sign-in). Render's Blueprint Auto Sync deployed it on 4 November without the production gate, and authenticated production verification has not been recorded.** `main` (`fdb352c`, 4 November) adds background jobs, templates, place designations, the writing toolkit and the competitiveness rating. It is validated but not deployed, and it waits on owner approval and a manual deploy. The authoritative record, with evidence and the exact owner action, is [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md); the decision is [`docs/GO_NO_GO_DECISION.md`](docs/GO_NO_GO_DECISION.md).
 
 - Recorded production URL: `https://agency-content-grants.onrender.com` (sign-in at `/`); consult the status record for verified deployment identity.
 - Access model (on `main`): workspaces that own their data; personal member sign-in by invitation only, with seven roles enforced on every route; optional or required two-factor sign-in; an audit log. The team password (`ADMIN_PASSWORD`) signs in to the agency workspace as owner. There is no self-registration ([`docs/SECURITY_AND_ACCESS_HANDOFF.md`](docs/SECURITY_AND_ACCESS_HANDOFF.md)). Production (`6d9f488`) still has the single team-password account.
@@ -86,7 +86,7 @@ pnpm run build
 
 ## Deploy
 
-Render blueprint [`render.yaml`](render.yaml): web service + managed PostgreSQL + 10 GB persistent disk at `/var/data`; manual deploys only. First deployment, verification, release, rollback, backup and restore: [`docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md).
+Render blueprint [`render.yaml`](render.yaml): web service + managed PostgreSQL + 10 GB persistent disk at `/var/data`. Code deploys are manual, but while the Blueprint's Auto Sync is on, a change to `render.yaml` on `main` deploys at once. First deployment, verification, release, rollback, backup and restore: [`docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](docs/DEPLOYMENT_AND_RECOVERY_RUNBOOK.md).
 
 ## Operating limits
 
