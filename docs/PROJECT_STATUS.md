@@ -67,7 +67,7 @@ Documentation and test PRs after #46, with no application code:
 
 Deploying `3dc6da0`, `1ee5576` or the #48 merge runs the same application code as `fdb352c`.
 
-A second intermittent test failure is known and not yet fixed. `grants.integration.test.ts` ("reuses hub alert summaries…") counts alert-cache hits, and it can fail when another test file changes grant opportunities in parallel. It is a test-isolation issue, not a product defect, and is described in #49.
+A second intermittent test failure is fixed by [#51](https://github.com/ebyron357/agency-content-grants/pull/51) (test-only). `grants.integration.test.ts` ("reuses hub alert summaries…") counted alert-cache hits while other test files changed grant opportunities in parallel. It is a test-isolation issue, not a product defect.
 
 PRs closed without merging: #28 (a secret-scan false positive on `d3f1a0e`, replaced by #29) and #25 (superseded by #35; its branch is kept for possible `minimatch` work).
 
