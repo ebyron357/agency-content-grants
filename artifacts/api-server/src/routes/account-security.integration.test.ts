@@ -25,13 +25,19 @@ const PASSWORD = "Two factors beat one factor 8";
 let server: Server;
 let base = "";
 let savedKey: string | undefined;
+/**
+ * The sign-in rate limits are keyed by client address and stored in the shared test database. Test files run in
+ * parallel, so each file signs in from its own documentation-range address (RFC 5737) instead of sharing 127.0.0.1;
+ * otherwise sign-ins from other files can fill this file's counter and return 429.
+ */
+const CLIENT_ADDRESS = "198.51.100.11";
 
 function person() {
   let cookie = "";
   const call = async (method: string, path: string, body?: unknown) => {
     const res = await fetch(`${base}/api${path}`, {
       method,
-      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Chrome/130.0", ...(cookie ? { Cookie: cookie } : {}), ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
+      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Chrome/130.0", "X-Forwarded-For": CLIENT_ADDRESS, ...(cookie ? { Cookie: cookie } : {}), ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const set = res.headers.get("set-cookie");
@@ -67,7 +73,7 @@ beforeAll(async () => {
   process.env.MFA_ENCRYPTION_KEY = "security-test-encryption-key-not-for-production";
   vi.useFakeTimers({ toFake: ["Date"], now: Date.now() });
   const app = express();
-  app.set("trust proxy", false);
+  app.set("trust proxy", "loopback");
   app.use(express.json());
   app.use(session({ secret: "security-test-secret", resave: false, saveUninitialized: false, name: "sid" }));
   app.use("/api", router);
