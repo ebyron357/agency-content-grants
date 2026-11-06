@@ -28,7 +28,7 @@
    - Confirm database point-in-time recovery is available, or take a logical backup (runbook §7).
    - Download a copy of `/var/data`.
 4. **Owner: deploy or roll back.**
-   - **(a)** Run a Render manual deploy of `ee7b5c8bf9c46dc3c447629e616ca6adb6c7e5cd`, and use that SHA below. `0e4f598` is acceptable too (the same application code), but not a later `main` that includes any of PRs #55–#58. Confirm the logs show `[migrate] Migrations complete` (migrations `0025`–`0029`) and `Server listening`.
+   - **(a)** Run a Render manual deploy of `ee7b5c8bf9c46dc3c447629e616ca6adb6c7e5cd`, and use that SHA below. `1ff0c1f` or `0e4f598` is acceptable too (the same application code), but not a later `main` that includes any of PRs #55–#58. Confirm the logs show `[migrate] Migrations complete` (migrations `0025`–`0029`) and `Server listening`.
    - **(b)** Render → Events → the `6d9f488` deploy → **Rollback**. The older code was rehearsed on the newer schema with member and Grant Studio data present; that data is kept but unused, and only the team password signs in.
 5. **Operator holding `ADMIN_PASSWORD`: smoke test.** Run the smoke test (runbook §4) with this command:
 
