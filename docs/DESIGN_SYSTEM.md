@@ -64,7 +64,7 @@ Shared primitives in `components/ui/` (button, input, select, textarea, card, di
 
 ## Enforcement
 
-`artifacts/content-os/e2e/accessibility.spec.ts` (CI job **CI → validate**) logs in and runs axe (WCAG 2.0/2.1 A/AA, critical + serious) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, Grant Studio, Grants, the 404 page and all nine Project Detail workflow tabs. It also asserts the dark shell tokens, that every navigation destination is reachable by name on a 390px viewport, and that there is no horizontal page scroll on mobile.
+`artifacts/content-os/e2e/accessibility.spec.ts` (CI job **CI → validate**) logs in and runs axe (WCAG 2.0/2.1 A/AA, critical + serious) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, Grant Studio, Grant Studio → Foundations, Grants, the 404 page and all nine Project Detail workflow tabs. It also asserts the dark shell tokens, that every navigation destination is reachable by name on a 390px viewport, and that there is no horizontal page scroll on mobile.
 
 Visual evidence for the locked system: `docs/evidence/ui/closeout-2026-10-02/`.
 

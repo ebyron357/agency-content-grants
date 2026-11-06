@@ -222,6 +222,13 @@
     {
       "idx": 31,
       "version": "7",
+      "when": 1789209600000,
+      "tag": "0030_foundation_giving",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
       "when": 1789296000000,
       "tag": "0031_source_registry",
       "breakpoints": true

@@ -119,7 +119,7 @@ export default function JobsTab() {
           {d.schedules.map((s) => (
             <li key={s.name} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
               <span className="text-foreground">{s.label}</span>
-              <span className="text-xs text-muted-foreground">{s.enabled ? `Every ${s.everyHours === 24 ? 'day' : `${s.everyHours} hours`}` : 'Off on this server'}</span>
+              <span className="text-xs text-muted-foreground">{s.enabled ? `Every ${s.everyHours === 24 ? 'day' : s.everyHours > 24 && s.everyHours % 24 === 0 ? `${s.everyHours / 24} days` : `${s.everyHours} hours`}` : 'Off on this server'}</span>
             </li>
           ))}
         </ul>

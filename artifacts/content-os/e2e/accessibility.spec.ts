@@ -111,6 +111,7 @@ test("every primary authenticated route passes the accessibility gate on one des
     ["/dashboard", "dashboard"],
     ["/projects", "documents"],
     ["/grant-studio", "grant studio"],
+    ["/grant-studio/foundations", "foundations"],
     ["/grants", "grants"],
     ["/brands", "brands"],
     [`/brands/${brand.id}`, "brand detail"],
