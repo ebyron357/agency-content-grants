@@ -56,5 +56,7 @@ describe("route permission coverage", () => {
     expect(needs("POST", "/grants/sections/:sid/approve")).toBe("grants.review");
     expect(needs("POST", "/grants/applications/:id/approve-package")).toBe("grants.approve");
     expect(needs("POST", "/grants/sections/:sid/draft")).toBe("grants.write");
+    // Loading shared foundation data is configuration, not grant writing.
+    expect(needs("POST", "/grants/foundations/import")).toBe("workspace.configure");
   });
 });

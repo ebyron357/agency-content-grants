@@ -1,7 +1,7 @@
 import { and, eq, gte } from "drizzle-orm";
 import { db, jobsTable } from "@workspace/db";
 import { enqueue } from "./registry";
-import { GRANT_SYNC_KEY, grantSyncJob } from "./definitions";
+import { FOUNDATION_IMPORT_KEY, GRANT_SYNC_KEY, foundationImportEnabled, foundationImportJob, grantSyncJob } from "./definitions";
 import type { JobDefinition } from "./types";
 
 /**
@@ -28,6 +28,16 @@ export const SCHEDULES: Schedule[] = [
     startDelayMs: 60_000,
     dedupeKey: GRANT_SYNC_KEY,
     enabled: () => process.env.GRANTS_SYNC_DISABLED !== "true" && (process.env.NODE_ENV !== "test" || process.env.GRANTS_SYNC_ENABLED === "true"),
+  },
+  {
+    // Off unless the owner turns it on: the full import needs more database
+    // than the current plan holds (docs/GRANT_STUDIO.md, Foundations).
+    name: "foundation-import-monthly",
+    job: foundationImportJob,
+    everyMs: 30 * 24 * 60 * 60_000,
+    startDelayMs: 10 * 60_000,
+    dedupeKey: FOUNDATION_IMPORT_KEY,
+    enabled: () => foundationImportEnabled() && process.env.NODE_ENV !== "test",
   },
 ];
 

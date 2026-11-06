@@ -1,6 +1,8 @@
 import { defineJob, exponentialBackoff } from "./registry";
 import { runGrantSync } from "../grants/ingest";
 import { runRequirementsExtract, runSectionDraft, runSectionReview } from "../grants/aiWork";
+import { runFoundationImport } from "../foundations/importer";
+import { PermanentJobError } from "./types";
 
 /**
  * The job kinds this API runs. Add a kind here, with its limits, and the
@@ -54,3 +56,28 @@ export const requirementsExtractJob = defineJob<{ applicationId: string; userId:
 
 /** Keys that keep one AI job per section (or application) queued or running at a time. */
 export const aiKey = (kind: "draft" | "review" | "extract", id: string) => `ai:${kind}:${id}`;
+
+// ── Foundation giving history ──────────────────────────────────────────────────
+// Streams funder-graph's Parquet partitions into per-funder aggregates. A retry
+// is safe: filings already counted are skipped (lib/foundations/aggregate.ts).
+
+export const foundationImportJob = defineJob<{ scheduleSlot?: string }>({
+  kind: "foundation_import",
+  label: "Import foundation giving history",
+  maxAttempts: 2,
+  timeoutMs: 3 * 60 * 60_000,
+  backoffMs: exponentialBackoff(10 * 60_000, 60 * 60_000),
+  concurrency: 1,
+  run: async ({ jobId, progress, signal }) => {
+    // The import needs more memory and database than the current plans hold; the owner turns it on (docs/GRANT_STUDIO.md, Foundations).
+    if (!foundationImportEnabled()) throw new PermanentJobError("The foundation import is off on this server. Set FOUNDATIONS_IMPORT_ENABLED=true to run it.");
+    const result = await runFoundationImport({ jobId, signal, onProgress: (p) => progress(p) });
+    return { ...result };
+  },
+});
+
+/** The dedupe key that keeps one foundation import queued or running at a time. */
+export const FOUNDATION_IMPORT_KEY = "foundation_import";
+
+/** Off unless the owner sets FOUNDATIONS_IMPORT_ENABLED=true: no import runs, by schedule or by hand, until then. */
+export const foundationImportEnabled = () => process.env.FOUNDATIONS_IMPORT_ENABLED === "true";

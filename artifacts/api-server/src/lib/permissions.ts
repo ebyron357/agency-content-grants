@@ -93,6 +93,8 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   ...writes("/grants/applications/:id/budget-justification", "grants.finance"),
   ...writes("/grants/budget-lines/:lid", "grants.finance"),
   { method: "POST", path: "/grants/applicants/:id/matches/seen", needs: "workspace.read" },
+  // The foundation import loads shared reference data (the handler also requires an admin unlock).
+  { method: "POST", path: "/grants/foundations/import", needs: "workspace.configure" },
   ...writes("/grants/*", "grants.write"),
 
   // Publishing and scheduling.

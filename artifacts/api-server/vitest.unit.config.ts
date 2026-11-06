@@ -30,6 +30,7 @@ export default defineConfig({
       "src/lib/mfa.unit.test.ts",
       "src/lib/jobs/jobs.unit.test.ts",
       "src/lib/grants/templateRegistry.unit.test.ts",
+      "src/lib/foundations/foundations.unit.test.ts",
       "src/lib/ai/providerRequest.test.ts",
       "src/lib/readiness.test.ts",
       "src/lib/sourceStorage.test.ts",
