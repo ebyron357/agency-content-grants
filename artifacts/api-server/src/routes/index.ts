@@ -7,6 +7,7 @@ import { withRequestContext } from "../lib/requestContext";
 import authRouter from "./auth";
 import healthRouter from "./health";
 import automationRouter from "./automation"; // action API — API-key-or-session auth handled internally
+import watchEventsRouter from "./watch-events"; // changedetection.io change notifications — shared secret checked internally
 
 // ── Protected routers ─────────────────────────────────────────────────────────
 import dashboardRouter from "./dashboard";
@@ -33,6 +34,7 @@ import mediaRouter from "./media";
 import grantsRouter from "./grants";
 import grantTemplatesRouter from "./grant-templates";
 import foundationsRouter from "./foundations";
+import grantSourcesRouter from "./grant-sources";
 import workspaceRouter from "./workspace";
 import accountRouter from "./account";
 import jobsRouter from "./jobs";
@@ -45,6 +47,7 @@ router.use(withRequestContext);
 // ── Public routes (must be mounted BEFORE requireAuth) ────────────────────────
 router.use(authRouter); // /auth/login, /auth/logout, /auth/me
 router.use(healthRouter); // /healthz
+router.use(watchEventsRouter); // /watch-events/changedetection — shared-secret header, checked inside the router
 // Session callers of the automation API get the same membership re-check and role
 // permissions as the app; API-key callers are limited by their scopes instead.
 router.use("/automation", (req, res, next) => {
@@ -82,6 +85,7 @@ router.use(webhooksRouter);
 router.use(mediaRouter);
 router.use(grantTemplatesRouter);
 router.use(foundationsRouter);
+router.use(grantSourcesRouter);
 router.use(grantsRouter);
 router.use(workspaceRouter);
 router.use(accountRouter);

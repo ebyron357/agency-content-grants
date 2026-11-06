@@ -46,6 +46,9 @@ test("a grant refresh is queued as a job and managed from the Jobs screen", asyn
   await expect(schedules.getByRole("listitem").filter({ hasText: "Refresh grant opportunities" }).getByText("Off on this server", { exact: true })).toBeVisible();
   // The foundation import's schedule is off unless the owner turns it on.
   await expect(schedules.getByRole("listitem").filter({ hasText: "Import foundation giving history" }).getByText("Off on this server", { exact: true })).toBeVisible();
+  // One row per schedule (grant refresh, source sweep, ...); every one must be off.
+  await expect(page.getByText("Off on this server", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/^Every (day|\d+ hours)$/)).toHaveCount(0);
   const recent = page.locator("section", { has: page.getByRole("heading", { name: "Recent jobs" }) });
   const row = recent.getByRole("listitem").filter({ hasText: "Refresh grant opportunities" }).first();
   await expect(row.getByText("Queued", { exact: true })).toBeVisible();
