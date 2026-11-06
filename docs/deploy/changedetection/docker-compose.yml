@@ -1,0 +1,38 @@
+# changedetection.io for the grant source registry (docs/SOURCE_REGISTRY.md §4).
+#
+# Local development and a reference for a future deployment. NOT part of
+# render.yaml: running it in production is a new service and an owner decision.
+#
+# changedetection.io is Apache-2.0 (https://github.com/dgtlmoon/changedetection.io).
+# This file only runs its published image; no changedetection.io code is copied.
+#
+#   docker compose -f docs/deploy/changedetection/docker-compose.yml up -d
+#   open http://127.0.0.1:5000 , Settings > API, copy the API key, then set in the API's environment:
+#     SOURCE_WATCHER_BACKEND=changedetection
+#     CHANGEDETECTION_URL=http://127.0.0.1:5000
+#     CHANGEDETECTION_API_KEY=<the key>
+#   and, for webhooks instead of polling:
+#     CHANGEDETECTION_RECEIVER_URL=http://host.docker.internal:8080/api/watch-events/changedetection
+#     CHANGEDETECTION_WEBHOOK_SECRET=<a random string of 24+ characters>
+#
+# Pin the image to a reviewed version before any shared deployment
+# (replace `latest` with a release tag from the project's releases page).
+services:
+  changedetection:
+    image: ghcr.io/dgtlmoon/changedetection.io:latest
+    container_name: grant-source-changedetection
+    restart: unless-stopped
+    # Bound to localhost: the UI and API are not exposed to the network.
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - changedetection-data:/datastore
+    environment:
+      # A respectful reader: one fetch at a time. The API sets each watch's own
+      # schedule and an honest User-Agent header (no personal email) through the REST API.
+      - FETCH_WORKERS=1
+    # Lets the container reach the API on the host for webhook notifications (Linux).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+volumes:
+  changedetection-data:

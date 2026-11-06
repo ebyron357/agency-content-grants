@@ -51,7 +51,8 @@ export async function draftContext(sectionId: string, app: GrantApplication, app
   const [section] = await db.select().from(grantSectionsTable).where(eq(grantSectionsTable.id, sectionId)).limit(1);
   const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
   const reqs = await db.select().from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, app.id));
-  const relevant = reqs.filter((r) => r.sectionKey === section.key || (r.kind === "criterion" && !r.sectionKey));
+  // A rejected row is not part of the matrix and never reaches drafting or review.
+  const relevant = reqs.filter((r) => !r.rejectedAt && (r.sectionKey === section.key || (r.kind === "criterion" && !r.sectionKey)));
   const library = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id));
   // Up to two saved texts for the same section, newest first, as plain text (about 6,000 characters in all).
   const savedWriting = (await db.select().from(grantSnippetsTable).where(and(eq(grantSnippetsTable.applicantId, applicant.id), eq(grantSnippetsTable.sectionKey, section.key))).orderBy(desc(grantSnippetsTable.updatedAt)).limit(2))

@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { apiGet, apiPost } from '@/lib/api';
 import AutomationTab from './AutomationTab';
 import JobsTab from './JobsTab';
+import SourcesTab from './SourcesTab';
+import BillingTab from './BillingTab';
 import { PageHeader, PageShell } from '@/components/layout/Page';
 
 /** True when an error came back as an admin-gate 403 */
@@ -101,7 +103,7 @@ function AdminAccessCard() {
   );
 }
 
-const TABS = ['Team', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation', 'Jobs'] as const;
+const TABS = ['Team', 'Billing', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation', 'Jobs', 'Sources'] as const;
 type Tab = typeof TABS[number];
 
 const PROVIDER_ENV_KEYS: Record<string, { key: string; docs: string }> = {
@@ -374,14 +376,15 @@ function DependenciesTab() {
 }
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<Tab>('Team');
+  // Stripe returns to /settings?tab=billing after Checkout or the customer portal.
+  const [activeTab, setActiveTab] = useState<Tab>(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'billing' ? 'Billing' : 'Team'));
 
   return (
     <PageShell width="narrow">
       <PageHeader
         eyebrow="Settings"
         title="Settings"
-        description="Your team and workspace, provider status, model assignments, system dependencies and automation access."
+        description="Your team, billing and workspace, provider status, model assignments, system dependencies and automation access."
       />
 
       <section aria-labelledby="security-heading" className="mb-8">
@@ -413,11 +416,13 @@ export default function Settings() {
       </div>
 
       {activeTab === 'Team' && <TeamTab />}
+      {activeTab === 'Billing' && <BillingTab />}
       {activeTab === 'AI Providers' && <ProvidersTab />}
       {activeTab === 'Model Configuration' && <ModelConfigTab />}
       {activeTab === 'Dependencies' && <DependenciesTab />}
       {activeTab === 'Automation' && <AutomationTab />}
       {activeTab === 'Jobs' && <JobsTab />}
+      {activeTab === 'Sources' && <SourcesTab />}
     </PageShell>
   );
 }

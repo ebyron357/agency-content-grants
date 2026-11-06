@@ -13,7 +13,7 @@
 
 export const ROLES = {
   owner: { label: "Owner", description: "Everything, including members, roles and the workspace itself." },
-  admin: { label: "Admin", description: "Everything except removing owners." },
+  admin: { label: "Admin", description: "Everything except removing owners and managing billing." },
   writer: { label: "Writer", description: "Creates and edits content and applications, including budgets. Cannot approve sections or packages." },
   reviewer: { label: "Reviewer", description: "Reads everything; reviews, approves and reopens sections." },
   representative: { label: "Authorized representative", description: "Reads everything; approves sections and the final package, records submissions and outcomes." },
@@ -32,16 +32,21 @@ export const PERMISSIONS = {
   "automation.manage": "Create API keys and webhooks",
   "members.manage": "Invite people, change roles and remove members",
   "workspace.configure": "Change AI providers, models, blueprints and dependencies",
+  "billing.manage": "See and change the workspace's plan, trial and billing",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
 
 const ALL = Object.keys(PERMISSIONS) as Permission[];
 
-/** Which permissions each role holds. Owners and admins hold everything; the route handlers keep the owner-only rules for members. */
+/**
+ * Which permissions each role holds. Owners hold everything; admins hold
+ * everything except billing, which stays with owners (docs/BILLING.md). The
+ * route handlers keep the owner-only rules for members.
+ */
 export const ROLE_PERMISSIONS: Record<keyof typeof ROLES, readonly Permission[]> = {
   owner: ALL,
-  admin: ALL,
+  admin: ALL.filter((p) => p !== "billing.manage"),
   writer: ["workspace.read", "content.write", "content.publish", "grants.write", "grants.finance"],
   reviewer: ["workspace.read", "grants.review"],
   representative: ["workspace.read", "grants.review", "grants.approve"],
@@ -93,6 +98,8 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   ...writes("/grants/applications/:id/budget-justification", "grants.finance"),
   ...writes("/grants/budget-lines/:lid", "grants.finance"),
   { method: "POST", path: "/grants/applicants/:id/matches/seen", needs: "workspace.read" },
+  // The foundation import loads shared reference data (the handler also requires an admin unlock).
+  { method: "POST", path: "/grants/foundations/import", needs: "workspace.configure" },
   ...writes("/grants/*", "grants.write"),
 
   // Publishing and scheduling.
@@ -109,6 +116,13 @@ export const ROUTE_RULES: readonly RouteRule[] = [
 
   // Background jobs: retry and cancel (the handlers also require an admin unlock).
   ...writes("/jobs/*", "workspace.configure"),
+
+  // The grant source registry and its review queue are shared reference data:
+  // owners and admins only, reads included (the handlers also require an admin unlock).
+  { method: "*", path: "/grant-sources", needs: "workspace.configure" },
+  { method: "*", path: "/grant-sources/*", needs: "workspace.configure" },
+  { method: "*", path: "/grant-source-drafts", needs: "workspace.configure" },
+  { method: "*", path: "/grant-source-drafts/*", needs: "workspace.configure" },
 
   // Workspace configuration (the handlers also require an admin unlock).
   { method: "POST", path: "/providers", needs: "workspace.configure" },
@@ -129,6 +143,12 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { method: "PATCH", path: "/workspace", needs: "members.manage" },
   ...writes("/workspace/*", "members.manage"),
   { method: "POST", path: "/workspaces", needs: "members.manage" },
+  // The operator (admin-unlocked) marks a client workspace as agency-managed: no limits, no charge.
+  ...writes("/workspaces/:id/billing", "members.manage"),
+
+  // Billing: plan, trial, Checkout and the customer portal are for owners only.
+  { method: "*", path: "/billing", needs: "billing.manage" },
+  { method: "*", path: "/billing/*", needs: "billing.manage" },
 
   // Content: everything else that writes.
   ...writes("/brands", "content.write"),
