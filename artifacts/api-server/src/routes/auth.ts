@@ -11,6 +11,7 @@ import type { Request, Response } from "express";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { permissionsOf } from "../lib/permissions";
 import { consumeSecondFactor } from "../lib/secondFactor";
+import { checkInviteAcceptance, limitResponse } from "../lib/billing/service";
 import { memberSessionActive, revokeMemberSession, revokeMemberSessions, startMemberSession } from "../lib/memberSessions";
 import { ROLES, ensureAgencyWorkspace, hashToken, isRole, memberView, memberWorkspaces, membershipOf, normalizeEmail, passwordProblem, upgradeLegacySession, type WorkspaceAccess } from "../lib/workspaces";
 
@@ -392,6 +393,12 @@ router.post("/auth/invites/:token/accept", inviteLimiter, async (req, res): Prom
   const row = await openInvite(req.params.token);
   if (!row) {
     res.status(404).json({ error: "This invitation is not valid. It may have expired, been used or been withdrawn." });
+    return;
+  }
+  // Counted when it was sent; refused here only if the plan has shrunk since. Allowed whenever billing is off.
+  const seat = await checkInviteAcceptance(row.workspace);
+  if (!seat.allowed) {
+    res.status(402).json(limitResponse(seat));
     return;
   }
   const { name, password, code } = req.body ?? {};

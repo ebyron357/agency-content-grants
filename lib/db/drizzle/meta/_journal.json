@@ -239,6 +239,13 @@
       "when": 1789382400000,
       "tag": "0032_grant_notice_checklist",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1789468800000,
+      "tag": "0033_billing_plans",
+      "breakpoints": true
     }
   ]
 }

@@ -32,6 +32,14 @@ describe("role permissions", () => {
     expect(requirementFor("HEAD", "/brands").needs).toBe("workspace.read");
   });
 
+  it("keeps billing with owners", () => {
+    expect(rolesWith("billing.manage")).toEqual(["owner"]);
+    expect(hasPermission("admin", "members.manage")).toBe(true);
+    expect(requirementFor("GET", "/billing").needs).toBe("billing.manage");
+    expect(requirementFor("POST", "/billing/checkout").needs).toBe("billing.manage");
+    expect(requirementFor("PUT", "/workspaces/w1/billing").needs).toBe("members.manage");
+  });
+
   it("fails closed for a write nobody classified", () => {
     const r = requirementFor("POST", "/something-new");
     expect(r.rule).toBeNull();

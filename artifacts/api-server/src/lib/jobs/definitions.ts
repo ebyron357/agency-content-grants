@@ -2,7 +2,8 @@ import { defineJob, enqueue, exponentialBackoff } from "./registry";
 import { runGrantSync } from "../grants/ingest";
 import { runRequirementsExtract, runSectionDraft, runSectionReview } from "../grants/aiWork";
 import { runFoundationImport } from "../foundations/importer";
-import { PermanentJobError } from "./types";
+import { PermanentJobError, isPermanent } from "./types";
+import { confirmAiDraftedApplication, releaseAiDraftClaim, type AiDraftUsage } from "../billing/service";
 import { runNoticeChecklist } from "../grants/noticeWork";
 
 /**
@@ -34,11 +35,30 @@ export const GRANT_SYNC_KEY = "grant_sync";
 
 const AI_LIMITS = { maxAttempts: 2, timeoutMs: 3 * 60_000, backoffMs: exponentialBackoff(15_000, 60_000), concurrency: 2 } as const;
 
-export const sectionDraftJob = defineJob<{ sectionId: string; userId: string }>({
+/**
+ * The billing fields are present only while billing is on (docs/BILLING.md):
+ * a successful draft confirms the application's monthly count, and a draft
+ * that finally fails releases the reservation its request made.
+ */
+export const sectionDraftJob = defineJob<{ sectionId: string; userId: string } & Partial<AiDraftUsage>>({
   kind: "grant_section_draft",
   label: "Draft a section with AI",
   ...AI_LIMITS,
-  run: ({ payload }) => runSectionDraft(payload.sectionId, payload.userId),
+  run: async ({ payload, attempt }) => {
+    let result: Awaited<ReturnType<typeof runSectionDraft>>;
+    try {
+      result = await runSectionDraft(payload.sectionId, payload.userId);
+    } catch (err) {
+      if (payload.usageClaimId && (isPermanent(err) || attempt >= AI_LIMITS.maxAttempts)) {
+        await releaseAiDraftClaim(payload.usageClaimId).catch(() => {});
+      }
+      throw err;
+    }
+    if (payload.usageWorkspaceId && payload.usagePeriod && payload.usageApplicationId) {
+      await confirmAiDraftedApplication({ usageWorkspaceId: payload.usageWorkspaceId, usagePeriod: payload.usagePeriod, usageApplicationId: payload.usageApplicationId });
+    }
+    return result;
+  },
 });
 
 export const sectionReviewJob = defineJob<{ sectionId: string; userId: string }>({

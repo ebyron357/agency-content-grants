@@ -37,13 +37,14 @@ Content Machine is organized into **workspaces**. A workspace is one organizatio
 | `automation.manage` | See and create API keys and webhooks |
 | `members.manage` | Invite people, change roles and remove members; require two-factor; read and export the audit log |
 | `workspace.configure` | Change AI providers, models, blueprints and dependencies (also needs admin unlock) |
+| `billing.manage` | See and change the workspace's plan, trial and billing (Settings → Billing; `BILLING.md`) |
 
 ### Roles
 
 | Role | Permissions | In practice |
 |---|---|---|
 | Owner | All | Everything, including members and the workspace. Only an owner can create or remove another owner. A workspace always keeps at least one owner |
-| Admin | All | Everything except anything that touches an owner |
+| Admin | All except `billing.manage` | Everything except anything that touches an owner, and billing |
 | Writer | read, content.write, content.publish, grants.write, grants.finance | Writes content and applications, including budgets. Cannot approve sections or the package |
 | Reviewer | read, grants.review | Reads everything; reviews, approves and reopens sections. Cannot edit them |
 | Authorized representative | read, grants.review, grants.approve | Approves sections and the final package; records submissions and outcomes |
@@ -114,6 +115,7 @@ Keep this current at handoff (names and roles only, never credentials). Settings
 | `TYPEFULLY_API_KEY` (optional) | Render environment | Owner | On exposure |
 | Automation API keys | Hash only in PostgreSQL; raw value shown once at creation | Creator | Revoke in Settings → Automation |
 | Webhook signing secrets | PostgreSQL; shown once at creation or rotation | Owner | Settings → Automation → Rotate signing secret |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (once billing is switched on) | Render environment only; never in `render.yaml` or git | Owner (Stripe account) | On exposure: roll the key in Stripe, and the endpoint's signing secret, then update Render (`BILLING.md` §5) |
 
 ## 6. Security controls in place
 
@@ -125,6 +127,7 @@ Keep this current at handoff (names and roles only, never credentials). Settings
 - An audit log with the person on every entry, for owners and admins, with CSV export.
 - Session regeneration at member sign-in; secure session cookie; `trust proxy` for Render's TLS edge; `SESSION_SECRET` required at startup.
 - Rate limits: sign-in, admin unlock and two-factor codes (5 / 15 min / IP); invitations (20 failed / 15 min / IP); image upload (20 / 10 min); image serving (120 / min).
+- Billing (`BILLING.md`), once switched on: Stripe webhooks are verified against the raw body with the signing secret, applied once each and in order, and never move billing between workspaces. Plan limits fail closed, but the agency workspace is never limited. Only owners see or change billing.
 - Rich text is sanitized server-side with an allowlist; scripts, event handlers and unsafe URLs are removed.
 - Image uploads: JPEG, PNG, GIF or WebP only, verified by file signature, 10 MB maximum, alt text required, served only to the owning workspace with `nosniff` and a restrictive CSP. Source PDFs up to 50 MB. Video embeds limited to YouTube and Vimeo HTTPS URLs.
 - Exports and downloads: format allowlist, ownership check, path-traversal rejection.
