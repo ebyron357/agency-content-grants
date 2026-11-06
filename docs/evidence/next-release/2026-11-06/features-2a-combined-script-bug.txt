@@ -1,0 +1,44 @@
+== Migrations
+  PASS  Migration rows in drizzle.__drizzle_migrations
+  PASS  Table foundation_funders exists
+  PASS  Table grant_sources exists
+  PASS  Table grant_notices exists
+  PASS  Table billing_plans exists
+  PASS  Table workspace_subscriptions exists
+  PASS  grant_requirements gained notice columns
+== #58 Foundations (import off by default)
+  PASS  Foundations meta readable
+  PASS  Funder list readable (empty: nothing imported)
+  PASS  Suggestions for the old applicant
+  PASS  Import without admin unlock refused
+  PASS  Reviewer cannot import
+== #56 Source registry
+  PASS  Registry without admin unlock refused
+  PASS  Reviewer cannot read the registry
+  PASS  Change notifications off without a secret
+== #55 Billing (no Stripe settings)
+  PASS  Billing reports off
+  PASS  Missing settings named, not valued
+  PASS  Entitlement unlimited while off
+  PASS  Trial refused while off
+  PASS  Checkout refused while off
+  PASS  Stripe webhook absent while off
+  PASS  Reviewer cannot see billing
+  FAIL  Plans seeded, prices unpublished (expected false, got f)
+  PASS  New organization not limited while billing is off
+== #57 Notice PDF on the application started on ee7b5c8
+  PASS  Notice PDF accepted (201 done, or 202 queued)
+  notice status: ready; {"status":"ready","extractor":"pdfjs","pageCount":2,"pagesRead":2,"proposed":2,"checklistDemo":true,"error":"Demo: no AI provider is configured, so these rows were found by pattern matching on the notice's own words, not by AI. Each one still cites its page. Review every row; add what pattern matching missed by hand."}
+  PASS  Page 1 text readable
+  PASS  Original file served as PDF
+  PASS  Reviewer cannot attach a notice
+  PASS  Anonymous cannot read notice pages
+  PASS  Link to a private address refused
+  proposed rows: [{"page":1,"status":"open","confirmed":false},{"page":2,"status":"open","confirmed":false}]
+  PASS  Section text from ee7b5c8 still intact
+== Admin unlock reaches the operator-only screens
+  PASS  Admin unlock
+  PASS  Registry lists the two feed sources
+  PASS  Import still off (FOUNDATIONS_IMPORT_ENABLED unset)
+  PASS  Jobs list includes the new schedules
+RESULT: 34 passed, 1 failed

@@ -1,0 +1,2 @@
+after deploying 0033 first: billing_plans rows: 32
+after deploying the full journal: billing_plans rows: 32

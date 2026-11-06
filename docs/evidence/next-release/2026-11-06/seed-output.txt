@@ -1,0 +1,20 @@
+== Owner (team password)
+  PASS  Team password sign-in
+== Content Machine records
+  PASS  Brand created
+  PASS  Project created
+== Members
+  PASS  Writer accepts invitation
+  PASS  Reviewer accepts invitation
+== Writer turns on two-factor
+  PASS  Two-factor enabled
+  PASS  Stored secret is encrypted (v1:)
+== Grant Studio
+  PASS  Applicant created
+  PASS  Confirmed fact created
+  PASS  Application started
+  PASS  Writer edits a section
+  budget line: {"id":"fd447ef3-4e2c-45b8-8462-9774565045a4","category":"personnel","total":52000,"error":null}
+== Audit log
+  audit actions: 
+RESULT: 11 passed, 0 failed

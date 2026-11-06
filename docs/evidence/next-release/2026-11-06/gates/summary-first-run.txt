@@ -1,0 +1,14 @@
+02-format-check exit=0 1s
+03-typecheck exit=0 23s
+04-api-unit exit=0 5s
+05-db-prepare exit=0 2s
+06-api-tests exit=0 24s
+07-content-os-tests exit=0 6s
+08-build-api exit=0 1s
+09-build-frontend exit=0 7s
+10-start-api ok=1
+11-integration exit=0 16s
+12-a11y exit=1 449s
+13-production-build exit=0 18s
+14-audit exit=0 1s
+DONE

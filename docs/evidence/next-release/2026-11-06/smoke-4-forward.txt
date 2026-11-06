@@ -1,0 +1,135 @@
+Content Machine production smoke — 20261106T062539Z UTC
+Target: https://localhost:8443
+
+== 1. Liveness, readiness and SHA parity
+  PASS  GET /api/healthz returns 200
+  running commit: fd6e8246780a9ce7cdcc25845e85d0ccb1c22801
+  PASS  Deployed commit matches EXPECTED_SHA fd6e8246780a9ce7cdcc25845e85d0ccb1c22801
+  readyz: {"status":"not_ready","checks":{"configuration":"failed","database":"ok","storage":"ok"}}
+  (SMOKE_REQUIRE_READY=0: readiness recorded, not enforced)
+  PASS  GET / serves the Content OS app shell
+  PASS  App shell contains the React root
+  PASS  https://localhost:8443/ sends x-content-type-options
+  PASS  https://localhost:8443/ sends x-frame-options
+  PASS  https://localhost:8443/ sends content-security-policy
+  PASS  https://localhost:8443/ sends referrer-policy
+  PASS  https://localhost:8443/ sends strict-transport-security
+  PASS  https://localhost:8443/ hides x-powered-by
+  PASS  https://localhost:8443/api/healthz sends x-content-type-options
+  PASS  https://localhost:8443/api/healthz sends x-frame-options
+  PASS  https://localhost:8443/api/healthz sends content-security-policy
+  PASS  https://localhost:8443/api/healthz sends referrer-policy
+  PASS  https://localhost:8443/api/healthz sends strict-transport-security
+  PASS  https://localhost:8443/api/healthz hides x-powered-by
+
+== 2. Unauthenticated access is rejected
+  PASS  Anonymous GET /api/projects is 401
+  PASS  Anonymous GET /api/brands is 401
+  PASS  Anonymous GET /api/dashboard/stats is 401
+  PASS  Anonymous GET /api/projects/00000000-0000-4000-8000-000000000000 is 401
+  PASS  Anonymous GET /api/media/images/00000000-0000-4000-8000-000000000000 is 401
+  PASS  Anonymous GET /api/exports/download/missing.pdf is 401
+  PASS  Anonymous GET /api/api-keys is 401
+  PASS  Anonymous GET /api/grants/applicants is 401
+  PASS  Anonymous GET /api/grants/opportunities is 401
+  PASS  Anonymous GET /api/workspace is 401
+  PASS  Anonymous GET /api/workspace/audit is 401
+  PASS  Anonymous GET /api/jobs is 401
+  PASS  Anonymous POST /api/projects is 401
+  PASS  Wrong password is rejected
+
+== 3. Authentication and session
+  PASS  Login with the admin password
+  PASS  Session cookie is HttpOnly and Secure
+  PASS  GET /api/auth/me reports an authenticated session
+
+== 4. Project and document persistence
+  PASS  Create [SMOKE] brand
+  PASS  Create [SMOKE] guide project
+  PASS  Project is readable after creation
+  PASS  AI provider generated an outline (6 sections)
+  PASS  Approve outline
+  PASS  Create document with outline sections
+  PASS  Save rich HTML section content
+  PASS  Rich formatting survives reload
+  PASS  Server-side sanitizer strips <script>
+
+== 5. Media persistence
+  PASS  Upload image with alt text
+  PASS  Uploaded image renders for its owner
+  PASS  Uploaded image is hidden from anonymous users
+  PASS  Image metadata persisted with alt text
+  PASS  Supported YouTube embed is accepted
+  PASS  Unsafe video URL is rejected
+  PASS  Video embed persisted
+  PASS  Save section with inline image and video
+  PASS  Inline image and video survive reload
+
+== 6. Ownership and isolation probes
+  PASS  Unknown project id is 404
+  PASS  Unknown section media is 404
+  PASS  Unowned export file is not served
+  PASS  Path traversal in export download is rejected
+
+== 7. Export generation and download
+  PASS  Download docx export
+  PASS  DOCX has a ZIP signature
+  PASS  DOCX embeds the inline image
+  PASS  Anonymous download of docx export is 401
+  PASS  Download pdf export
+  PASS  PDF has a %PDF signature
+  PASS  PDF embeds the inline image
+  PASS  Anonymous download of pdf export is 401
+  PASS  Download html export
+  PASS  html export contains the saved section
+  PASS  html export embeds the image
+  PASS  Anonymous download of html export is 401
+  PASS  Download md export
+  PASS  md export contains the saved section
+  PASS  md export labels the image and links the video
+  PASS  Anonymous download of md export is 401
+  PASS  Download txt export
+  PASS  txt export contains the saved section
+  PASS  txt export labels the image and links the video
+  PASS  Anonymous download of txt export is 401
+
+== 8. Grant Studio, workspace and background jobs
+  PASS  GET /api/grants/meta returns 200
+  publishable opportunities: 1 (grants.gov 1)
+  last sync run: {"source":"ca_grants_portal","status":"failed","startedAt":"2026-11-06T06:24:50.444Z","fetched":0,"upserted":0}; sync queued or running: true
+  AI provider: demo
+  (SMOKE_REQUIRE_GRANTS=0: grant data recorded, not enforced)
+  PASS  GET /api/grants/opportunities returns 200
+  PASS  Application templates are listed (5)
+  PASS  Create [SMOKE] Grant Studio organization
+  PASS  Organization is readable after creation
+  PASS  Unconfirmed fact persists
+  PASS  Record a place designation
+  PASS  Place designation persists
+  PASS  Matching runs for the organization
+  PASS  DELETE [SMOKE] Grant Studio organization
+  PASS  Deleted organization is gone
+  PASS  GET /api/workspace reports the owner role
+  PASS  Create a [SMOKE] viewer invitation (never accepted)
+  PASS  Invitation link resolves for an anonymous visitor
+  PASS  Withdraw the invitation
+  PASS  Withdrawn invitation link no longer works
+  PASS  Audit log records the invitation
+  PASS  Jobs list requires admin elevation
+  PASS  Admin unlock with the admin password
+  PASS  Background job worker is enabled
+  job counts: {"queued":1,"running":0,"failed24h":0,"succeeded24h":3}
+  recent grant_sync jobs: [{"status":"queued","attempts":2,"createdAt":"2026-11-06T06:21:07.817Z"}]
+  PASS  Admin lock
+
+== 9. Logout ends the session
+  PASS  Logout
+  PASS  Data routes reject the logged-out session
+
+== Cleanup of [SMOKE] records
+  PASS  DELETE smoke project
+  PASS  DELETE smoke brand
+  PASS  Deleted project is gone
+
+RESULT: 101 passed, 0 failed  (https://localhost:8443, 20261106T062539Z)
+Evidence written to /tmp/claude-0/-home-user-agency-content-grants/e22c0b2c-46ea-5f5f-8bd2-a9d68e47f66f/scratchpad/rehearsal/out/smoke-4-forward.txt

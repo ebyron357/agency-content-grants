@@ -1,0 +1,19 @@
+$ playwright test --config playwright.config.ts
+
+Running 14 tests using 2 workers
+
+[1/14] e2e/accessibility.spec.ts:16:1 › login and authenticated core screens pass the accessibility gate
+[2/14] e2e/accounts.spec.ts:17:1 › operator creates a client workspace and its owner joins and invites a writer
+[3/14] e2e/accessibility.spec.ts:63:1 › every primary authenticated route passes the accessibility gate on one design system
+[4/14] e2e/billing.spec.ts:16:1 › Settings, Billing explains that billing is off and stays accessible
+[5/14] e2e/foundations.spec.ts:43:1 › Foundations: search funders, see suggestions and read a profile
+[6/14] e2e/grant-studio.spec.ts:34:1 › Grant Studio: add an organization, record readiness and see matches
+[7/14] e2e/grants.spec.ts:7:3 › grant discovery works at 1440px with an authenticated UI fixture
+[8/14] e2e/grants.spec.ts:7:3 › grant discovery works at 390px with an authenticated UI fixture
+[9/14] e2e/jobs.spec.ts:17:1 › a grant refresh is queued as a job and managed from the Jobs screen
+[10/14] e2e/grants.spec.ts:59:1 › grant route stays behind the existing sign-in UI
+[11/14] e2e/notice.spec.ts:53:1 › attach a notice PDF and review its proposed checklist with page citations
+[12/14] e2e/places.spec.ts:18:1 › an organization records its location and a place designation
+[13/14] e2e/security.spec.ts:31:1 › an owner turns on two-factor, signs in with a code and reviews sessions and the audit log
+[14/14] e2e/templates.spec.ts:16:1 › a workspace customizes an application template
+  14 passed (51.5s)
