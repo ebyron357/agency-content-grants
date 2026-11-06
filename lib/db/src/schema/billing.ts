@@ -84,6 +84,12 @@ export const billingUsageTable = pgTable("billing_usage", {
   metric: text("metric").notNull(),
   /** What was counted (the application id), so drafting the same application again in a month counts once. */
   ref: text("ref").notNull(),
+  /**
+   * Null while the row only reserves the slot for an AI draft that is still
+   * running; set when a draft in that application succeeds. A reservation whose
+   * draft finally fails is deleted, so a failed draft does not count.
+   */
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("uq_billing_usage").on(table.workspaceId, table.period, table.metric, table.ref),

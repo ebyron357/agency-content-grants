@@ -22,10 +22,11 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
 import { eq, inArray } from "drizzle-orm";
-import { billingEventsTable, db, grantOpportunitiesTable, membersTable, usersTable, workspaceSubscriptionsTable, workspacesTable } from "@workspace/db";
+import { billingEventsTable, billingUsageTable, db, grantOpportunitiesTable, membersTable, usersTable, workspaceSubscriptionsTable, workspacesTable } from "@workspace/db";
 import { router } from "./index";
 import { billingWebhook } from "./billing";
-import { claimAiDraftedApplication, setStripeApiForTests, type StripeApi } from "../lib/billing/service";
+import { claimAiDraftedApplication, confirmAiDraftedApplication, releaseAiDraftClaim, setStripeApiForTests, workspacesWithoutPlan, type StripeApi } from "../lib/billing/service";
+import { sectionDraftJob } from "../lib/jobs/definitions";
 
 const PASSWORD = "Correct horse battery staple 42";
 const STAMP = Date.now();
@@ -328,6 +329,7 @@ describe("billing", () => {
     const crossed = await webhook(subscriptionEvent(wsB, `cus_${wsA.slice(0, 8)}`));
     expect(crossed.data).toMatchObject({ applied: false, reason: "customer belongs to another workspace" });
     expect((await ownerB("GET", "/billing")).data.entitlement.reason).toBe("no_plan");
+    expect(await workspacesWithoutPlan()).toContainEqual({ id: wsB, reason: "no_plan" });
     // A's application is not B's to buy a review for.
     const aOrg = (await owner("GET", "/grants/applicants")).data[0];
     const aApp = await owner("POST", "/grants/applications", { applicantId: aOrg.id, opportunityId: await freshOpportunity(), eligibilityConfirmed: true });
@@ -361,6 +363,37 @@ describe("billing", () => {
     expect((await ownerB("GET", "/billing")).data.usage.aiDraftedApplications).toBe(2);
   });
 
+  it("does not count an AI draft that finally fails", async () => {
+    // B is at its limit: other-app-1 and other-app-2 are reserved, neither confirmed yet.
+    const s = { workspaceId: wsB };
+    const rowFor = async (ref: string) => (await db.select().from(billingUsageTable).where(eq(billingUsageTable.workspaceId, wsB))).find((r) => r.ref === ref);
+    // Drafting again in a counted application carries the usage but no claim to release.
+    const again = await claimAiDraftedApplication(s, "other-app-1");
+    expect(again.usage).toMatchObject({ usageWorkspaceId: wsB, usageApplicationId: "other-app-1" });
+    expect(again.usage?.usageClaimId).toBeUndefined();
+    // A success confirms the count, and a confirmed count is never released.
+    await confirmAiDraftedApplication(again.usage!);
+    const one = await rowFor("other-app-1");
+    expect(one?.confirmedAt).toBeInstanceOf(Date);
+    await releaseAiDraftClaim(one!.id);
+    expect(await rowFor("other-app-1")).toBeDefined();
+    // The draft job releases its own reservation when its last attempt fails, which frees the slot.
+    const two = await rowFor("other-app-2");
+    expect(two?.confirmedAt).toBeNull();
+    await expect(sectionDraftJob.run({ jobId: "test", attempt: 2, payload: { sectionId: `missing-${randomUUID()}`, userId: "nobody", usageWorkspaceId: wsB, usagePeriod: two!.period, usageApplicationId: "other-app-2", usageClaimId: two!.id }, signal: new AbortController().signal, progress: async () => {} })).rejects.toThrow();
+    expect(await rowFor("other-app-2")).toBeUndefined();
+    expect((await ownerB("GET", "/billing")).data.usage.aiDraftedApplications).toBe(1);
+    // A new application can take the freed slot; its request holds the claim.
+    const three = await claimAiDraftedApplication(s, "other-app-3");
+    expect(three).toMatchObject({ allowed: true, used: 2 });
+    expect(three.usage?.usageClaimId).toEqual(expect.any(String));
+    // If another draft in it succeeds after the claim was released, it still counts once.
+    await releaseAiDraftClaim(three.usage!.usageClaimId!);
+    await confirmAiDraftedApplication(three.usage!);
+    expect((await rowFor("other-app-3"))?.confirmedAt).toBeInstanceOf(Date);
+    expect((await ownerB("GET", "/billing")).data.usage.aiDraftedApplications).toBe(2);
+  });
+
   it("lets the operator mark a client workspace agency-managed", async () => {
     const locked = person();
     await locked("POST", "/auth/login", { password: process.env.ADMIN_PASSWORD });
@@ -369,10 +402,12 @@ describe("billing", () => {
     expect((await operator("PUT", `/workspaces/${wsA}/billing`, { managed: true })).status).toBe(409);
     expect((await operator("PUT", `/workspaces/${wsB}/billing`, { managed: true })).status).toBe(200);
     expect((await ownerB("GET", "/billing")).data.entitlement).toMatchObject({ mode: "unlimited", reason: "managed_plan" });
+    expect((await workspacesWithoutPlan()).map((w) => w.id)).not.toContain(wsB);
     expect(await claimAiDraftedApplication({ workspaceId: wsB }, "other-app-3")).toMatchObject({ allowed: true });
     // Switching billing off again: everything as before.
     setBilling(false);
     expect((await org(owner, "A org after")).status).toBe(201);
     expect((await owner("GET", "/billing")).data.entitlement.reason).toBe("billing_off");
+    expect(await workspacesWithoutPlan()).toEqual([]);
   });
 });

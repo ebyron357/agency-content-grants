@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS "billing_usage" (
   "period" text NOT NULL,
   "metric" text NOT NULL,
   "ref" text NOT NULL,
+  "confirmed_at" timestamp with time zone,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

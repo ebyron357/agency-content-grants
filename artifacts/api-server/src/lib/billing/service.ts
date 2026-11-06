@@ -100,6 +100,23 @@ export async function entitlementOf(workspace: Workspace | null): Promise<Entitl
   return resolveEntitlement({ billingEnabled: true, workspaceKind: workspace.kind, subscription: sub, plan });
 }
 
+/**
+ * With billing on, the client workspaces that have no usable plan: their owners
+ * can read and edit but cannot invite, add organizations or draft with AI until
+ * they start a trial, subscribe, or the operator marks them agency-managed
+ * (docs/BILLING.md §5 step 8). Empty while billing is off.
+ */
+export async function workspacesWithoutPlan(): Promise<{ id: string; reason: string }[]> {
+  if (!billingEnabled()) return [];
+  const rows = await db.select().from(workspacesTable).where(ne(workspacesTable.kind, "agency"));
+  const out: { id: string; reason: string }[] = [];
+  for (const w of rows) {
+    const ent = await entitlementOf(w);
+    if (ent.mode === "none") out.push({ id: w.id, reason: ent.reason });
+  }
+  return out;
+}
+
 // ── Usage ──────────────────────────────────────────────────────────────────────
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -174,13 +191,25 @@ export async function checkNewOrganization(session: { workspaceId?: string; user
   return checkLimit(ent, "organizations", workspace ? await countOrganizations(workspace.principalUserId) : 0);
 }
 
+/** Where an AI draft's usage is recorded, carried in the draft job's payload (strings only). */
+export interface AiDraftUsage {
+  usageWorkspaceId: string;
+  usagePeriod: string;
+  usageApplicationId: string;
+  /** Set only when this request created the reservation, so only its job may release it. */
+  usageClaimId?: string;
+}
+
 /**
  * Drafting a section with AI. The first AI draft in an application each month
  * counts that application once; more drafts in it that month are free. Counted
  * and checked under a per-workspace lock, so two requests cannot both take the
- * last one.
+ * last one. The first draft only reserves the slot: the draft job confirms it
+ * on success and releases it if the draft finally fails
+ * (confirmAiDraftedApplication, releaseAiDraftClaim), so a failed draft does
+ * not count. `usage` is returned whenever billing is on, for the job payload.
  */
-export async function claimAiDraftedApplication(session: { workspaceId?: string; userId?: string }, applicationId: string, now: Date = new Date()): Promise<LimitDecision> {
+export async function claimAiDraftedApplication(session: { workspaceId?: string; userId?: string }, applicationId: string, now: Date = new Date()): Promise<LimitDecision & { usage?: AiDraftUsage }> {
   if (!billingEnabled()) return ALLOWED;
   const workspace = await workspaceOfSession(session);
   const ent = await entitlementOf(workspace);
@@ -194,12 +223,41 @@ export async function claimAiDraftedApplication(session: { workspaceId?: string;
       .where(and(eq(billingUsageTable.workspaceId, workspace.id), eq(billingUsageTable.period, period), eq(billingUsageTable.metric, AI_DRAFTED_APPLICATION), eq(billingUsageTable.ref, applicationId)))
       .limit(1);
     const used = await countAiDrafted(workspace.id, period, tx);
-    if (already) return { allowed: true, limit: ent.limits.aiDraftedApplications, used };
+    const usage: AiDraftUsage = { usageWorkspaceId: workspace.id, usagePeriod: period, usageApplicationId: applicationId };
+    if (already) return { allowed: true, limit: ent.limits.aiDraftedApplications, used, usage };
     const decision = checkLimit(ent, "aiDraftedApplications", used, now);
     if (!decision.allowed) return decision;
-    await tx.insert(billingUsageTable).values({ id: randomUUID(), workspaceId: workspace.id, period, metric: AI_DRAFTED_APPLICATION, ref: applicationId }).onConflictDoNothing();
-    return { ...decision, used: used + 1 };
+    const claimId = randomUUID();
+    const inserted = await tx
+      .insert(billingUsageTable)
+      .values({ id: claimId, workspaceId: workspace.id, period, metric: AI_DRAFTED_APPLICATION, ref: applicationId })
+      .onConflictDoNothing()
+      .returning({ id: billingUsageTable.id });
+    return { ...decision, used: used + 1, usage: inserted.length ? { ...usage, usageClaimId: claimId } : usage };
   });
+}
+
+/**
+ * A draft in the application succeeded: the application counts this month.
+ * Inserts the row if a failed draft's release removed it in the meantime.
+ */
+export async function confirmAiDraftedApplication(usage: Pick<AiDraftUsage, "usageWorkspaceId" | "usagePeriod" | "usageApplicationId">): Promise<void> {
+  const now = new Date();
+  await db
+    .insert(billingUsageTable)
+    .values({ id: randomUUID(), workspaceId: usage.usageWorkspaceId, period: usage.usagePeriod, metric: AI_DRAFTED_APPLICATION, ref: usage.usageApplicationId, confirmedAt: now })
+    .onConflictDoUpdate({
+      target: [billingUsageTable.workspaceId, billingUsageTable.period, billingUsageTable.metric, billingUsageTable.ref],
+      set: { confirmedAt: sql`coalesce(${billingUsageTable.confirmedAt}, ${now})` },
+    });
+}
+
+/**
+ * The draft that made this reservation finally failed. Removes the reservation
+ * unless another draft in the same application succeeded and confirmed it.
+ */
+export async function releaseAiDraftClaim(claimId: string): Promise<void> {
+  await db.delete(billingUsageTable).where(and(eq(billingUsageTable.id, claimId), isNull(billingUsageTable.confirmedAt)));
 }
 
 /** The HTTP answer for a refused limit: 402 with a plain-language message the UI shows as is. */

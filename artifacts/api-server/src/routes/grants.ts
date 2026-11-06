@@ -1264,13 +1264,14 @@ router.post("/grants/sections/:sid/draft", aiLimiter, async (req, res): Promise<
   const owned = await ownedChild(grantSectionsTable, param(req, "sid"), req.session.userId!, res);
   if (!owned) return;
   if (owned.row.status === "approved") return fail(res, 409, "Reopen the section before drafting it again.");
-  // Plan limit: the first AI draft in an application each month counts it once. Allowed whenever billing is off.
+  // Plan limit: the first AI draft in an application each month counts it once, but only if a draft
+  // in it succeeds (the job confirms or releases the reservation). Allowed whenever billing is off.
   const allowed = await claimAiDraftedApplication(req.session, owned.app.id);
   if (!allowed.allowed) {
     res.status(402).json(limitResponse(allowed));
     return;
   }
-  await runAiJob(req, res, sectionDraftJob, { sectionId: owned.row.id }, aiKey("draft", owned.row.id), async (r) => {
+  await runAiJob(req, res, sectionDraftJob, { sectionId: owned.row.id, ...(allowed.usage ?? {}) }, aiKey("draft", owned.row.id), async (r) => {
     res.json({ section: await sectionResponse(owned.row.id), demo: r.demo === true, provider: r.provider ?? null, message: (r.message as string | null) ?? null });
   });
 });

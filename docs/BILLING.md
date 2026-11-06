@@ -22,7 +22,8 @@ What the limits count:
 
 - **Users:** members of the workspace plus open, unexpired invitations. Sending an invitation is refused at the limit. A new invitation to the same email replaces the old one, so it is not refused. Accepting an invitation is refused only if the plan has shrunk since it was sent. The first person to join an empty workspace (its first owner) is always admitted, because a workspace needs an owner before anyone can choose its plan.
 - **Organizations:** Grant Studio organizations (applicants) in the workspace. For Agency, "client organizations" are these organizations: one Agency workspace serves up to 10 clients, plus any extra it pays for.
-- **AI-drafted applications:** an application counts once in a calendar month (UTC) the first time a section in it is drafted with AI. More AI drafts in the same application that month are free. Writing and editing sections by hand is never limited. The count resets on the 1st.
+- **AI-drafted applications:** an application counts once in a calendar month (UTC) the first time a section in it is drafted with AI **successfully**. More AI drafts in the same application that month are free. A draft that fails does not count: its request reserves the application's slot, a successful draft confirms it, and the draft job releases the reservation when its last attempt fails (unless another draft in that application succeeded). Writing and editing sections by hand is never limited. The count resets on the 1st.
+- **Not metered:** section review, requirement extraction and the notice checklist use AI but do not count against any limit. The plan sells AI-drafted applications only; metering the others would be a pricing decision for the owner.
 
 Features that do not exist yet (foundation open calls, after-award tracking) are listed on the plans, but this change does not gate them. They are other agents' week-1 work, and gating them belongs with them.
 
@@ -64,7 +65,8 @@ The design follows Stripe's official samples ([subscription-use-cases](https://g
   - **Each event applies once:** the event id is stored in `billing_events` in the same transaction as the change. A failure returns 500, so Stripe retries.
   - **In order:** an event older than the last one applied to a workspace is ignored, and so is the end of a replaced subscription.
   - **Tenant safety:** an event that names one workspace but carries another workspace's Stripe customer or subscription is refused, so billing never moves between workspaces.
-- **Concurrency:** counting and recording an AI-drafted application runs in one transaction under a per-workspace advisory lock, so two requests cannot both take the last one.
+- **Concurrency:** counting and reserving an AI-drafted application runs in one transaction under a per-workspace advisory lock, so two requests cannot both take the last one. A reservation is a `billing_usage` row with `confirmed_at` null; it counts toward the limit until it is confirmed or released.
+- **Limit:** if the worker process dies mid-draft, the job's final failure is recorded by the queue, not by the draft, so that reservation is not released and the application counts for the month.
 
 ## 5. Owner actions to switch billing on
 
@@ -100,7 +102,7 @@ Nothing below has been done. Do **not** change `render.yaml` for this: add the v
 5. **Set up the customer portal** (Settings → Billing → Customer portal): allow updating the payment method, viewing invoices and cancelling. Allow switching plans between the Starter, Pro and Agency prices, and changing the quantity of the extra-organization price. Set the default return link to `https://<your app>/settings?tab=billing`.
 6. Deploy (owner-only), then test in test mode with Stripe's test cards: start a trial, subscribe, open Manage billing, and cancel. Watch the webhook deliveries in Stripe.
 7. When the prices are final: `UPDATE billing_plans SET prices_published = true WHERE purchasable;`, then switch to live keys and a live webhook endpoint.
-8. Optionally mark client workspaces the agency runs itself as agency-managed (§3) **before** switching billing on. Otherwise their owners see "No plan yet" and can only start a trial or subscribe.
+8. Optionally mark client workspaces the agency runs itself as agency-managed (§3) **before** switching billing on. Otherwise their owners see "No plan yet" and can only start a trial or subscribe. After a deploy with billing on, the server logs a warning, "Billing is on and these client workspaces have no usable plan", with the count and the workspace ids; use it to find the ones still to mark.
 
 Also before charging anyone: terms of service and a refund policy (plan §9; counsel).
 

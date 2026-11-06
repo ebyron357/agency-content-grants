@@ -8,6 +8,7 @@ import { startWebhookScheduler } from "./lib/webhooks/scheduler";
 import "./lib/jobs/definitions";
 import { startJobWorker, stopJobWorker } from "./lib/jobs/worker";
 import { startSchedules, stopSchedules } from "./lib/jobs/schedules";
+import { workspacesWithoutPlan } from "./lib/billing/service";
 
 const rawPort = process.env["PORT"];
 
@@ -43,6 +44,12 @@ runMigrations()
         startSchedules();
         logger.info({ worker: worker.id }, "Background job worker started");
       }
+      // Billing on: name (by id) the client workspaces that now have no plan (docs/BILLING.md §5 step 8).
+      workspacesWithoutPlan()
+        .then((list) => {
+          if (list.length) logger.warn({ count: list.length, workspaces: list }, "Billing is on and these client workspaces have no usable plan: they cannot invite, add organizations or draft with AI until they start a trial, subscribe, or are marked agency-managed");
+        })
+        .catch((err: unknown) => logger.error({ err }, "Could not check workspaces for a billing plan"));
     });
   })
   .catch((err: unknown) => {
