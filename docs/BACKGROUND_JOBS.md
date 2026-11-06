@@ -37,10 +37,13 @@ A durable job queue in PostgreSQL (`jobs` table, migration `0025_job_queue`), wi
 | `source_sweep` | Check watched pages that are due | 2 | 5 min | 1 min, doubling, up to 10 min | 1 | Hourly (first run 2 min after start) |
 | `source_check` | Check a watched page | 2 | 2 min | 1 min, doubling, up to 10 min | 1 | From the sweep, a changedetection.io notification, or **Check now** |
 | `source_extract` | Extract opportunities from a changed page | 2 | 3 min | 15 s, doubling, up to 1 min | 1 | After a check finds a change |
+| `grant_notice_checklist` | Read a notice PDF and propose its checklist | 2 | 10 min | 15 s, doubling, up to 1 min | 1 | On request |
 
 The three `source_*` kinds belong to the grant source registry ([`SOURCE_REGISTRY.md`](SOURCE_REGISTRY.md)). A page problem is recorded on the source and does not fail the job; extraction only ever makes drafts for review.
 
 `foundation_import` streams funder-graph's Parquet partitions into per-funder aggregates (`GRANT_STUDIO.md`, Foundations). A retry or a second run is safe: a filing already counted is skipped. It stops with status `partial` at its storage budget (`FOUNDATIONS_MAX_DB_MB`).
+
+**Notice PDFs.** Attaching a notice PDF (upload or link) queues `grant_notice_checklist` for the application (one at a time) and waits up to 3 seconds, like the AI work below. The job fetches the file when it came from a link, reads it one page at a time, and proposes requirement rows with page citations. It reports its stage and the page or AI request it has reached as progress, which the Requirements step shows. A file problem (not a PDF, password protected, no text layer, a link that returns a web page) is permanent and is not retried. One runs at a time per worker, which keeps memory bounded on the 512 MB instance (`GRANT_STUDIO.md`, Notice PDF and requirement checklist).
 
 **AI work.** **Draft with AI**, **Review** and **Extract requirements** each queue a job for the workspace (one per section, or per notice, at a time) and wait up to 3 seconds:
 - If the job finishes in that time (demo mode, or a quick provider), the request answers as before.
