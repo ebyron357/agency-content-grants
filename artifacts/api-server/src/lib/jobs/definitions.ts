@@ -1,6 +1,9 @@
-import { defineJob, exponentialBackoff } from "./registry";
+import { defineJob, enqueue, exponentialBackoff } from "./registry";
 import { runGrantSync } from "../grants/ingest";
 import { runRequirementsExtract, runSectionDraft, runSectionReview } from "../grants/aiWork";
+import { runFoundationImport } from "../foundations/importer";
+import { PermanentJobError } from "./types";
+import { runNoticeChecklist } from "../grants/noticeWork";
 
 /**
  * The job kinds this API runs. Add a kind here, with its limits, and the
@@ -52,5 +55,94 @@ export const requirementsExtractJob = defineJob<{ applicationId: string; userId:
   run: ({ payload }) => runRequirementsExtract(payload.applicationId, payload.userId),
 });
 
+/**
+ * Reads an attached notice PDF page by page and proposes requirement rows with
+ * page citations. Reading a long notice and several AI requests take longer
+ * than the other AI work, so the timeout is 10 minutes. One attempt plus one
+ * retry: a run replaces its own unreviewed proposals, so running again is safe.
+ * File problems (not a PDF, password, scanned) are permanent and not retried.
+ */
+export const noticeChecklistJob = defineJob<{ noticeId: string; userId: string }>({
+  kind: "grant_notice_checklist",
+  label: "Read a notice PDF and propose its checklist",
+  maxAttempts: 2,
+  timeoutMs: 10 * 60_000,
+  backoffMs: exponentialBackoff(15_000, 60_000),
+  concurrency: 1,
+  run: ({ payload, signal, progress }) => runNoticeChecklist(payload.noticeId, payload.userId, { signal, progress }),
+});
+
 /** Keys that keep one AI job per section (or application) queued or running at a time. */
-export const aiKey = (kind: "draft" | "review" | "extract", id: string) => `ai:${kind}:${id}`;
+export const aiKey = (kind: "draft" | "review" | "extract" | "notice", id: string) => `ai:${kind}:${id}`;
+
+// ── Foundation giving history ──────────────────────────────────────────────────
+// Streams funder-graph's Parquet partitions into per-funder aggregates. A retry
+// is safe: filings already counted are skipped (lib/foundations/aggregate.ts).
+
+export const foundationImportJob = defineJob<{ scheduleSlot?: string }>({
+  kind: "foundation_import",
+  label: "Import foundation giving history",
+  maxAttempts: 2,
+  timeoutMs: 3 * 60 * 60_000,
+  backoffMs: exponentialBackoff(10 * 60_000, 60 * 60_000),
+  concurrency: 1,
+  run: async ({ jobId, progress, signal }) => {
+    // The import needs more memory and database than the current plans hold; the owner turns it on (docs/GRANT_STUDIO.md, Foundations).
+    if (!foundationImportEnabled()) throw new PermanentJobError("The foundation import is off on this server. Set FOUNDATIONS_IMPORT_ENABLED=true to run it.");
+    const result = await runFoundationImport({ jobId, signal, onProgress: (p) => progress(p) });
+    return { ...result };
+  },
+});
+
+/** The dedupe key that keeps one foundation import queued or running at a time. */
+export const FOUNDATION_IMPORT_KEY = "foundation_import";
+
+/** Off unless the owner sets FOUNDATIONS_IMPORT_ENABLED=true: no import runs, by schedule or by hand, until then. */
+export const foundationImportEnabled = () => process.env.FOUNDATIONS_IMPORT_ENABLED === "true";
+// ── Source registry (docs/SOURCE_REGISTRY.md) ────────────────────────────────
+
+export const sourceExtractJob = defineJob<{ checkId: string }>({
+  kind: "source_extract",
+  label: "Extract opportunities from a changed page",
+  ...AI_LIMITS,
+  concurrency: 1,
+  run: async ({ payload }) => {
+    const { extractFromCheck } = await import("../grants/sources/service");
+    return { ...(await extractFromCheck(payload.checkId)) };
+  },
+});
+
+export const sourceCheckJob = defineJob<{ sourceId: string }>({
+  kind: "source_check",
+  label: "Check a watched page",
+  maxAttempts: 2,
+  timeoutMs: 2 * 60_000,
+  backoffMs: exponentialBackoff(60_000, 10 * 60_000),
+  concurrency: 1,
+  run: async ({ payload }) => {
+    const { checkSource } = await import("../grants/sources/service");
+    const result = await checkSource(payload.sourceId);
+    let extractJobId: string | null = null;
+    if (result.extract && result.checkId) extractJobId = (await enqueue(sourceExtractJob, { checkId: result.checkId }, { dedupeKey: `source:extract:${result.checkId}`, requestedBy: "system" })).job.id;
+    return { ...result, extractJobId };
+  },
+});
+
+/** Enqueues a check of every active page source whose schedule has come round. Runs hourly. */
+export const sourceSweepJob = defineJob<{ scheduleSlot?: string }>({
+  kind: "source_sweep",
+  label: "Check watched pages that are due",
+  maxAttempts: 2,
+  timeoutMs: 5 * 60_000,
+  backoffMs: exponentialBackoff(60_000, 10 * 60_000),
+  concurrency: 1,
+  run: async () => {
+    const { dueSources } = await import("../grants/sources/service");
+    const due = await dueSources();
+    for (const s of due) await enqueue(sourceCheckJob, { sourceId: s.id }, { dedupeKey: sourceCheckKey(s.id), requestedBy: "schedule" });
+    return { queued: due.length };
+  },
+});
+
+export const sourceCheckKey = (sourceId: string) => `source:check:${sourceId}`;
+export const SOURCE_SWEEP_KEY = "source_sweep";

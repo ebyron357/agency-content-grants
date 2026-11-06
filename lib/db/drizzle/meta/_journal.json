@@ -220,6 +220,27 @@
       "breakpoints": true
     },
     {
+      "idx": 31,
+      "version": "7",
+      "when": 1789209600000,
+      "tag": "0030_foundation_giving",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789296000000,
+      "tag": "0031_source_registry",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789382400000,
+      "tag": "0032_grant_notice_checklist",
+      "breakpoints": true
+    },
+    {
       "idx": 34,
       "version": "7",
       "when": 1789468800000,

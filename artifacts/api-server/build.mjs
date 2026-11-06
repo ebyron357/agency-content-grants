@@ -108,6 +108,8 @@ async function buildAll() {
       // PDF generation
       "pdfkit",
       "pdf-parse",
+      // Notice PDF text (pdf.js): loads its worker module from its own package at run time
+      "pdfjs-dist",
     ],
     sourcemap: "linked",
     plugins: [

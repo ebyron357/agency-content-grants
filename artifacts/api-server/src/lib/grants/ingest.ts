@@ -303,6 +303,14 @@ export async function runGrantSync(opts: { fetchImpl?: FetchLike; caFetch?: CaFe
     california = await syncCalifornia(opts.caFetch);
     console.log(`[grants-sync] california status=${california.status} fetched=${california.fetched} upserted=${california.upserted}${california.error ? ` error=${california.error}` : ""}`);
   }
+  // Freshness on the source registry (docs/SOURCE_REGISTRY.md). Best-effort: it never changes the sync's outcome.
+  try {
+    const { recordFeedRun } = await import("./sources/service");
+    await recordFeedRun(GRANTS_GOV_SOURCE, grantsGov);
+    if (california) await recordFeedRun(CA_SOURCE, california);
+  } catch (err) {
+    console.warn("[grants-sync] source registry freshness not recorded", (err as Error).message);
+  }
   // Alerts are best-effort: a failure here must not mark a good sync as failed.
   let alerts: number | null = null;
   await report({ step: "alerts" });

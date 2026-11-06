@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { apiGet, apiPost } from '@/lib/api';
 import AutomationTab from './AutomationTab';
 import JobsTab from './JobsTab';
+import SourcesTab from './SourcesTab';
 import BillingTab from './BillingTab';
 import { PageHeader, PageShell } from '@/components/layout/Page';
 
@@ -102,7 +103,7 @@ function AdminAccessCard() {
   );
 }
 
-const TABS = ['Team', 'Billing', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation', 'Jobs'] as const;
+const TABS = ['Team', 'Billing', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation', 'Jobs', 'Sources'] as const;
 type Tab = typeof TABS[number];
 
 const PROVIDER_ENV_KEYS: Record<string, { key: string; docs: string }> = {
@@ -421,6 +422,7 @@ export default function Settings() {
       {activeTab === 'Dependencies' && <DependenciesTab />}
       {activeTab === 'Automation' && <AutomationTab />}
       {activeTab === 'Jobs' && <JobsTab />}
+      {activeTab === 'Sources' && <SourcesTab />}
     </PageShell>
   );
 }

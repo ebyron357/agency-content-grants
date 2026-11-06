@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { randomUUID } from "crypto";
-import { and, asc, desc, eq, ilike, inArray, or, sql, count } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, count } from "drizzle-orm";
 import {
   db,
   grantApplicantsTable,
@@ -9,6 +9,7 @@ import {
   grantApprovalsTable,
   grantBudgetLinesTable,
   grantFactsTable,
+  grantNoticesTable,
   grantSnippetsTable,
   grantSupportLettersTable,
   grantOpportunitiesTable,
@@ -24,6 +25,7 @@ import {
   type GrantSnippet,
   type GrantSupportLetter,
   type GrantOpportunity,
+  type GrantNotice,
 } from "@workspace/db";
 import { getActiveProvider } from "../lib/ai/router";
 import { sanitizeRichHtml } from "../lib/richText";
@@ -52,7 +54,12 @@ import { invalidatePackage } from "../lib/grants/aiWork";
 import { buildApplicationPackage } from "../lib/grants/packageExport";
 import { refreshOpportunityDetail } from "../lib/grants/ingest";
 import { enqueue } from "../lib/jobs/registry";
-import { GRANT_SYNC_KEY, aiKey, grantSyncJob, requirementsExtractJob, sectionDraftJob, sectionReviewJob } from "../lib/jobs/definitions";
+import { GRANT_SYNC_KEY, aiKey, grantSyncJob, noticeChecklistJob, requirementsExtractJob, sectionDraftJob, sectionReviewJob } from "../lib/jobs/definitions";
+import multer from "multer";
+import { NoticeFileError, assertNoticeFile, noticeConfig, noticeFileName, sha256 } from "../lib/grants/noticePdf";
+import { checkNoticeUrl } from "../lib/grants/noticeFetch";
+import { deleteNoticeFiles, removeNotice } from "../lib/grants/noticeWork";
+import { storeSourcePdf, deleteSourcePdf, readSourcePdf } from "../lib/sourceStorage";
 import { activeJob } from "../lib/jobs/queue";
 import { currentWorker, runJobNow } from "../lib/jobs/worker";
 import { daysUntil } from "../lib/grants/gate";
@@ -448,6 +455,8 @@ router.patch("/grants/applicants/:id", async (req, res): Promise<void> => {
 router.delete("/grants/applicants/:id", async (req, res): Promise<void> => {
   const applicant = await ownedApplicant(param(req, "id"), req.session.userId!, res);
   if (!applicant) return;
+  const apps = await db.select({ id: grantApplicationsTable.id }).from(grantApplicationsTable).where(eq(grantApplicationsTable.applicantId, applicant.id));
+  await deleteNoticeFiles(apps.map((a) => a.id));
   await db.delete(grantApplicantsTable).where(eq(grantApplicantsTable.id, applicant.id));
   await logActivity("grant_applicant_deleted", `Organization "${applicant.name}" deleted from Grant Studio`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
   res.status(204).end();
@@ -772,14 +781,31 @@ router.get("/grants/applications", async (req, res): Promise<void> => {
 });
 
 async function activeAiJobs(applicationId: string, sectionIds: string[]) {
-  const keys = [aiKey("extract", applicationId), ...sectionIds.flatMap((id) => [aiKey("draft", id), aiKey("review", id)])];
+  const keys = [aiKey("extract", applicationId), aiKey("notice", applicationId), ...sectionIds.flatMap((id) => [aiKey("draft", id), aiKey("review", id)])];
   const rows = await db.select().from(jobsTable).where(and(inArray(jobsTable.dedupeKey, keys), inArray(jobsTable.status, ["queued", "running"])));
-  return rows.map((j) => ({ id: j.id, kind: j.kind, status: j.status, sectionId: (j.payload as { sectionId?: string }).sectionId ?? null, attempts: j.attempts, lastError: j.lastError }));
+  return rows.map((j) => ({ id: j.id, kind: j.kind, status: j.status, sectionId: (j.payload as { sectionId?: string }).sectionId ?? null, attempts: j.attempts, lastError: j.lastError, progress: j.progress ?? null }));
+}
+
+/** The attached notice, without its page texts (those are read one page at a time). */
+function noticeView(n: GrantNotice | undefined, rows: { noticeId: string | null; confirmed: boolean; rejectedAt: Date | null }[]) {
+  if (!n) return null;
+  const mine = rows.filter((r) => r.noticeId === n.id);
+  const { pages: _pages, fileKey, ...rest } = n;
+  return {
+    ...rest,
+    hasFile: Boolean(fileKey),
+    counts: {
+      proposed: mine.filter((r) => !r.confirmed && !r.rejectedAt).length,
+      confirmed: mine.filter((r) => r.confirmed).length,
+      rejected: mine.filter((r) => r.rejectedAt).length,
+    },
+    limits: { maxPages: noticeConfig().maxPages, maxMegabytes: Math.round(noticeConfig().maxBytes / 1024 / 1024) },
+  };
 }
 
 async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
-  const [requirements, sections, lines, approvals, readiness] = await Promise.all([
+  const [allRequirements, sections, lines, approvals, readiness] = await Promise.all([
     db.select().from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, app.id)).orderBy(asc(grantRequirementsTable.position), asc(grantRequirementsTable.createdAt)),
     db.select().from(grantSectionsTable).where(eq(grantSectionsTable.applicationId, app.id)).orderBy(asc(grantSectionsTable.position)),
     db.select().from(grantBudgetLinesTable).where(eq(grantBudgetLinesTable.applicationId, app.id)).orderBy(asc(grantBudgetLinesTable.position), asc(grantBudgetLinesTable.createdAt)),
@@ -788,6 +814,10 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   ]);
   const libraryFacts = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id)).orderBy(desc(grantFactsTable.updatedAt));
   const letters = await db.select().from(grantSupportLettersTable).where(eq(grantSupportLettersTable.applicationId, app.id)).orderBy(asc(grantSupportLettersTable.createdAt));
+  const [notice] = await db.select().from(grantNoticesTable).where(eq(grantNoticesTable.applicationId, app.id)).limit(1);
+  // A rejected row is kept for the record but is no longer part of the matrix, the checks or the package.
+  const requirements = allRequirements.filter((r) => !r.rejectedAt);
+  const rejectedRequirements = allRequirements.filter((r) => r.rejectedAt);
   const budget = summarizeBudget(lines, app.indirectRatePercent, opp.awardCeiling);
   const packageApproved = approvals.some((a) => a.scope === "package");
   const formatSet = Object.keys(app.formatProfile ?? {}).length > 0;
@@ -833,6 +863,8 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     opportunity: opportunityView(opp),
     templateLabel: (await findTemplate(applicant.userId, app.template))?.label ?? app.template,
     requirements,
+    rejectedRequirements,
+    notice: noticeView(notice, allRequirements),
     sections: sections.map((s) => ({ ...s, limitCheck: checkLimit(s.content, s.limitType, s.limitValue, format.wordsPerPage), writingChecks: sectionWritingChecks(s) })),
     format: { ...format, set: formatSet, fonts: FORMAT_FONTS, defaults: DEFAULT_FORMAT },
     logicModel: { model: logicModel, gaps: logicModelGaps(logicModel), columns: Object.entries(LOGIC_MODEL_COLUMNS).map(([key, c]) => ({ key, ...c })) },
@@ -903,6 +935,7 @@ router.patch("/grants/applications/:id", async (req, res): Promise<void> => {
 router.delete("/grants/applications/:id", async (req, res): Promise<void> => {
   const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
   if (!owned) return;
+  await deleteNoticeFiles([owned.app.id]);
   await db.delete(grantApplicationsTable).where(eq(grantApplicationsTable.id, owned.app.id));
   res.status(204).end();
 });
@@ -952,7 +985,8 @@ router.post("/grants/applications/:id/requirements", async (req, res): Promise<v
   const values = requirementValues(body, true);
   if (typeof values === "string") return fail(res, 400, values);
   const [{ max }] = await db.select({ max: sql<number>`coalesce(max(${grantRequirementsTable.position}), 0)` }).from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, owned.app.id));
-  const [row] = await db.insert(grantRequirementsTable).values({ id: randomUUID(), applicationId: owned.app.id, origin: "manual", confirmed: true, position: Number(max) + 1, ...(values as any) }).returning();
+  // A row a person adds is theirs: it is confirmed by them as they add it.
+  const [row] = await db.insert(grantRequirementsTable).values({ id: randomUUID(), applicationId: owned.app.id, origin: "manual", confirmed: true, confirmedBy: await actorOf(req), confirmedAt: new Date(), position: Number(max) + 1, ...(values as any) }).returning();
   await invalidatePackage(owned.app.id);
   res.status(201).json(row);
 });
@@ -964,7 +998,33 @@ router.patch("/grants/requirements/:rid", async (req, res): Promise<void> => {
   if (typeof body === "string") return fail(res, 400, body);
   const values = requirementValues(body, false);
   if (typeof values === "string") return fail(res, 400, values);
+  if (owned.row.rejectedAt && Object.keys(values).length) return fail(res, 409, "This requirement was rejected. Restore it before editing or confirming it.");
+  // A confirmation names the person who made it; withdrawing it clears the name.
+  if (values.confirmed === true && !owned.row.confirmed) Object.assign(values, { confirmedBy: await actorOf(req), confirmedAt: new Date() });
+  if (values.confirmed === false) Object.assign(values, { confirmedBy: null, confirmedAt: null });
   const [row] = await db.update(grantRequirementsTable).set(values).where(eq(grantRequirementsTable.id, owned.row.id)).returning();
+  await invalidatePackage(owned.app.id);
+  res.json(row);
+});
+
+/** Rejects a row: it leaves the matrix but is kept, with who rejected it, so the decision can be reviewed or undone. */
+router.post("/grants/requirements/:rid/reject", async (req, res): Promise<void> => {
+  const owned = await ownedChild(grantRequirementsTable, param(req, "rid"), req.session.userId!, res);
+  if (!owned) return;
+  const [row] = await db
+    .update(grantRequirementsTable)
+    .set({ rejectedBy: await actorOf(req), rejectedAt: new Date(), confirmed: false, confirmedBy: null, confirmedAt: null })
+    .where(eq(grantRequirementsTable.id, owned.row.id))
+    .returning();
+  await invalidatePackage(owned.app.id);
+  res.json(row);
+});
+
+/** Puts a rejected row back in the matrix, unconfirmed. */
+router.post("/grants/requirements/:rid/restore", async (req, res): Promise<void> => {
+  const owned = await ownedChild(grantRequirementsTable, param(req, "rid"), req.session.userId!, res);
+  if (!owned) return;
+  const [row] = await db.update(grantRequirementsTable).set({ rejectedBy: null, rejectedAt: null }).where(eq(grantRequirementsTable.id, owned.row.id)).returning();
   await invalidatePackage(owned.app.id);
   res.json(row);
 });
@@ -980,7 +1040,11 @@ router.delete("/grants/requirements/:rid", async (req, res): Promise<void> => {
 router.post("/grants/applications/:id/requirements/confirm-all", async (req, res): Promise<void> => {
   const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
   if (!owned) return;
-  await db.update(grantRequirementsTable).set({ confirmed: true }).where(eq(grantRequirementsTable.applicationId, owned.app.id));
+  // Confirms what the person sees in the matrix: not rejected rows. The request names who confirmed.
+  await db
+    .update(grantRequirementsTable)
+    .set({ confirmed: true, confirmedBy: await actorOf(req), confirmedAt: new Date() })
+    .where(and(eq(grantRequirementsTable.applicationId, owned.app.id), eq(grantRequirementsTable.confirmed, false), isNull(grantRequirementsTable.rejectedAt)));
   await invalidatePackage(owned.app.id);
   res.json(await workspace(owned.app, owned.applicant));
 });
@@ -999,6 +1063,139 @@ router.post("/grants/applications/:id/requirements/extract", aiLimiter, async (r
     const [app] = await db.select().from(grantApplicationsTable).where(eq(grantApplicationsTable.id, owned.app.id)).limit(1);
     res.json({ added: Number(r.added ?? 0), demo: r.demo === true, message: (r.message as string | null) ?? null, workspace: await workspace(app, owned.applicant) });
   });
+});
+
+// ── Notice PDF and its requirement checklist ────────────────────────────────
+
+/**
+ * One PDF per application, uploaded (multipart field `pdf`) or fetched from a
+ * link (the opportunity's official page, or one the person pastes). Attaching
+ * a notice queues a `grant_notice_checklist` job that reads the pages and
+ * proposes requirement rows, each citing its page and left unconfirmed.
+ */
+const noticeUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: noticeConfig().maxBytes, files: 1, fields: 4 } });
+
+function noticeUploadMiddleware(req: Request, res: Response, next: (err?: unknown) => void): void {
+  if (!req.is("multipart/form-data")) return next();
+  noticeUpload.single("pdf")(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError) {
+      const limit = Math.round(noticeConfig().maxBytes / 1024 / 1024);
+      return fail(res, err.code === "LIMIT_FILE_SIZE" ? 413 : 400, err.code === "LIMIT_FILE_SIZE" ? `The notice is larger than the ${limit} MB limit.` : `Upload problem: ${err.message}`);
+    }
+    if (err) return fail(res, 400, "The upload could not be read.");
+    next();
+  });
+}
+
+async function queueNoticeJob(req: Request, res: Response, noticeId: string, applicationId: string, done: () => Promise<void>): Promise<void> {
+  const { job } = await enqueue(noticeChecklistJob, { noticeId, userId: req.session.userId! }, { userId: req.session.userId!, dedupeKey: aiKey("notice", applicationId), requestedBy: req.session.actorName ?? "operator" });
+  const finished = await runJobNow(job.id);
+  if (finished?.status === "succeeded" || finished?.status === "failed") return done();
+  res.status(202).json({ jobId: job.id, status: finished?.status ?? job.status, pending: true });
+}
+
+router.post("/grants/applications/:id/notice", aiLimiter, noticeUploadMiddleware, async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  if (await activeJob(aiKey("notice", owned.app.id))) return fail(res, 409, "A notice is already being read for this application. Wait for it to finish.");
+  const cfg = noticeConfig();
+  const actor = await actorOf(req);
+  let values: Omit<typeof grantNoticesTable.$inferInsert, "id" | "applicationId" | "uploadedBy">;
+  if (req.file) {
+    try {
+      assertNoticeFile(req.file.buffer, cfg);
+    } catch (err) {
+      return fail(res, err instanceof NoticeFileError ? 400 : 500, err instanceof Error ? err.message : "The file could not be checked.");
+    }
+    let fileKey: string;
+    try {
+      fileKey = await storeSourcePdf(req.file.buffer);
+    } catch (err) {
+      req.log?.error({ err }, "Notice PDF storage failed");
+      return fail(res, 503, "Persistent PDF storage is unavailable.");
+    }
+    values = { origin: "upload", sourceUrl: null, fileName: noticeFileName(req.file.originalname), fileKey, fileBytes: req.file.buffer.length, sha256: sha256(req.file.buffer) };
+  } else {
+    const body = pick(req.body ?? {}, ["url", "useOfficialLink"]);
+    if (typeof body === "string") return fail(res, 400, body);
+    const [opp] = await db.select({ officialUrl: grantOpportunitiesTable.officialUrl }).from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, owned.app.opportunityId)).limit(1);
+    const raw = body.useOfficialLink === true ? opp?.officialUrl : typeof body.url === "string" ? body.url.trim() : "";
+    if (!raw) return fail(res, 400, "Attach the notice PDF, or give a link to it.");
+    if (raw.length > 2000) return fail(res, 400, "The link is too long.");
+    try {
+      checkNoticeUrl(raw);
+    } catch (err) {
+      return fail(res, 400, err instanceof Error ? err.message : "The link cannot be used.");
+    }
+    values = { origin: "link", sourceUrl: raw, fileName: noticeFileName(new URL(raw).pathname.split("/").pop()), fileKey: null, fileBytes: 0, sha256: null };
+  }
+
+  // Attaching a new notice replaces the old one and its unreviewed proposals.
+  const [previous] = await db.select().from(grantNoticesTable).where(eq(grantNoticesTable.applicationId, owned.app.id)).limit(1);
+  if (previous) await removeNotice(owned.app.id);
+  const id = randomUUID();
+  try {
+    await db.insert(grantNoticesTable).values({ id, applicationId: owned.app.id, uploadedBy: actor, status: "queued", ...values });
+  } catch (err) {
+    if (values.fileKey) await deleteSourcePdf(values.fileKey).catch(() => {});
+    throw err;
+  }
+  await logActivity("grant_notice_attached", `Notice attached to "${owned.app.title}" (${values.origin === "upload" ? values.fileName : "from a link"})`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
+  await queueNoticeJob(req, res, id, owned.app.id, async () => {
+    const [app] = await db.select().from(grantApplicationsTable).where(eq(grantApplicationsTable.id, owned.app.id)).limit(1);
+    res.status(201).json(await workspace(app, owned.applicant));
+  });
+});
+
+/** Reads the notice again (for example after an AI key was added), replacing proposals nobody has acted on. */
+router.post("/grants/applications/:id/notice/rerun", aiLimiter, async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const [notice] = await db.select().from(grantNoticesTable).where(eq(grantNoticesTable.applicationId, owned.app.id)).limit(1);
+  if (!notice) return fail(res, 404, "No notice is attached to this application.");
+  await db.update(grantNoticesTable).set({ status: "queued", error: null }).where(eq(grantNoticesTable.id, notice.id));
+  await queueNoticeJob(req, res, notice.id, owned.app.id, async () => {
+    res.json(await workspace(owned.app, owned.applicant));
+  });
+});
+
+router.delete("/grants/applications/:id/notice", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  if (await activeJob(aiKey("notice", owned.app.id))) return fail(res, 409, "The notice is being read. Wait for it to finish, then remove it.");
+  if (!(await removeNotice(owned.app.id))) return fail(res, 404, "No notice is attached to this application.");
+  res.json(await workspace(owned.app, owned.applicant));
+});
+
+/** One page's text, so a person can check a citation against the notice itself. */
+router.get("/grants/applications/:id/notice/pages/:page", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const [notice] = await db.select({ pages: grantNoticesTable.pages, pageCount: grantNoticesTable.pageCount }).from(grantNoticesTable).where(eq(grantNoticesTable.applicationId, owned.app.id)).limit(1);
+  if (!notice) return fail(res, 404, "No notice is attached to this application.");
+  const n = Number(param(req, "page"));
+  const pages = (notice.pages ?? []) as string[];
+  if (!Number.isInteger(n) || n < 1 || n > pages.length) return fail(res, 404, `Page not found: the notice has ${pages.length} page${pages.length === 1 ? "" : "s"} read.`);
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ page: n, pagesRead: pages.length, pageCount: notice.pageCount, text: pages[n - 1] });
+});
+
+/** The original notice PDF, for the person to open beside the checklist. */
+router.get("/grants/applications/:id/notice/file", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const [notice] = await db.select().from(grantNoticesTable).where(eq(grantNoticesTable.applicationId, owned.app.id)).limit(1);
+  if (!notice?.fileKey) return fail(res, 404, "No notice file is stored for this application.");
+  try {
+    const buffer = await readSourcePdf(notice.fileKey);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${notice.fileName.replace(/[^\w.\- ()]+/g, "_")}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.end(buffer);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return fail(res, 404, "The stored notice file was not found.");
+    throw err;
+  }
 });
 
 // ── Sections ───────────────────────────────────────────────────────────────
