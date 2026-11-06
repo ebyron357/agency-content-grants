@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { apiGet, apiPost } from '@/lib/api';
 import AutomationTab from './AutomationTab';
 import JobsTab from './JobsTab';
+import SourcesTab from './SourcesTab';
 import { PageHeader, PageShell } from '@/components/layout/Page';
 
 /** True when an error came back as an admin-gate 403 */
@@ -101,7 +102,7 @@ function AdminAccessCard() {
   );
 }
 
-const TABS = ['Team', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation', 'Jobs'] as const;
+const TABS = ['Team', 'AI Providers', 'Model Configuration', 'Dependencies', 'Automation', 'Jobs', 'Sources'] as const;
 type Tab = typeof TABS[number];
 
 const PROVIDER_ENV_KEYS: Record<string, { key: string; docs: string }> = {
@@ -418,6 +419,7 @@ export default function Settings() {
       {activeTab === 'Dependencies' && <DependenciesTab />}
       {activeTab === 'Automation' && <AutomationTab />}
       {activeTab === 'Jobs' && <JobsTab />}
+      {activeTab === 'Sources' && <SourcesTab />}
     </PageShell>
   );
 }

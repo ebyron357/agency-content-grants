@@ -11,8 +11,12 @@ import { describe, expect, it } from "vitest";
 import { router } from "./index";
 import { ROUTE_RULES, requirementFor } from "../lib/permissions";
 
-/** Routes reachable without a session, or handled entirely by their own checks. */
-const PUBLIC = [/^\/auth\//, /^\/healthz$/, /^\/readyz$/];
+/**
+ * Routes reachable without a session, or handled entirely by their own checks.
+ * `/watch-events/changedetection` is called by changedetection.io and checks a
+ * shared secret itself (routes/watch-events.ts, tested in grant-sources.integration.test.ts).
+ */
+const PUBLIC = [/^\/auth\//, /^\/healthz$/, /^\/readyz$/, /^\/watch-events\/changedetection$/];
 
 function registeredRoutes(): { method: string; path: string }[] {
   const out: { method: string; path: string }[] = [];
@@ -56,5 +60,13 @@ describe("route permission coverage", () => {
     expect(needs("POST", "/grants/sections/:sid/approve")).toBe("grants.review");
     expect(needs("POST", "/grants/applications/:id/approve-package")).toBe("grants.approve");
     expect(needs("POST", "/grants/sections/:sid/draft")).toBe("grants.write");
+    // Loading shared foundation data is configuration, not grant writing.
+    expect(needs("POST", "/grants/foundations/import")).toBe("workspace.configure");
+  });
+
+  it("keeps the source registry, reads included, with owners and admins", () => {
+    for (const [m, p] of [["GET", "/grant-sources"], ["GET", "/grant-sources/:id"], ["POST", "/grant-sources"], ["PATCH", "/grant-sources/:id"], ["POST", "/grant-sources/:id/check"], ["GET", "/grant-source-drafts"], ["POST", "/grant-source-drafts/:id/approve"]]) {
+      expect(requirementFor(m, concrete(p)).needs).toBe("workspace.configure");
+    }
   });
 });
