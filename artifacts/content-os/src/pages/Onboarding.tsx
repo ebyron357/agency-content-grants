@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, ExternalLink, Landmark, Search, Sparkles } from 'lucide-react';
 import { LoadingState, PageHeader, PageShell, Panel, PanelHeader, StateMessage } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { DeadlineChip, Field, Notice, ScoreBadge } from '@/components/grants/Gra
 import { apiGet } from '@/lib/api';
 import { deadlineLabel, errorMessage, grantsApi, type ApplicantType, type MatchesResponse } from '@/lib/grants';
 import { HISTORY_LABEL, usd as usdWhole, type Suggestions } from '@/lib/foundations';
-import { durationLabel, formatEinInput, onboardingApi, useInvalidateOnboarding, useOnboarding, type CreatedOrganization, type LookupResult, type Prefill } from '@/lib/onboarding';
+import { durationLabel, formatEinInput, onboardingApi, onboardingKey, useInvalidateOnboarding, useOnboarding, type CreatedOrganization, type LookupResult, type Prefill } from '@/lib/onboarding';
 import { cn } from '@/lib/utils';
 
 type Step = 'find' | 'confirm' | 'focus' | 'results';
@@ -399,13 +399,18 @@ function Results({ created, startedAt, elapsed, onElapsed }: { created: CreatedO
   });
   const foundations = useQuery({ queryKey: ['foundations', 'suggestions', id], queryFn: () => apiGet<Suggestions>(`/grants/applicants/${id}/foundation-suggestions`) });
   const marked = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!matches.data || marked.current) return;
     marked.current = true;
     onElapsed(performance.now() - startedAt);
-    grantsApi.markMatchesSeen(id).catch(() => {});
-  }, [matches.data, id, startedAt, onElapsed]);
+    // Once recorded, the checklist ticks "Review your first matches".
+    grantsApi
+      .markMatchesSeen(id)
+      .then(() => queryClient.invalidateQueries({ queryKey: onboardingKey }))
+      .catch(() => {});
+  }, [matches.data, id, startedAt, onElapsed, queryClient]);
 
   const facts = created.facts.confirmed + created.facts.unconfirmed;
   return (

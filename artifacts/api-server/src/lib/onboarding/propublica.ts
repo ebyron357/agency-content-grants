@@ -5,9 +5,10 @@
  * GET https://projects.propublica.org/nonprofits/api/v2/organizations/{ein}.json
  * returns `{ organization, filings_with_data, ... }` for an organization in the
  * IRS Exempt Organizations Business Master File, and HTTP 404 for an EIN it
- * does not know. The API needs no key. ProPublica states it is free to use
- * under its Data Terms of Use; the owner must review those terms before the
- * lookup is used in production (owner action in docs/SELF_SIGNUP.md).
+ * does not know. The API needs no key. Its documentation page (checked
+ * 7 November 2026) says "Usage constitutes agreement to our Data Terms of
+ * Use" and sets no request limit; the owner must review those terms before
+ * the lookup is used in production (owner action in docs/SELF_SIGNUP.md).
  *
  * Only the fields below are read and kept; nothing else from the response is
  * stored. Every value is shown to the person as an unconfirmed fact with this
@@ -20,7 +21,7 @@ import { NTEE_GROUPS } from "../foundations/aggregate";
 export const PROPUBLICA_SOURCE = {
   name: "ProPublica Nonprofit Explorer API v2",
   api: "https://projects.propublica.org/nonprofits/api",
-  terms: "Free to use under ProPublica's Data Terms of Use; the data comes from IRS Exempt Organizations Business Master File and Form 990 filings.",
+  terms: "Using the API means agreeing to ProPublica's Data Terms of Use (linked from the API page); the data comes from the IRS Exempt Organizations Business Master File and Form 990 filings.",
   attribution: "Organization data from ProPublica Nonprofit Explorer (IRS filings).",
 } as const;
 

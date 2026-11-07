@@ -51,7 +51,7 @@ async function signInAsOperator(page: Page) {
 const SOURCE = {
   name: "ProPublica Nonprofit Explorer API v2",
   api: "https://projects.propublica.org/nonprofits/api",
-  terms: "Free to use under ProPublica's Data Terms of Use.",
+  terms: "Using the API means agreeing to ProPublica's Data Terms of Use (linked from the API page).",
   attribution: "Organization data from ProPublica Nonprofit Explorer (IRS filings).",
 };
 
@@ -89,13 +89,13 @@ async function seed(client: pg.Client): Promise<string[]> {
 
 test("self sign-up is off by default: the sign-in page is unchanged and /signup is the sign-in page", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Sign in to Content OS" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to GrantCrest" })).toBeVisible();
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("link", { name: "Create a workspace" })).toHaveCount(0);
   expect(await (await page.request.get("/api/auth/signup/status")).json()).toEqual({ enabled: false });
   expect((await page.request.post("/api/auth/signup", { data: { name: "X", organizationName: "Y", email: "off@example.org", password: "Correct horse battery staple 42" } })).status()).toBe(404);
   await page.goto("/signup");
-  await expect(page.getByRole("heading", { name: "Sign in to Content OS" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to GrantCrest" })).toBeVisible();
 });
 
 test("sign-up, check-your-email and confirmation screens pass the accessibility gate", async ({ page }) => {
@@ -211,7 +211,7 @@ test("setup wizard: from EIN to first match well under 5 minutes, with every scr
     // The checklist ticks the organization and matches steps (other specs' data can tick more in the shared agency workspace).
     await page.getByRole("link", { name: "Go to your checklist" }).click();
     await expect(page.getByRole("heading", { name: "Set up your organization", level: 2 })).toBeVisible();
-    expect(await page.getByText("Done:").count()).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => page.getByText("Done:").count()).toBeGreaterThanOrEqual(2);
     await bothWidths(page, "getting-started checklist after setup");
   } finally {
     if (orgId) await page.request.delete(`/api/grants/applicants/${orgId}`);
