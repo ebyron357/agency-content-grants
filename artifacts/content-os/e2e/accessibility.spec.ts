@@ -105,7 +105,7 @@ test("every primary authenticated route passes the accessibility gate on one des
   });
   expect(shell.root).toBe(true);
   expect(shell.rail).not.toBe("rgb(250, 250, 249)"); // legacy stone-50 rail
-  expect(shell.body).toBe("rgb(8, 10, 15)");
+  expect(shell.body).toBe("rgb(22, 22, 24)"); // #161618, the warm charcoal shell (#63)
 
   for (const [path, label] of [
     ["/dashboard", "dashboard"],

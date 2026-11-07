@@ -128,7 +128,7 @@ export default function Signup() {
         </button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Already have an account? <a href={`${BASE}/login`} className="text-brand underline-offset-4 hover:underline">Sign in</a>
+        Already have an account? <a href={`${BASE}/login`} className="font-medium text-brand underline underline-offset-4">Sign in</a>
       </p>
     </PublicFrame>
   );

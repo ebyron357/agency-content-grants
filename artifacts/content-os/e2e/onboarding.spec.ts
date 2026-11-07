@@ -111,6 +111,8 @@ test("landing, sign-up, check-your-email and confirmation screens pass the acces
   // The sign-in screen offers sign-up while it is open.
   await page.getByRole("link", { name: "Log in" }).click();
   await expect(page.getByRole("heading", { name: "Sign in to GrantCrest" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create an account" })).toBeVisible();
+  await bothWidths(page, "sign-in with sign-up open");
   await page.getByRole("link", { name: "Create an account" }).click();
   await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
 

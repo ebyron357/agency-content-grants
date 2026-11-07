@@ -70,13 +70,13 @@ function ProductPreview() {
                   key={m.name}
                   className={
                     'flex flex-wrap items-center justify-between gap-2 rounded-md px-3 py-3 text-[13px] ' +
-                    (m.strong ? 'bg-[#232326] shadow-[inset_2px_0_0_#ff7979]' : '') +
-                    (m.hidden ? ' opacity-60' : '')
+                    (m.strong ? 'bg-[#232326] shadow-[inset_2px_0_0_#ff7979]' : '')
                   }
                 >
+                  {/* A hidden row reads dimmer through colour, not opacity, so its text keeps 4.5:1 contrast. */}
                   <span className="min-w-0">
-                    <span className="block font-medium text-[#f2f2f3]">{m.name}</span>
-                    <span className="block text-xs text-[#a0a0a7]">{m.hidden ?? m.source}</span>
+                    <span className={'block font-medium ' + (m.hidden ? 'text-[#a0a0a7]' : 'text-[#f2f2f3]')}>{m.name}</span>
+                    <span className={'block text-xs ' + (m.hidden ? 'text-[#8e8e95]' : 'text-[#a0a0a7]')}>{m.hidden ?? m.source}</span>
                   </span>
                   {!m.hidden && (
                     <span className="flex gap-5 text-xs">
