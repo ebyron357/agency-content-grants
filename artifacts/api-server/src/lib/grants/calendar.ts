@@ -61,7 +61,7 @@ export function buildDeadlineCalendar(name: string, deadlines: CalendarDeadline[
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Content Machine//Grant Studio//EN",
+    "PRODID:-//GrantCrest//Grant Studio//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeIcsText(name)}`,

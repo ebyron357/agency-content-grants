@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, Briefcase, Building2, CalendarPlus, HandHeart, Landmark, Library, Plus, RefreshCw, Sparkles, LayoutTemplate } from 'lucide-react';
+import { ArrowRight, Briefcase, Building2, CalendarPlus, HandHeart, Landmark, Library, Plus, RefreshCw, Sparkles, LayoutTemplate, Wand2 } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
+import { GrantsGovNotice } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -166,6 +167,9 @@ export default function GrantStudio() {
             <Button variant="outline" asChild className="gap-2">
               <Link href="/grant-studio/foundations"><Landmark className="h-4 w-4" aria-hidden="true" /> Foundations</Link>
             </Button>
+            <Button variant="outline" asChild className="gap-2">
+              <Link href="/get-started"><Wand2 className="h-4 w-4" aria-hidden="true" /> Get started</Link>
+            </Button>
             <Button onClick={() => setAdding(true)} className="gap-2">
               <Plus className="h-4 w-4" aria-hidden="true" /> Add organization
             </Button>
@@ -223,7 +227,7 @@ export default function GrantStudio() {
           <div className="mx-auto max-w-2xl text-center">
             <Sparkles className="mx-auto h-8 w-8 text-brand" aria-hidden="true" />
             <h2 className="mt-3 text-xl font-semibold text-foreground">Start with the organization that is applying</h2>
-            <p className="mt-2 text-sm text-muted-foreground">A nonprofit or a business. Grant Studio uses its type, mission and focus areas to find federal opportunities it is eligible for.</p>
+            <p className="mt-2 text-sm text-muted-foreground">A nonprofit or a business. Grant Studio uses its type, state, mission and focus areas to find federal and state opportunities that fit it.</p>
             <ol className="mx-auto mt-6 grid max-w-xl gap-3 text-left sm:grid-cols-3">
               {['Add the organization', 'Review your matches', 'Write and export the application'].map((step, i) => (
                 <li key={step} className="rounded-xl border border-border bg-background p-3 text-sm">
@@ -232,7 +236,10 @@ export default function GrantStudio() {
                 </li>
               ))}
             </ol>
-            <Button className="mt-6 gap-2" onClick={() => setAdding(true)}><Plus className="h-4 w-4" aria-hidden="true" /> Add organization</Button>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Button asChild className="gap-2"><Link href="/onboarding"><Wand2 className="h-4 w-4" aria-hidden="true" /> Set up with your EIN</Link></Button>
+              <Button variant="outline" className="gap-2" onClick={() => setAdding(true)}><Plus className="h-4 w-4" aria-hidden="true" /> Add organization</Button>
+            </div>
           </div>
         </Panel>
       ) : (
@@ -300,6 +307,7 @@ export default function GrantStudio() {
           </Panel>
         </div>
       )}
+      <GrantsGovNotice className="mt-8" />
       <AddOrganizationDialog open={adding} onOpenChange={setAdding} />
     </PageShell>
   );

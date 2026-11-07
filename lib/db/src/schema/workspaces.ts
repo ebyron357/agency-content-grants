@@ -20,6 +20,10 @@ export const workspacesTable = pgTable("workspaces", {
   kind: text("kind").notNull().default("client"),
   /** When true, members must use two-factor sign-in before they can use the workspace. */
   requireMfa: boolean("require_mfa").notNull().default(false),
+  /** "operator" when the operator created it, "self_signup" when its owner signed up (docs/SELF_SIGNUP.md). */
+  createdVia: text("created_via").notNull().default("operator"),
+  /** When someone hid the getting-started checklist. The setup wizard stays reachable. */
+  onboardingDismissedAt: timestamp("onboarding_dismissed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

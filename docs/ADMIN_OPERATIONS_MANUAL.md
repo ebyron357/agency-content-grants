@@ -1,6 +1,6 @@
 # Admin and Operations Manual
 
-For the person who runs Content Machine. End-user instructions are in [`CLIENT_USER_MANUAL.md`](CLIENT_USER_MANUAL.md); deploy/rollback/backup steps are in [`DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](DEPLOYMENT_AND_RECOVERY_RUNBOOK.md); access and secrets are in [`SECURITY_AND_ACCESS_HANDOFF.md`](SECURITY_AND_ACCESS_HANDOFF.md).
+For the person who runs GrantCrest (formerly Content Machine). End-user instructions are in [`USER_GUIDE.md`](USER_GUIDE.md) (task by task, also in the app under **Help**) and [`CLIENT_USER_MANUAL.md`](CLIENT_USER_MANUAL.md); deploy/rollback/backup steps are in [`DEPLOYMENT_AND_RECOVERY_RUNBOOK.md`](DEPLOYMENT_AND_RECOVERY_RUNBOOK.md); access and secrets are in [`SECURITY_AND_ACCESS_HANDOFF.md`](SECURITY_AND_ACCESS_HANDOFF.md).
 
 ## 1. Ownership
 

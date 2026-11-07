@@ -111,7 +111,7 @@ describe("account security", () => {
     expect((await owner("PATCH", "/workspace", { requireMfa: true })).status).toBe(409);
 
     const setup = (await owner("POST", "/account/mfa/setup")).data;
-    expect(setup.otpauthUri).toMatch(/^otpauth:\/\/totp\/Content%20Machine%3A/);
+    expect(setup.otpauthUri).toMatch(/^otpauth:\/\/totp\/GrantCrest%3A/);
     const secret = setup.secret.replace(/\s/g, "");
     expect((await owner("POST", "/account/mfa/enable", { code: "000000" })).status).toBe(400);
     const enabled = await owner("POST", "/account/mfa/enable", { code: totpAt(base32Decode(secret), currentStep()) });
