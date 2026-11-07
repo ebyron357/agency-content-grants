@@ -32,7 +32,7 @@ Linux, Node 22.23.4, PostgreSQL 16 (disposable database `agent2_states_test`), C
 | Content OS tests | `pnpm --filter @workspace/content-os test` | 9 files, 39 tests passed |
 | Production build | `pnpm -r --if-present run build` | Passed |
 | Integration script against the built API | `tests/integration-tests.sh` (port changed to 8095 in a scratch copy, since another agent's server held 8080) | 40 passed, 0 failed, 0 skipped |
-| Accessibility gate (Playwright + axe) | `playwright test` against the built server on 8095 | See the PR description for the result. No new screen was added, so no screen was added to the gate. |
+| Accessibility gate (Playwright + axe) | `pnpm --filter @workspace/content-os test:a11y` with `E2E_BASE_URL=http://127.0.0.1:8095` | 13 passed, 1 skipped (`notice.spec.ts`, which skips itself in this environment). The frontend was served from a copy outside the `.claude/` worktree path via `FRONTEND_DIST_PATH`, because Express `sendFile` refuses paths with a dot-directory; a first run without that failed 13 tests on a 404 sign-in page, which is this environment, not the code. No new screen was added. |
 
 ## Sources read (7 November 2026)
 
