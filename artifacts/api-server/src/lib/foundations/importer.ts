@@ -14,6 +14,7 @@ import {
   type StoredGrant,
 } from "./aggregate";
 import { DEFAULT_BASE_URL, importYears, openPartition, readManifest, readWindows, type FetchLike } from "./source";
+import { policyConfigFromEnv, runPolicyImport, type PolicyImportConfig } from "./policyImport";
 
 /**
  * The foundation import (docs/GRANT_STUDIO.md, Foundations; docs/BACKGROUND_JOBS.md).
@@ -166,6 +167,8 @@ export interface RunOptions {
   jobId?: string;
   signal?: AbortSignal;
   onProgress?: (p: Record<string, unknown>) => Promise<void> | void;
+  /** Where to read 990-PF XML for the "accepts applications" flag; defaults to FOUNDATIONS_XML_BASE_URL, and null skips the step. */
+  policy?: PolicyImportConfig | null;
 }
 
 /** Runs one import. Never throws for a missing year or the storage budget; throws when no year could be read. */
@@ -265,6 +268,12 @@ export async function runFoundationImport(opts: RunOptions = {}): Promise<Import
       } finally {
         await part.close();
       }
+    }
+    // Part XIV line 2 is not in funder-graph's rows: read it from each funder's latest 990-PF XML when a location is configured.
+    const policy = opts.policy === undefined ? policyConfigFromEnv() : opts.policy;
+    if (policy && yearsDone.length) {
+      const p = await runPolicyImport(policy, { fetchImpl: opts.fetchImpl, signal: opts.signal, onProgress: opts.onProgress });
+      Object.assign(counts, p);
     }
     if (status === "succeeded" && !yearsDone.length) {
       status = "failed";

@@ -38,10 +38,13 @@ A durable job queue in PostgreSQL (`jobs` table, migration `0025_job_queue`), wi
 | `source_check` | Check a watched page | 2 | 2 min | 1 min, doubling, up to 10 min | 1 | From the sweep, a changedetection.io notification, or **Check now** |
 | `source_extract` | Extract opportunities from a changed page | 2 | 3 min | 15 s, doubling, up to 1 min | 1 | After a check finds a change |
 | `grant_notice_checklist` | Read a notice PDF and propose its checklist | 2 | 10 min | 15 s, doubling, up to 1 min | 1 | On request |
+| `usaspending_awards` | Read past federal awards from USAspending | 2 | 2 min | 1 min, doubling, up to 10 min | 1 | When a federal opportunity's page asks for a listing that is missing or older than its TTL (one per listing at a time) |
 
 The three `source_*` kinds belong to the grant source registry ([`SOURCE_REGISTRY.md`](SOURCE_REGISTRY.md)). A page problem is recorded on the source and does not fail the job; extraction only ever makes drafts for review.
 
 `foundation_import` streams funder-graph's Parquet partitions into per-funder aggregates (`GRANT_STUDIO.md`, Foundations). A retry or a second run is safe: a filing already counted is skipped. It stops with status `partial` at its storage budget (`FOUNDATIONS_MAX_DB_MB`).
+
+`usaspending_awards` reads one Assistance Listing's recent grants into `usaspending_award_cache` (`GRANT_STUDIO.md`, Past federal awards). A failure is recorded on the listing and keeps its last good copy; a request USAspending rejects (400 or 422) is not retried. When `FOUNDATIONS_XML_BASE_URL` is set, `foundation_import` also reads each 990-PF funder's latest filing XML for the "accepts applications" flag, once per filing.
 
 **Notice PDFs.** Attaching a notice PDF (upload or link) queues `grant_notice_checklist` for the application (one at a time) and waits up to 3 seconds, like the AI work below. The job fetches the file when it came from a link, reads it one page at a time, and proposes requirement rows with page citations. It reports its stage and the page or AI request it has reached as progress, which the Requirements step shows. A file problem (not a PDF, password protected, no text layer, a link that returns a web page) is permanent and is not retried. One runs at a time per worker, which keeps memory bounded on the 512 MB instance (`GRANT_STUDIO.md`, Notice PDF and requirement checklist).
 
@@ -64,6 +67,7 @@ The three `source_*` kinds belong to the grant source registry ([`SOURCE_REGISTR
 | `JOBS_WORKER_ENABLED` | unset | Under `NODE_ENV=test` the worker is off unless this is `true` |
 | `GRANTS_SYNC_DISABLED`, `GRANTS_SYNC_ENABLED`, `GRANTS_CA_DISABLED` | | As before (`GRANT_STUDIO.md`): they control the daily grant schedule and sources |
 | `FOUNDATIONS_IMPORT_ENABLED` and the other `FOUNDATIONS_*` settings | unset | The foundation import's schedule and limits (`GRANT_STUDIO.md`, Foundations) |
+| `USASPENDING_DISABLED` and the other `USASPENDING_*` settings | unset | Past federal awards and their cache (`GRANT_STUDIO.md`, Past federal awards) |
 | `SOURCE_WATCH_DISABLED`, `SOURCE_WATCH_ENABLED` | | `true` stops the hourly page sweep; under `NODE_ENV=test` the sweep is off unless `SOURCE_WATCH_ENABLED=true` (`SOURCE_REGISTRY.md`) |
 
 ## 5. Adding a kind

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC test filing: every name, EIN, address and amount is invented. Shaped like an IRS 2022v5.0 Form 990-PF e-file return. -->
+<Return xmlns="http://www.irs.gov/efile" returnVersion="2022v5.0">
+  <ReturnHeader binaryAttachmentCnt="0">
+    <TaxPeriodEndDt>2023-06-30</TaxPeriodEndDt>
+    <ReturnTypeCd>990PF</ReturnTypeCd>
+    <Filer>
+      <EIN>000000202</EIN>
+      <BusinessName>
+        <BusinessNameLine1Txt>BIRCH SYNTHETIC TRUST</BusinessNameLine1Txt>
+      </BusinessName>
+    </Filer>
+    <TaxYr>2022</TaxYr>
+  </ReturnHeader>
+  <ReturnData documentCnt="1">
+    <IRS990PF documentId="IRS990PF">
+      <SupplementaryInformationGrp>
+        <ContributingManagerNm>NONE</ContributingManagerNm>
+        <OnlyContriToPreselectedInd>X</OnlyContriToPreselectedInd>
+        <GrantOrContributionPdDurYrGrp>
+          <RecipientBusinessName>
+            <BusinessNameLine1Txt>SYNTHETIC WATERSHED ALLIANCE</BusinessNameLine1Txt>
+          </RecipientBusinessName>
+          <Amt>250000</Amt>
+        </GrantOrContributionPdDurYrGrp>
+      </SupplementaryInformationGrp>
+    </IRS990PF>
+  </ReturnData>
+</Return>
