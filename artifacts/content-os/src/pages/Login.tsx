@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { signupStatus } from '@/lib/onboarding';
 import { PenLine } from 'lucide-react';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -16,6 +17,16 @@ export default function Login({ onSuccess }: LoginProps) {
   const [step, setStep] = useState<'password' | 'code'>('password');
   const [useRecovery, setUseRecovery] = useState(false);
   const [code, setCode] = useState('');
+  /** Offered only while the server has self sign-up on (docs/SELF_SIGNUP.md). */
+  const [canSignUp, setCanSignUp] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    signupStatus().then((on) => live && setCanSignUp(on));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const submitCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,6 +199,11 @@ export default function Login({ onSuccess }: LoginProps) {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+          {canSignUp && (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              New to GrantCrest? <a href={`${BASE}/signup`} className="font-medium text-brand hover:underline">Create a workspace</a>
+            </p>
+          )}
           </>
           )}
         </div>

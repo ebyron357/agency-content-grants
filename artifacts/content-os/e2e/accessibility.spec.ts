@@ -118,6 +118,8 @@ test("every primary authenticated route passes the accessibility gate on one des
     ["/distribution", "distribution"],
     ["/performance", "performance"],
     ["/settings", "settings"],
+    ["/get-started", "getting started"],
+    ["/onboarding", "setup wizard"],
     ["/route-that-does-not-exist", "not found"],
   ] as const) {
     await page.goto(path);

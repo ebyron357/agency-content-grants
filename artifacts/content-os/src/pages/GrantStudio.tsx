@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, Briefcase, Building2, CalendarPlus, HandHeart, Landmark, Library, Plus, RefreshCw, Sparkles, LayoutTemplate } from 'lucide-react';
+import { ArrowRight, Briefcase, Building2, CalendarPlus, HandHeart, Landmark, Library, Plus, RefreshCw, Sparkles, LayoutTemplate, Wand2 } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -166,6 +166,9 @@ export default function GrantStudio() {
             <Button variant="outline" asChild className="gap-2">
               <Link href="/grant-studio/foundations"><Landmark className="h-4 w-4" aria-hidden="true" /> Foundations</Link>
             </Button>
+            <Button variant="outline" asChild className="gap-2">
+              <Link href="/get-started"><Wand2 className="h-4 w-4" aria-hidden="true" /> Get started</Link>
+            </Button>
             <Button onClick={() => setAdding(true)} className="gap-2">
               <Plus className="h-4 w-4" aria-hidden="true" /> Add organization
             </Button>
@@ -232,7 +235,10 @@ export default function GrantStudio() {
                 </li>
               ))}
             </ol>
-            <Button className="mt-6 gap-2" onClick={() => setAdding(true)}><Plus className="h-4 w-4" aria-hidden="true" /> Add organization</Button>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Button asChild className="gap-2"><Link href="/onboarding"><Wand2 className="h-4 w-4" aria-hidden="true" /> Set up with your EIN</Link></Button>
+              <Button variant="outline" className="gap-2" onClick={() => setAdding(true)}><Plus className="h-4 w-4" aria-hidden="true" /> Add organization</Button>
+            </div>
           </div>
         </Panel>
       ) : (
