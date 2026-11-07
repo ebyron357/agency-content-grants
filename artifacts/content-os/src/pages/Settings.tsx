@@ -206,7 +206,7 @@ function ProvidersTab() {
       <div className="bg-muted/50 border border-border rounded-lg p-4">
         <p className="text-xs font-semibold text-muted-foreground mb-1">Demo Mode</p>
         <p className="text-xs text-muted-foreground">
-          When no provider is configured, Content OS runs in demo mode — clearly labeled placeholder output is returned for all AI operations.
+          When no provider is configured, GrantCrest runs in demo mode — clearly labeled placeholder output is returned for all AI operations.
           No content is sent to any external service. Add an API key to enable real generation.
         </p>
       </div>

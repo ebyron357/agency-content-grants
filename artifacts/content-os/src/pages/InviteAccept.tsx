@@ -64,7 +64,7 @@ export default function InviteAccept({ token, onDone }: { token: string; onDone:
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand/30 bg-primary/15 text-brand"><PenLine className="h-5 w-5" aria-hidden="true" /></div>
-          <p className="text-sm font-semibold text-foreground">Content OS</p>
+          <p className="text-sm font-semibold text-foreground">GrantCrest</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-7 sm:p-9">
           {!info && !loadError && <p role="status" className="text-sm text-muted-foreground">Checking your invitation…</p>}

@@ -219,7 +219,7 @@ export default function Create() {
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Content OS
+                GrantCrest
               </p>
               <p className="text-sm text-foreground/80">Workflow in progress</p>
             </div>
@@ -304,7 +304,7 @@ export default function Create() {
               What would you like to write?
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-              Give Content OS the intent. We’ll turn it into a brief, research
+              Give GrantCrest the intent. We’ll turn it into a brief, research
               path, structure, and first draft you can shape.
             </p>
           </div>
@@ -586,7 +586,7 @@ export default function Create() {
                   <WandSparkles className="h-4 w-4" /> Ready to brief the system
                 </div>
                 <p className="mt-2 max-w-lg text-xs leading-5 text-muted-foreground">
-                  Content OS will create the brief, research plan, outline, and
+                  GrantCrest will create the brief, research plan, outline, and
                   first draft. You stay in control before anything ships.
                 </p>
               </div>

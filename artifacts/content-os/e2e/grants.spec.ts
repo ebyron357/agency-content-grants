@@ -62,7 +62,7 @@ test("grant route stays behind the existing sign-in UI", async ({ page }) => {
   );
   await page.goto("/grants");
   await expect(
-    page.getByRole("heading", { name: "Sign in to Content OS" }),
+    page.getByRole("heading", { name: "Sign in to GrantCrest" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Grants", exact: true }),

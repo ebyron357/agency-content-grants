@@ -82,6 +82,9 @@ test("operator creates a client workspace and its owner joins and invites a writ
 
   // The owner signs out and back in with email and password.
   await owner.getByRole("button", { name: "Sign out" }).click();
+  // Wait for the sign-in screen: until sign-out lands, the settings page's
+  // admin and change-password fields also match getByLabel("Password").
+  await expect(owner.getByRole("heading", { name: "Sign in to GrantCrest" })).toBeVisible();
   await owner.getByLabel("Email").fill(ownerEmail);
   await owner.getByLabel("Password").fill(PASSWORD);
   await owner.getByRole("button", { name: "Sign in" }).click();

@@ -89,7 +89,7 @@ export default function Login({ onSuccess }: LoginProps) {
             <PenLine className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm font-semibold tracking-tight text-foreground">Content OS</p>
+            <p className="text-sm font-semibold tracking-tight text-foreground">GrantCrest</p>
             <p className="mt-1 text-xs leading-none text-muted-foreground">Editorial command center</p>
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function Login({ onSuccess }: LoginProps) {
           ) : (
           <>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Welcome back</p>
-          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">Sign in to Content OS</h1>
+          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">Sign in to GrantCrest</h1>
           <p className="mb-7 text-sm leading-relaxed text-muted-foreground">Sign in with your email and password. Operators can leave email empty and use the team password.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">

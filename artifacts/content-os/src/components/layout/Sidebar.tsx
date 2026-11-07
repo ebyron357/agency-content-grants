@@ -52,14 +52,14 @@ export function Sidebar() {
       <div className="px-2 pb-4 pt-5 md:px-5">
         <Link
           href="/dashboard"
-          aria-label="Content OS dashboard"
+          aria-label="GrantCrest dashboard"
           className="flex items-center justify-center gap-3 rounded-xl md:justify-start"
         >
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-brand/30 bg-primary/15 text-brand">
             <PenLine className="h-4 w-4" aria-hidden="true" />
           </span>
           <span className="hidden min-w-0 md:block">
-            <span className="block text-sm font-semibold tracking-tight text-foreground">Content OS</span>
+            <span className="block text-sm font-semibold tracking-tight text-foreground">GrantCrest</span>
             <span className="block text-[11px] text-muted-foreground">Editorial command center</span>
           </span>
         </Link>
