@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeadlineChip, Field, Notice, ReasonList, ScoreBadge, selectClass } from '@/components/grants/GrantUi';
+import { PastAwardsPanel } from '@/components/grants/PastAwardsPanel';
 import { awardRange, calendarUrl, deadlineLabel, errorMessage, grantsApi, useApplicants, useGrantMeta, useInvalidateGrants, useOpportunity } from '@/lib/grants';
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -104,6 +105,7 @@ export default function GrantOpportunity() {
               {o.eligibilityText && <p className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">{o.eligibilityText}</p>}
             </div>
           </Panel>
+          {o.federal && <PastAwardsPanel opportunityId={o.id} applicantId={orgId} />}
         </div>
 
         <Panel className="h-fit lg:sticky lg:top-6">

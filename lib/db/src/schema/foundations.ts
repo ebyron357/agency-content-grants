@@ -48,6 +48,22 @@ export const foundationFundersTable = pgTable("foundation_funders", {
   latestSubmittedOn: text("latest_submitted_on"),
   datasetVersion: text("dataset_version"),
   importRunId: text("import_run_id"),
+  /**
+   * Form 990-PF Part XIV line 2 (Part XV before the 2022 form), read from the
+   * filing's e-file XML (lib/foundations/applicationPolicy.ts):
+   * "invitation_only" when the box "only makes contributions to preselected
+   * charitable organizations and does not accept unsolicited requests" is
+   * checked, "accepts_applications" when the filing's supplementary information
+   * is present and the box is not checked, null when unknown (no XML read).
+   */
+  applicationPolicy: text("application_policy"),
+  /** The filing the policy came from. */
+  applicationPolicyObjectId: text("application_policy_object_id"),
+  applicationPolicyTaxYear: integer("application_policy_tax_year"),
+  applicationPolicyTaxPeriodEnd: text("application_policy_tax_period_end"),
+  /** Part XIV line 2b–2d as filed, each at most 300 characters: { formAndMaterials, deadlines, restrictions }. No contact names. */
+  applicationInfo: jsonb("application_info").$type<Record<string, string>>().notNull().default({}),
+  applicationPolicyCheckedAt: timestamp("application_policy_checked_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("idx_foundation_funders_total").on(table.totalPaidUsd),
@@ -95,6 +111,34 @@ export const foundationImportRunsTable = pgTable("foundation_import_runs", {
   finishedAt: timestamp("finished_at", { withTimezone: true }),
 });
 
+/**
+ * Past federal awards per Assistance Listing (CFDA number), from the
+ * USAspending.gov API (docs/GRANT_STUDIO.md, Past federal awards). Public
+ * reference data, cached so a page view never calls USAspending: the
+ * `usaspending_awards` job fills a row and refreshes it after its TTL. Only the
+ * most recent awards (at most 100 per listing) and their aggregates are kept.
+ */
+export const usaspendingAwardCacheTable = pgTable("usaspending_award_cache", {
+  /** Assistance Listing number, e.g. "10.500". */
+  programNumber: text("program_number").primaryKey(),
+  /** ready | error (the last attempt failed; any earlier data is kept) */
+  status: text("status").notNull(),
+  /** Last successful read. */
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+  attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  lastError: text("last_error"),
+  /** The action-date window searched (YYYY-MM-DD). */
+  periodStart: text("period_start"),
+  periodEnd: text("period_end"),
+  /** Grants (award types 02–05) in the window, from spending_by_award_count. */
+  totalAwards: integer("total_awards"),
+  /** The most recent awards, newest first: { awardId, generatedId, recipient, amountUsd, startDate, fiscalYear, state }. */
+  awards: jsonb("awards").$type<Record<string, unknown>[]>().notNull().default([]),
+  /** When a page last asked for this listing; listings nobody asks for are pruned. */
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type FoundationFunder = typeof foundationFundersTable.$inferSelect;
+export type UsaspendingAwardCache = typeof usaspendingAwardCacheTable.$inferSelect;
 export type FoundationGrant = typeof foundationGrantsTable.$inferSelect;
 export type FoundationImportRun = typeof foundationImportRunsTable.$inferSelect;

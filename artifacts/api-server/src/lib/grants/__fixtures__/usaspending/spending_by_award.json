@@ -1,0 +1,69 @@
+{
+  "_comment": "SYNTHETIC response: every recipient, award id and amount is invented. Shaped after the published spending_by_award contract (usaspending-api api_contracts/contracts/v2/search/spending_by_award.md) and the Recipient Location object built in usaspending_api/search/v2/views/spending_by_award.py. api.usaspending.gov was not reachable from the build environment (proxy 403), so no live response could be recorded.",
+  "spending_level": "awards",
+  "limit": 100,
+  "results": [
+    {
+      "internal_id": 9000001,
+      "Award ID": "SYN-24-0001",
+      "Recipient Name": "PIEDMONT SYNTHETIC LITERACY COUNCIL",
+      "Award Amount": 250000.0,
+      "Start Date": "2026-08-15",
+      "Recipient Location": { "location_country_code": "USA", "country_name": "UNITED STATES", "state_code": "NC", "state_name": "North Carolina", "city_name": "DURHAM" },
+      "generated_internal_id": "ASST_NON_SYN240001_9999",
+      "agency_slug": null
+    },
+    {
+      "internal_id": 9000002,
+      "Award ID": "SYN-24-0002",
+      "Recipient Name": "SYNTHETIC RIVER VALLEY SCHOOLS",
+      "Award Amount": 480000.0,
+      "Start Date": "2026-07-01",
+      "Recipient Location": { "location_country_code": "USA", "country_name": "UNITED STATES", "state_code": "VA", "state_name": "Virginia", "city_name": "ROANOKE" },
+      "generated_internal_id": "ASST_NON_SYN240002_9999",
+      "agency_slug": null
+    },
+    {
+      "internal_id": 9000003,
+      "Award ID": "SYN-25-0003",
+      "Recipient Name": "SYNTHETIC COASTAL READING PROJECT",
+      "Award Amount": 125000.0,
+      "Start Date": "2025-11-03",
+      "Recipient Location": { "location_country_code": "USA", "country_name": "UNITED STATES", "state_code": "NC", "state_name": "North Carolina", "city_name": "WILMINGTON" },
+      "generated_internal_id": "ASST_NON_SYN250003_9999",
+      "agency_slug": null
+    },
+    {
+      "internal_id": 9000004,
+      "Award ID": "SYN-25-0004",
+      "Recipient Name": "SYNTHETIC MOUNTAIN LEARNING ALLIANCE",
+      "Award Amount": 900000.0,
+      "Start Date": "2025-09-30",
+      "Recipient Location": { "location_country_code": "USA", "country_name": "UNITED STATES", "state_code": "CO", "state_name": "Colorado", "city_name": "DENVER" },
+      "generated_internal_id": "ASST_NON_SYN250004_9999",
+      "agency_slug": null
+    },
+    {
+      "internal_id": 9000005,
+      "Award ID": "SYN-25-0005",
+      "Recipient Name": "SYNTHETIC INTERNATIONAL LITERACY FUND",
+      "Award Amount": 60000.0,
+      "Start Date": "2025-03-12",
+      "Recipient Location": { "location_country_code": "CAN", "country_name": "CANADA", "state_code": null, "state_name": null, "city_name": "TORONTO" },
+      "generated_internal_id": "ASST_NON_SYN250005_9999",
+      "agency_slug": null
+    },
+    {
+      "internal_id": 9000006,
+      "Award ID": "SYN-24-0006",
+      "Recipient Name": "SYNTHETIC DEOBLIGATED AWARD",
+      "Award Amount": 0,
+      "Start Date": "2024-05-20",
+      "Recipient Location": { "location_country_code": "USA", "state_code": "NC" },
+      "generated_internal_id": "ASST_NON_SYN240006_9999",
+      "agency_slug": null
+    }
+  ],
+  "page_metadata": { "page": 1, "hasNext": false },
+  "messages": []
+}
