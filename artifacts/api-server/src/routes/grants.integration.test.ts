@@ -359,7 +359,7 @@ describe("Grant Studio end to end", () => {
     expect(fresh.isNew).toBe(true);
     // Test files share one database and run in parallel, so another file may store an opportunity
     // after this organization was added; judge only this file's own opportunities.
-    const ownIds = new Set([NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP]);
+    const ownIds = new Set<string>([NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP]);
     const newOnly = (await api("GET", `/grants/applicants/${id}/matches?newOnly=1`)).data.matches.map((m: any) => m.opportunity.id);
     expect(newOnly.filter((oppId: string) => ownIds.has(oppId))).toEqual([FRESH_OPP]);
     const listed = (await api("GET", "/grants/applicants")).data.find((a: any) => a.id === id);
