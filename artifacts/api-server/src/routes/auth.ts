@@ -79,7 +79,7 @@ let dummyHash: Promise<string> | null = null;
  * Regenerates the session (no fixation) and signs a member in to one workspace,
  * with a member_sessions row for this browser. The previous row, if any, ends.
  */
-async function signInMember(req: Request, res: Response, member: { id: string; name: string }, access: WorkspaceAccess, status = 200, method: "password" | "mfa" | "recovery_code" | "invite" = "password"): Promise<void> {
+export async function signInMember(req: Request, res: Response, member: { id: string; name: string }, access: WorkspaceAccess, status = 200, method: "password" | "mfa" | "recovery_code" | "invite" | "signup" = "password"): Promise<void> {
   await revokeMemberSession(req.session.memberSessionId);
   const memberSessionId = await startMemberSession(req, member.id, access.workspace.id, method);
   req.session.regenerate((err) => {
@@ -318,7 +318,15 @@ router.get("/auth/me", async (req, res) => {
     authenticated: true,
     isAdmin: req.session.isAdmin === true,
     member,
-    workspace: workspace ? { id: workspace.id, name: workspace.name, kind: workspace.kind } : null,
+    workspace: workspace
+      ? {
+          id: workspace.id,
+          name: workspace.name,
+          kind: workspace.kind,
+          // A workspace its owner signed up for opens on the getting-started checklist until someone hides it.
+          firstRun: workspace.createdVia === "self_signup" && !workspace.onboardingDismissedAt,
+        }
+      : null,
     role: role ?? null,
     roleLabel: role && isRole(role) ? ROLES[role].label : null,
     permissions: permissionsOf(role),

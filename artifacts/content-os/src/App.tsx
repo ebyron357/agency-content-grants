@@ -6,6 +6,8 @@ import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Login from "@/pages/Login";
 import InviteAccept from "@/pages/InviteAccept";
+import Signup from "@/pages/Signup";
+import SignupVerify from "@/pages/SignupVerify";
 import MfaRequired from "@/pages/MfaRequired";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingState } from "@/components/layout/Page";
@@ -29,6 +31,8 @@ const GrantTemplateEditor = lazy(() => import("@/pages/GrantTemplateEditor"));
 const GrantFoundations = lazy(() => import("@/pages/GrantFoundations"));
 const GrantFunder = lazy(() => import("@/pages/GrantFunder"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const GetStarted = lazy(() => import("@/pages/GetStarted"));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -38,7 +42,7 @@ function RouteLoading() {
   return <LoadingState />;
 }
 
-function AppLayout() {
+function AppLayout({ firstRun }: { firstRun: boolean }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <a
@@ -55,7 +59,10 @@ function AppLayout() {
       >
         <Suspense fallback={<RouteLoading />}>
           <Switch>
-            <Route path="/" component={Create} />
+            {/* A workspace its owner just signed up for opens on its getting-started checklist. */}
+            <Route path="/" component={firstRun ? GetStarted : Create} />
+            <Route path="/get-started" component={GetStarted} />
+            <Route path="/onboarding" component={Onboarding} />
             <Route path="/create" component={Create} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/brands" component={BrandsList} />
@@ -83,12 +90,14 @@ function AppLayout() {
 }
 
 function AuthGate() {
-  const { isAuthenticated, isLoading, mfaEnrollmentRequired, refetch } = useAuth();
+  const { isAuthenticated, isLoading, mfaEnrollmentRequired, firstRun, refetch } = useAuth();
   // Invitation links work whether or not someone is signed in.
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname.slice(base.length);
   const inviteToken = path.startsWith("/invite/") ? decodeURIComponent(path.slice("/invite/".length)) : null;
   if (inviteToken) return <InviteAccept token={inviteToken} onDone={refetch} />;
+  // The confirmation link from a self sign-up email (docs/SELF_SIGNUP.md).
+  if (path === "/signup/verify") return <SignupVerify onDone={refetch} />;
 
   if (isLoading) {
     return (
@@ -103,6 +112,8 @@ function AuthGate() {
   }
 
   if (!isAuthenticated) {
+    // /signup shows the sign-up form only while the server has self sign-up on; otherwise the sign-in page.
+    if (path === "/signup") return <Signup onSignedIn={refetch} />;
     return <Login onSuccess={refetch} />;
   }
 
@@ -112,7 +123,7 @@ function AuthGate() {
 
   return (
     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-      <AppLayout />
+      <AppLayout firstRun={firstRun} />
     </WouterRouter>
   );
 }
