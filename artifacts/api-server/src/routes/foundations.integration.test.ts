@@ -24,10 +24,13 @@ import { runFoundationImport } from "../lib/foundations/importer";
 import { FOUNDATION_IMPORT_KEY } from "../lib/jobs/definitions";
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "../lib/foundations/__fixtures__/funder-graph");
+const XML_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "../lib/foundations/__fixtures__/irs-xml");
 const OWNER = `fdn-owner-${randomUUID()}`;
 const OTHER = `fdn-other-${randomUUID()}`;
 const ALDER = "000000101";
 const BIRCH = "000000202";
+/** A synthetic funder inserted directly: NC education giving, but large grants and nothing since 2020. */
+const DOGWOOD = "000000404";
 let server: Server;
 let base = "";
 let orgId = "";
@@ -70,7 +73,7 @@ afterAll(async () => {
   await db.delete(jobsTable).where(eq(jobsTable.dedupeKey, FOUNDATION_IMPORT_KEY));
   await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.userId, [OWNER, OTHER]));
   await db.delete(usersTable).where(inArray(usersTable.id, [OWNER, OTHER]));
-  await db.delete(foundationFundersTable).where(inArray(foundationFundersTable.ein, [ALDER, BIRCH]));
+  await db.delete(foundationFundersTable).where(inArray(foundationFundersTable.ein, [ALDER, BIRCH, DOGWOOD]));
 });
 
 describe("foundation giving history", () => {
@@ -99,6 +102,26 @@ describe("foundation giving history", () => {
     expect(second.stats).toMatchObject({ filings_counted: 0, filings_already_counted: 4 });
     const [again] = await db.select().from(foundationFundersTable).where(eq(foundationFundersTable.ein, ALDER));
     expect(Number(again.totalPaidUsd)).toBe(267500);
+  });
+
+  it("reads the accepts-applications flag from each funder's latest 990-PF XML, once", async () => {
+    const config = { baseUrl: FIXTURE, years: [2024, 2025], windowRows: 1000, batchFunders: 10 };
+    const result = await runFoundationImport({ config, policy: { xmlBase: XML_FIXTURE, maxPerRun: 100 } });
+    // Alder and Birch file 990-PF. (Cedar files Form 990 and is not imported with the default form types.)
+    expect(result.stats).toMatchObject({ xml_checked: 2, accepts_applications: 1, invitation_only: 1, xml_missing: 0 });
+    const [alder] = await db.select().from(foundationFundersTable).where(eq(foundationFundersTable.ein, ALDER));
+    expect(alder).toMatchObject({ applicationPolicy: "accepts_applications", applicationPolicyObjectId: "OBJ-A-2024", applicationPolicyTaxYear: 2024, applicationPolicyTaxPeriodEnd: "2024-12-31" });
+    expect(alder.applicationInfo).toMatchObject({ deadlines: "MARCH 1 AND SEPTEMBER 1" });
+    expect(JSON.stringify(alder.applicationInfo)).not.toContain("SYNTHETIC CONTACT PERSON");
+    const [birch] = await db.select().from(foundationFundersTable).where(eq(foundationFundersTable.ein, BIRCH));
+    expect(birch).toMatchObject({ applicationPolicy: "invitation_only", applicationPolicyObjectId: "OBJ-B-2023" });
+    // A second run reads nothing again; a missing file leaves a funder unknown.
+    expect((await runFoundationImport({ config, policy: { xmlBase: XML_FIXTURE, maxPerRun: 100 } })).stats).toMatchObject({ xml_checked: 0 });
+    await db.update(foundationFundersTable).set({ applicationPolicyObjectId: null, applicationPolicy: null }).where(eq(foundationFundersTable.ein, BIRCH));
+    expect((await runFoundationImport({ config, policy: { xmlBase: join(XML_FIXTURE, "missing"), maxPerRun: 100 } })).stats).toMatchObject({ xml_missing: 1 });
+    const [unread] = await db.select().from(foundationFundersTable).where(eq(foundationFundersTable.ein, BIRCH));
+    expect(unread.applicationPolicy).toBeNull();
+    await runFoundationImport({ config, policy: { xmlBase: XML_FIXTURE, maxPerRun: 100 } });
   });
 
   it("stops at the storage budget with a partial result", async () => {
@@ -158,6 +181,15 @@ describe("foundation giving history", () => {
     expect((await api("GET", "/grants/foundations/999999999")).status).toBe(404);
     expect((await api("GET", "/grants/foundations/not-an-ein")).status).toBe(404);
     expect((await api("GET", "/grants/foundations/meta")).data).toMatchObject({ label: "Funding history from tax filings, not an open call", lastImport: { minConfidence: 0.9 } });
+    // Part XIV line 2, with the tax year and filing it came from.
+    expect(p.applicationPolicy).toMatchObject({ status: "accepts_applications", label: "Accepts applications", taxYear: 2024, objectId: "OBJ-A-2024" });
+    expect(p.applicationInfo).toMatchObject({ deadlines: "MARCH 1 AND SEPTEMBER 1" });
+    expect(p.applicationPolicyFiling).toMatchObject({ objectId: "OBJ-A-2024", taxYear: 2024, propublica: "https://projects.propublica.org/nonprofits/organizations/000000101" });
+    const birch = (await api("GET", `/grants/foundations/${BIRCH}`)).data;
+    expect(birch.applicationPolicy).toMatchObject({ status: "invitation_only", label: "Invitation only", objectId: "OBJ-B-2023" });
+    expect(birch.applicationPolicy.detail).toMatch(/does not accept unsolicited requests/);
+    const search = (await api("GET", "/grants/foundations?q=synthetic")).data;
+    expect(search.funders.find((f: any) => f.ein === BIRCH).applicationPolicy.status).toBe("invitation_only");
   });
 
   it("suggests funders for the workspace's own organization, with reasons, and hides it from others", async () => {
@@ -177,6 +209,45 @@ describe("foundation giving history", () => {
     expect(alder.reasons.some((r: string) => /education recipients/.test(r))).toBe(true);
     // Birch gave in NC only to an unknown-type recipient for museum programs: not an education funder.
     expect(res.data.suggestions.find((s: any) => s.ein === BIRCH)).toBeUndefined();
+
+    // Ranked with every reason shown, and linked to the filings behind it.
+    expect(alder.score).toBeGreaterThan(0);
+    expect(alder.components.map((c: any) => c.key)).toEqual(["state", "cause", "size", "recency", "consistency"]);
+    expect(alder.applicationPolicy).toMatchObject({ status: "accepts_applications", taxYear: 2024 });
+    expect(alder.filing).toMatchObject({ objectId: "OBJ-A-2024" });
+    expect(alder.filings.map((f: any) => f.objectId)).toEqual(["OBJ-A-2024", "OBJ-A-2023-AMEND", "OBJ-A-2022"]);
+    expect(alder.label).toBe("Funding history from tax filings, not an open call");
+    expect(res.data.latestDataYear).toBeGreaterThanOrEqual(2024);
+
+    // A funder with the same causes and state but old, large grants ranks below; a request amount that fits it changes the size reason only.
+    await db.insert(foundationFundersTable).values({
+      ein: DOGWOOD, name: "DOGWOOD SYNTHETIC LEGACY FUND", nameSearch: "DOGWOOD SYNTHETIC LEGACY FUND", state: "NC", formType: "990PF", totalPaidUsd: 3_000_000, grantCount: 3,
+      firstTaxYear: 2020, lastTaxYear: 2020, givingByYear: { "2020": 3_000_000 }, givingByState: { NC: 3_000_000 }, givingByCategory: { B: 3_000_000 }, categorySources: { ntee: 3 },
+      sizeHistogram: {}, sizeStats: { count: 3, min: 900_000, p25: 950_000, median: 1_000_000, p75: 1_050_000, max: 1_100_000 }, filings: { "2020-12-31": "OBJ-D-2020" }, latestObjectId: "OBJ-D-2020", latestTaxPeriodEnd: "2020-12-31",
+    });
+    await db.update(grantApplicantsTable).set({ annualBudget: 600_000 }).where(eq(grantApplicantsTable.id, orgId));
+    const ranked = (await api("GET", `/grants/applicants/${orgId}/foundation-suggestions`)).data;
+    const order = ranked.suggestions.map((x: any) => x.ein);
+    expect(order.indexOf(ALDER)).toBeLessThan(order.indexOf(DOGWOOD));
+    const dogwood = ranked.suggestions.find((x: any) => x.ein === DOGWOOD);
+    expect(dogwood.components.find((c: any) => c.key === "recency").points).toBe(0);
+    expect(dogwood.applicationPolicy).toMatchObject({ status: "unknown", label: "Unknown", taxYear: null });
+    const dogwoodProfile = (await api("GET", `/grants/foundations/${DOGWOOD}`)).data;
+    expect(dogwoodProfile.applicationInfo).toEqual({});
+    expect(dogwoodProfile.applicationPolicyFiling).toBeNull();
+    const withRequest = (await api("GET", `/grants/applicants/${orgId}/foundation-suggestions?request=1000000`)).data;
+    expect(withRequest.requestUsd).toBe(1_000_000);
+    expect(withRequest.suggestions.find((x: any) => x.ein === DOGWOOD).components.find((c: any) => c.key === "size").reason).toMatch(/within its usual grant range/);
+    expect((await api("GET", `/grants/applicants/${orgId}/foundation-suggestions?request=-5`)).status).toBe(400);
+    expect((await api("GET", `/grants/applicants/${orgId}/foundation-suggestions?cause=Z`)).status).toBe(400);
+    // Choosing a cause replaces the profile's; Birch gave in NC only for museum programs (arts), so it now appears, flagged invitation only.
+    const arts = (await api("GET", `/grants/applicants/${orgId}/foundation-suggestions?cause=A`)).data;
+    expect(arts.causes).toEqual([{ key: "A", label: "Arts, culture and humanities", from: "your choice" }]);
+    const birchArts = arts.suggestions.find((x: any) => x.ein === BIRCH);
+    expect(birchArts.applicationPolicy.status).toBe("invitation_only");
+    expect(birchArts.cautions.some((c: string) => /preselected/.test(c))).toBe(true);
+    const hidden = (await api("GET", `/grants/applicants/${orgId}/foundation-suggestions?cause=A&hideInvitationOnly=true`)).data;
+    expect(hidden.suggestions.find((x: any) => x.ein === BIRCH)).toBeUndefined();
 
     // Another workspace cannot read this organization's suggestions.
     expect((await client(OTHER)("GET", `/grants/applicants/${orgId}/foundation-suggestions`)).status).toBe(404);

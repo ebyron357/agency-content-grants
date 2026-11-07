@@ -4,9 +4,10 @@ import { ArrowLeft, Landmark, Search, Sparkles } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, LoadingState } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Field, Notice, ReasonList, selectClass } from '@/components/grants/GrantUi';
+import { Field, Notice, ReasonList, ScoreBadge, selectClass } from '@/components/grants/GrantUi';
 import { errorMessage, useApplicants } from '@/lib/grants';
-import { HISTORY_LABEL, US_STATES, useFoundationMeta, useFoundationSuggestions, useFunderSearch, usd, years, type FunderSummary, type SearchParams } from '@/lib/foundations';
+import { HISTORY_LABEL, NO_SUGGESTION_FILTERS, US_STATES, requestAmount, useFoundationMeta, useFoundationSuggestions, useFunderSearch, usd, years, type FunderSummary, type SearchParams, type Suggestion, type SuggestionParams } from '@/lib/foundations';
+import { ComponentList, FilingLinkRow, PolicyBadge } from '@/components/grants/FoundationUi';
 
 /** Grant Studio → Foundations: search funders by their giving history and suggest some for an organization. */
 export default function GrantFoundations() {
@@ -40,7 +41,7 @@ export default function GrantFoundations() {
       </div>
 
       <div className="space-y-6">
-        <SuggestionsPanel />
+        <SuggestionsPanel causes={meta.data?.causes ?? []} />
 
         <Panel>
           <PanelHeader title="Search funders" icon={<Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />} description={meta.data ? `${meta.data.funders.toLocaleString('en-US')} funders imported.` : undefined} />
@@ -104,57 +105,118 @@ function FunderRow({ funder: f }: { funder: FunderSummary }) {
           {f.topCauses.length ? ` · ${f.topCauses.map((c) => c.label).join(', ')}` : ''}
         </p>
       </div>
-      <p className="shrink-0 text-sm tabular-nums text-foreground">{usd(f.totalPaidUsd)} <span className="text-xs text-muted-foreground">in {f.grantCount.toLocaleString('en-US')} grants</span></p>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+        <PolicyBadge policy={f.applicationPolicy} />
+        <p className="text-sm tabular-nums text-foreground">{usd(f.totalPaidUsd)} <span className="text-xs text-muted-foreground">in {f.grantCount.toLocaleString('en-US')} grants</span></p>
+      </div>
     </li>
   );
 }
 
-/** Funders that gave in the organization's state and to its causes, with the reasons. */
-function SuggestionsPanel() {
+/** Funders ranked for an organization from their giving history, each with its reasons and its filing. */
+function SuggestionsPanel({ causes }: { causes: { key: string; label: string }[] }) {
   const orgs = useApplicants();
   const [orgId, setOrgId] = useState('');
+  const [draft, setDraft] = useState<SuggestionParams>(NO_SUGGESTION_FILTERS);
+  const [params, setParams] = useState<SuggestionParams>(NO_SUGGESTION_FILTERS);
   const chosen = orgId || orgs.data?.[0]?.id || '';
-  const s = useFoundationSuggestions(chosen);
-  if (!orgs.data?.length) return null;
+  const s = useFoundationSuggestions(chosen, params);
+  if (orgs.isLoading) return <Panel><LoadingState label="Loading your organizations…" className="min-h-0" /></Panel>;
+  if (orgs.isError) return <Panel><div className="px-5 py-4"><Notice tone="error">{errorMessage(orgs.error)}</Notice></div></Panel>;
+  if (!orgs.data?.length) {
+    return (
+      <Panel>
+        <PanelHeader title="Funders matched to your organization" icon={<Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />} />
+        <div className="px-5 py-4">
+          <Notice title="Add an organization first" action={<Button asChild size="sm" variant="secondary"><Link href="/grant-studio">Grant Studio</Link></Button>}>
+            Suggestions compare funders’ giving with an organization’s state, causes and budget. Add one in Grant Studio to see them.
+          </Notice>
+        </div>
+      </Panel>
+    );
+  }
+  const badRequest = draft.request.trim() !== '' && requestAmount(draft.request) === null;
+
+  function apply(e: FormEvent) {
+    e.preventDefault();
+    if (!badRequest) setParams(draft);
+  }
+
   return (
     <Panel>
-      <PanelHeader title="Funders who gave in your state for your cause" icon={<Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />} description="A starting point for research, from past giving. Not an eligibility decision." />
+      <PanelHeader
+        title="Funders matched to your organization"
+        icon={<Sparkles className="h-4 w-4 text-brand" aria-hidden="true" />}
+        description="Ranked by giving in your state, to your cause, grant size, and how recently and steadily they gave. Guidance for research, not an eligibility decision."
+      />
       <div className="space-y-4 px-5 py-4">
-        <Field label="Organization" className="max-w-sm">
-          <select className={selectClass} value={chosen} onChange={(e) => setOrgId(e.target.value)}>
-            {orgs.data.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
-        </Field>
+        <form onSubmit={apply} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_12rem_auto] lg:items-end">
+          <Field label="Organization">
+            <select className={selectClass} value={chosen} onChange={(e) => setOrgId(e.target.value)}>
+              {orgs.data.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Cause (NTEE)">
+            <select className={selectClass} value={draft.cause} onChange={(e) => setDraft({ ...draft, cause: e.target.value })}>
+              <option value="">From the organization’s profile</option>
+              {causes.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Request amount (optional)" hint={badRequest ? 'Enter a whole dollar amount, for example 25000.' : undefined}>
+            <Input inputMode="numeric" value={draft.request} aria-invalid={badRequest || undefined} onChange={(e) => setDraft({ ...draft, request: e.target.value })} placeholder="For example 25000" />
+          </Field>
+          <Button type="submit" variant="secondary" disabled={badRequest}>Update</Button>
+          <label className="flex items-center gap-2 text-sm text-foreground sm:col-span-2 lg:col-span-4">
+            <input type="checkbox" className="h-4 w-4 accent-primary" checked={draft.hideInvitationOnly} onChange={(e) => { const next = { ...draft, hideInvitationOnly: e.target.checked }; setDraft(next); if (!badRequest) setParams(next); }} />
+            Hide funders whose latest filing says they accept no unsolicited requests
+          </label>
+        </form>
         {s.isLoading ? (
-          <p role="status" className="text-sm text-muted-foreground">Finding funders…</p>
+          <LoadingState label="Ranking funders…" className="min-h-0" />
         ) : s.isError || !s.data ? (
-          <Notice tone="error">{errorMessage(s.error)}</Notice>
+          <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={() => void s.refetch()}>Try again</Button>}>{errorMessage(s.error)}</Notice>
         ) : s.data.missing ? (
           <Notice title="More profile detail needed" action={<Button asChild size="sm" variant="secondary"><Link href={`/grant-studio/organizations/${chosen}`}>Edit profile</Link></Button>}>{s.data.missing}</Notice>
         ) : (
           <>
             <p className="text-xs text-muted-foreground">
-              Looking for funders that gave in {s.data.state} and to: {s.data.causes.map((c) => `${c.label} (from your ${c.from})`).join('; ')}.
+              Funders that gave in {s.data.state} and to: {s.data.causes.map((c) => `${c.label} (from ${c.from === 'your choice' ? 'your choice' : `your ${c.from}`})`).join('; ')}.
+              {s.data.requestUsd ? ` Grant size compared with your request of ${usd(s.data.requestUsd)}.` : s.data.annualBudget ? ` Grant size compared with your annual budget of ${usd(s.data.annualBudget)}.` : ' Add an annual budget or a request amount to compare grant sizes.'}
             </p>
             {s.data.suggestions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No imported funder gave in {s.data.state} and to these causes.</p>
+              <p className="text-sm text-muted-foreground">No imported funder gave in {s.data.state} and to these causes{params.hideInvitationOnly ? ' (funders that accept no unsolicited requests are hidden)' : ''}.</p>
             ) : (
-              <ul className="divide-y divide-border rounded-xl border border-border">
-                {s.data.suggestions.map((f) => (
-                  <li key={f.ein} className="space-y-2 px-4 py-3">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <Link href={`/grant-studio/foundations/${f.ein}`} className="font-medium text-foreground underline-offset-4 hover:underline">{f.name}</Link>
-                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Landmark className="h-3.5 w-3.5" aria-hidden="true" /> {usd(f.inStateUsd)} in {s.data.state}</span>
-                    </div>
-                    <ReasonList items={f.reasons} kind="reason" />
-                  </li>
-                ))}
-              </ul>
+              <ol className="space-y-3" aria-label="Matched funders, best first">
+                {s.data.suggestions.map((f, i) => <SuggestionCard key={f.ein} rank={i + 1} funder={f} state={s.data!.state ?? ''} />)}
+              </ol>
             )}
             <p className="text-xs text-muted-foreground">{s.data.note}</p>
           </>
         )}
       </div>
     </Panel>
+  );
+}
+
+function SuggestionCard({ funder: f, rank, state }: { funder: Suggestion; rank: number; state: string }) {
+  return (
+    <li className="space-y-3 rounded-xl border border-border px-4 py-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">#{rank}</p>
+          <Link href={`/grant-studio/foundations/${f.ein}`} className="font-medium text-foreground underline-offset-4 hover:underline">{f.name}</Link>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            EIN {f.einFormatted}{f.state ? ` · ${f.state}` : ''} · {years(f.firstTaxYear, f.lastTaxYear)} · <Landmark className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> {usd(f.inStateUsd)} in {state}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {typeof f.score === 'number' && <ScoreBadge score={f.score} />}
+          <PolicyBadge policy={f.applicationPolicy} />
+        </div>
+      </div>
+      {f.components?.length ? <ComponentList items={f.components} /> : <ReasonList items={f.reasons} kind="reason" />}
+      {f.cautions?.length ? <ReasonList items={f.cautions} kind="gap" /> : null}
+      <FilingLinkRow filing={f.filing} label="Latest filing counted" />
+    </li>
   );
 }

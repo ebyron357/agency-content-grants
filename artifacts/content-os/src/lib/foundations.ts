@@ -12,6 +12,22 @@ export interface Share {
   share: number;
 }
 
+/** Form 990-PF Part XIV line 2, with the tax year it came from. "unknown" is never a guess either way. */
+export interface ApplicationPolicy {
+  status: 'invitation_only' | 'accepts_applications' | 'unknown';
+  label: string;
+  taxYear: number | null;
+  objectId: string | null;
+  detail: string;
+}
+
+export interface FilingLinks {
+  objectId: string | null;
+  irsDownloads: string;
+  propublica: string | null;
+  note: string;
+}
+
 export interface FunderSummary {
   ein: string;
   einFormatted: string;
@@ -24,6 +40,8 @@ export interface FunderSummary {
   lastTaxYear: number | null;
   medianGrantUsd: number | null;
   topCauses: Share[];
+  /** Absent from responses of servers older than this field. */
+  applicationPolicy?: ApplicationPolicy;
   label: string;
 }
 
@@ -43,6 +61,8 @@ export interface FunderProfile extends FunderSummary {
   grantSize: { count?: number; min?: number; max?: number; p25?: number; median?: number; p75?: number };
   recentGrants: { recipientName: string; recipientCity: string | null; recipientState: string | null; recipientEin: string | null; amountUsd: number; taxYear: number; purpose: string | null; cause: string | null; objectId: string }[];
   filings: { taxPeriodEnd: string; objectId: string }[];
+  applicationInfo?: { formAndMaterials?: string; deadlines?: string; restrictions?: string };
+  applicationPolicyFiling?: (FilingLinks & { taxYear: number | null; taxPeriodEnd: string | null }) | null;
   source: {
     name: string;
     repo: string;
@@ -53,7 +73,7 @@ export interface FunderProfile extends FunderSummary {
     latestTaxYear: number | null;
     latestTaxPeriodEnd: string | null;
     latestSubmittedOn: string | null;
-    filing: { objectId: string | null; irsDownloads: string; propublica: string | null; note: string };
+    filing: FilingLinks;
     updatedAt: string;
   };
 }
@@ -67,13 +87,44 @@ export interface FoundationMeta {
   importJob: { id: string; status: string } | null;
 }
 
+export interface MatchComponent {
+  key: 'state' | 'cause' | 'size' | 'recency' | 'consistency';
+  label: string;
+  points: number;
+  max: number;
+  reason: string;
+}
+
+export interface Suggestion extends FunderSummary {
+  inStateUsd: number;
+  reasons: string[];
+  score?: number;
+  components?: MatchComponent[];
+  cautions?: string[];
+  causeUsd?: number;
+  filing?: FilingLinks;
+  filings?: { taxPeriodEnd: string; objectId: string }[];
+}
+
 export interface Suggestions {
   label: string;
   state: string | null;
   causes: { key: string; label: string; from: string }[];
+  causesFromProfile?: { key: string; label: string; from: string }[];
+  annualBudget?: number | null;
+  requestUsd?: number | null;
+  latestDataYear?: number;
   note: string;
   missing?: string;
-  suggestions: (FunderSummary & { inStateUsd: number; reasons: string[] })[];
+  suggestions: Suggestion[];
+}
+
+export interface SuggestionParams {
+  /** NTEE major group letter; empty uses the organization's profile. */
+  cause: string;
+  /** Whole dollars, as typed; empty compares with the annual budget. */
+  request: string;
+  hideInvitationOnly: boolean;
 }
 
 export interface SearchParams {
@@ -96,8 +147,30 @@ function query(p: SearchParams): string {
 export const useFoundationMeta = () => useQuery({ queryKey: ['foundations', 'meta'], queryFn: () => apiGet<FoundationMeta>('/grants/foundations/meta') });
 export const useFunderSearch = (p: SearchParams) => useQuery({ queryKey: ['foundations', 'search', p], queryFn: () => apiGet<FunderSearch>(`/grants/foundations${query(p)}`) });
 export const useFunder = (ein: string) => useQuery({ queryKey: ['foundations', 'funder', ein], queryFn: () => apiGet<FunderProfile>(`/grants/foundations/${encodeURIComponent(ein)}`), enabled: ein !== '' });
-export const useFoundationSuggestions = (applicantId: string) =>
-  useQuery({ queryKey: ['foundations', 'suggestions', applicantId], queryFn: () => apiGet<Suggestions>(`/grants/applicants/${encodeURIComponent(applicantId)}/foundation-suggestions`), enabled: applicantId !== '' });
+/** A typed request amount in whole dollars, or null when it is empty or not a positive number. */
+export function requestAmount(text: string): number | null {
+  const amount = text.replace(/[$,\s]/g, '');
+  return /^\d+(\.\d+)?$/.test(amount) && Number(amount) > 0 ? Math.round(Number(amount)) : null;
+}
+
+function suggestionQuery(p: SuggestionParams): string {
+  const s = new URLSearchParams();
+  if (p.cause) s.set('cause', p.cause);
+  const amount = requestAmount(p.request);
+  if (amount) s.set('request', String(amount));
+  if (p.hideInvitationOnly) s.set('hideInvitationOnly', 'true');
+  const text = s.toString();
+  return text ? `?${text}` : '';
+}
+
+export const NO_SUGGESTION_FILTERS: SuggestionParams = { cause: '', request: '', hideInvitationOnly: false };
+
+export const useFoundationSuggestions = (applicantId: string, p: SuggestionParams = NO_SUGGESTION_FILTERS) =>
+  useQuery({
+    queryKey: ['foundations', 'suggestions', applicantId, p],
+    queryFn: () => apiGet<Suggestions>(`/grants/applicants/${encodeURIComponent(applicantId)}/foundation-suggestions${suggestionQuery(p)}`),
+    enabled: applicantId !== '',
+  });
 
 export const usd = (n: number | null | undefined) => (n == null ? '—' : `$${Math.round(n).toLocaleString('en-US')}`);
 

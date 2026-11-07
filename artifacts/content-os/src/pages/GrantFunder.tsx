@@ -4,7 +4,8 @@ import { PageHeader, PageShell, Panel, PanelHeader, LoadingState, StateMessage }
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/grants/GrantUi';
 import { errorMessage } from '@/lib/grants';
-import { HISTORY_LABEL, useFunder, usd, years, type Share } from '@/lib/foundations';
+import { HISTORY_LABEL, useFunder, usd, years, type FunderProfile, type Share } from '@/lib/foundations';
+import { FilingLinkRow, PolicyBadge } from '@/components/grants/FoundationUi';
 
 /** One funder's giving history, with its source filing. */
 export default function GrantFunder() {
@@ -35,6 +36,8 @@ export default function GrantFunder() {
           These are grants the funder reported paying. They show what it has funded, not that it is accepting applications. Check its own instructions before you approach it.
         </Notice>
       </div>
+
+      <ApplicationsPanel funder={f} />
 
       <dl className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
@@ -148,5 +151,38 @@ function ShareTable({ rows, caption, heading }: { rows: Share[]; caption: string
         ))}
       </tbody>
     </table>
+  );
+}
+
+const INFO_LABELS: [keyof NonNullable<FunderProfile['applicationInfo']>, string][] = [
+  ['formAndMaterials', 'What to send'],
+  ['deadlines', 'Deadlines'],
+  ['restrictions', 'Limits on awards'],
+];
+
+/** Form 990-PF Part XIV line 2, as filed: whether it accepts unsolicited requests, and how to apply. */
+function ApplicationsPanel({ funder: f }: { funder: FunderProfile }) {
+  const policy = f.applicationPolicy;
+  const info = f.applicationInfo ?? {};
+  const rows = INFO_LABELS.filter(([k]) => info[k]);
+  return (
+    <Panel className="mb-6">
+      <PanelHeader title="Does it accept applications?" description="From the funder’s own Form 990-PF (Part XIV line 2). Filings lag by one to two years; confirm on the funder’s site." />
+      <div className="space-y-3 px-5 py-4 text-sm text-muted-foreground">
+        <PolicyBadge policy={policy} />
+        <p>{policy?.detail ?? 'Not known: this server has not read the filing that says.'}</p>
+        {rows.length > 0 && (
+          <dl className="grid gap-3 sm:grid-cols-3">
+            {rows.map(([k, label]) => (
+              <div key={k} className="rounded-xl border border-border bg-background px-3 py-2">
+                <dt className="text-xs text-muted-foreground">{label}, as filed</dt>
+                <dd className="mt-1 text-xs text-foreground">{info[k]}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <FilingLinkRow filing={f.applicationPolicyFiling} label={f.applicationPolicyFiling?.taxYear ? `Tax year ${f.applicationPolicyFiling.taxYear} filing` : 'Filing'} />
+      </div>
+    </Panel>
   );
 }
