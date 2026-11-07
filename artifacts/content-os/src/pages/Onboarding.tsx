@@ -21,11 +21,11 @@ const STEPS: { key: Step; label: string }[] = [
   { key: 'results', label: 'First matches' },
 ];
 
-const TYPES: { key: ApplicantType; label: string }[] = [
-  { key: 'nonprofit_501c3', label: 'Nonprofit, 501(c)(3)' },
-  { key: 'nonprofit_other', label: 'Nonprofit, other' },
-  { key: 'small_business', label: 'Small business' },
-  { key: 'for_profit', label: 'Other for-profit' },
+const TYPES: { type: ApplicantType; label: string }[] = [
+  { type: 'nonprofit_501c3', label: 'Nonprofit, 501(c)(3)' },
+  { type: 'nonprofit_other', label: 'Nonprofit, other' },
+  { type: 'small_business', label: 'Small business' },
+  { type: 'for_profit', label: 'Other for-profit' },
 ];
 
 /** The values from the IRS records a person ticks before they are used. */
@@ -308,8 +308,8 @@ export default function Onboarding() {
             <legend className="mb-2 text-sm font-medium text-foreground">What kind of organization is it?</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {TYPES.map((t) => (
-                <label key={t.key} className={cn('flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm focus-within:ring-2 focus-within:ring-brand', profile.applicantType === t.key ? 'border-brand/60 bg-brand/10 text-foreground' : 'border-border bg-background text-foreground hover:bg-secondary')}>
-                  <input type="radio" name="applicant-type" className="h-4 w-4 accent-[hsl(var(--brand))]" checked={profile.applicantType === t.key} onChange={() => setProfile({ ...profile, applicantType: t.key })} />
+                <label key={t.type} className={cn('flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm focus-within:ring-2 focus-within:ring-brand', profile.applicantType === t.type ? 'border-brand/60 bg-brand/10 text-foreground' : 'border-border bg-background text-foreground hover:bg-secondary')}>
+                  <input type="radio" name="applicant-type" className="h-4 w-4 accent-[hsl(var(--brand))]" checked={profile.applicantType === t.type} onChange={() => setProfile({ ...profile, applicantType: t.type })} />
                   {t.label}
                 </label>
               ))}
