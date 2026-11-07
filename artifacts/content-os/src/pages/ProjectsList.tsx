@@ -110,7 +110,7 @@ export default function ProjectsList() {
         <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
           <FolderKanban className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm font-semibold text-foreground">No documents yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">Describe what you want to write and Content OS will build the brief, research plan, outline and first draft.</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">Describe what you want to write and GrantCrest will build the brief, research plan, outline and first draft.</p>
           <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4" aria-hidden="true" /> Create your first document
           </Link>

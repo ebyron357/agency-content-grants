@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Content OS — Integration Test Suite
+# GrantCrest — Integration Test Suite
 # =============================================================================
 # Tests run against the actual running API server (http://localhost:8080).
 # Uses jq for JSON parsing. Pass --skip-e2e to skip the real-AI E2E section.
@@ -79,7 +79,7 @@ if [[ -z "$BRAND_ID" ]]; then
 fi
 
 echo "============================================================"
-echo "Content OS — Integration Tests"
+echo "GrantCrest — Integration Tests"
 echo "API: $API"
 echo "============================================================"
 

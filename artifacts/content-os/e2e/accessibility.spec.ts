@@ -18,7 +18,7 @@ test("login and authenticated core screens pass the accessibility gate", async (
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Sign in to Content OS" }),
+    page.getByRole("heading", { name: "Sign in to GrantCrest" }),
   ).toBeVisible();
   await expectNoSeriousViolations(page, "login");
 

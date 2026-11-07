@@ -109,7 +109,7 @@ if [[ "$REQUIRE_READY" == "1" ]]; then
 else
   log "  (SMOKE_REQUIRE_READY=0: readiness recorded, not enforced)"
 fi
-check "GET / serves the Content OS app shell" "200" "$(code ncurl "$BASE_URL/")"
+check "GET / serves the GrantCrest app shell" "200" "$(code ncurl "$BASE_URL/")"
 if ncurl "$BASE_URL/" | grep -q '<div id="root">'; then pass "App shell contains the React root"; else fail "App shell contains the React root" "root element missing"; fi
 for target in "$BASE_URL/" "$API/healthz"; do
   ncurl "$target" -D "$WORK/headers.txt" -o /dev/null
