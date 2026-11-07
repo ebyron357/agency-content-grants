@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Login from "@/pages/Login";
+import Landing from "@/pages/Landing";
+import Signup from "@/pages/Signup";
 import InviteAccept from "@/pages/InviteAccept";
 import MfaRequired from "@/pages/MfaRequired";
 import { useAuth } from "@/hooks/use-auth";
@@ -83,7 +85,7 @@ function AppLayout() {
 }
 
 function AuthGate() {
-  const { isAuthenticated, isLoading, mfaEnrollmentRequired, refetch } = useAuth();
+  const { isAuthenticated, isLoading, mfaEnrollmentRequired, signupOpen, refetch } = useAuth();
   // Invitation links work whether or not someone is signed in.
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname.slice(base.length);
@@ -103,7 +105,11 @@ function AuthGate() {
   }
 
   if (!isAuthenticated) {
-    return <Login onSuccess={refetch} />;
+    // With sign-up closed, every signed-out address shows the sign-in screen, as before.
+    if (!signupOpen) return <Login onSuccess={refetch} />;
+    if (path === "/signup") return <Signup onSuccess={refetch} />;
+    if (path === "/" || path === "") return <Landing />;
+    return <Login onSuccess={refetch} signupOpen />;
   }
 
   if (mfaEnrollmentRequired) {
