@@ -86,6 +86,9 @@ const tokenFrom = (m: EmailMessage) => /#token=([A-Za-z0-9_-]+)/.exec(m.text)?.[
 const lastTo = (email: string) => [...outbox].reverse().find((m) => m.to === email);
 const signupBody = (email: string, extra: Record<string, unknown> = {}) => ({ name: "Sam Synthetic", organizationName: `Synthetic Org ${STAMP}`, email, password: PASSWORD, ...extra });
 
+// Test files share one database and run in parallel, so count only the workspaces this file's sign-ups name.
+const ownWorkspaces = () => db.select({ id: workspacesTable.id }).from(workspacesTable).where(eq(workspacesTable.name, `Synthetic Org ${STAMP}`));
+
 beforeAll(() => {
   server = buildApp().listen(0);
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -109,13 +112,13 @@ afterAll(async () => {
 describe("self sign-up switched off (the default)", () => {
   it("changes nothing: no sign-up offered, every route a 404, nothing written", async () => {
     const visitor = person();
-    const before = (await db.select({ id: workspacesTable.id }).from(workspacesTable)).length;
+    const before = (await ownWorkspaces()).length;
     expect((await visitor("GET", "/auth/signup/status")).data).toEqual({ enabled: false });
     const attempt = await visitor("POST", "/auth/signup", signupBody(`off@${DOMAIN}`));
     expect(attempt.status).toBe(404);
     expect((await visitor("POST", "/auth/signup/verify", { token: "x".repeat(43) })).status).toBe(404);
     expect(await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.email, `off@${DOMAIN}`))).toEqual([]);
-    expect((await db.select({ id: workspacesTable.id }).from(workspacesTable)).length).toBe(before);
+    expect((await ownWorkspaces()).length).toBe(before);
     expect(outbox).toHaveLength(0);
     // Signed-out identity is as before, plus the closed sign-up (the web app then shows only the sign-in screen).
     expect((await visitor("GET", "/auth/me")).data).toEqual({ authenticated: false, isAdmin: false, mfaPending: false, signupOpen: false });
@@ -233,11 +236,11 @@ describe("self sign-up switched on", () => {
     expect((await visitor("POST", "/auth/signup", signupBody(email))).status).toBe(202);
     const token = tokenFrom(lastTo(email)!);
     await db.insert(membersTable).values({ id: randomUUID(), email, name: "Joined Meanwhile", passwordHash: await hashPassword(PASSWORD) });
-    const before = (await db.select({ id: workspacesTable.id }).from(workspacesTable)).length;
+    const before = (await ownWorkspaces()).length;
     const res = await visitor("POST", "/auth/signup/verify", { token });
     expect(res.status).toBe(409);
     expect(res.data.code).toBe("account_exists");
-    expect((await db.select({ id: workspacesTable.id }).from(workspacesTable)).length).toBe(before);
+    expect((await ownWorkspaces()).length).toBe(before);
   });
 
   it("checks the form, and expired or made-up links do not work", async () => {
