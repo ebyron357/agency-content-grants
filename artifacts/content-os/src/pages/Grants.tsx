@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ExternalLink, Search } from "lucide-react";
+import { GrantsGovNotice } from "@/components/layout/Brand";
 import {
   PageHeader,
   PageShell,
@@ -245,6 +246,7 @@ export default function Grants() {
           </li>
         </ul>
       </Panel>
+      <GrantsGovNotice className="mt-8" />
     </PageShell>
   );
 }

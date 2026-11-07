@@ -4,7 +4,7 @@
 
 | Level | Who | How | Use for |
 |---|---|---|---|
-| 1 | The user | This guide and `CLIENT_USER_MANUAL.md` | Sign-in, editing, export questions |
+| 1 | The user | **Help** in the app (`USER_GUIDE.md`), this guide and `CLIENT_USER_MANUAL.md` | Sign-in, editing, export questions |
 | 2 | Operator / owner (`ebyron357`) | Direct contact agreed at handoff (recorded in `CLIENT_ACCESS_HANDOFF_TEMPLATE.md`) | Access changes, outages, data restore, provider keys |
 | 3 | Engineering | GitHub issue in `ebyron357/agency-content-grants` with steps, time (UTC), URL and screenshot — **no passwords, keys or client content** | Reproducible defects and change requests |
 | Vendor | Render support (dashboard), AI provider support | Platform or provider outages |

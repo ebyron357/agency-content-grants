@@ -9,6 +9,7 @@ import InviteAccept from "@/pages/InviteAccept";
 import MfaRequired from "@/pages/MfaRequired";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingState } from "@/components/layout/Page";
+import { AppFooter } from "@/components/layout/Brand";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const BrandsList = lazy(() => import("@/pages/BrandsList"));
@@ -28,6 +29,7 @@ const GrantTemplates = lazy(() => import("@/pages/GrantTemplates"));
 const GrantTemplateEditor = lazy(() => import("@/pages/GrantTemplateEditor"));
 const GrantFoundations = lazy(() => import("@/pages/GrantFoundations"));
 const GrantFunder = lazy(() => import("@/pages/GrantFunder"));
+const Help = lazy(() => import("@/pages/Help"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
@@ -53,6 +55,8 @@ function AppLayout() {
         tabIndex={-1}
         className="min-w-0 flex-1 overflow-y-auto"
       >
+        <div className="flex min-h-full flex-col">
+        <div className="flex-1">
         <Suspense fallback={<RouteLoading />}>
           <Switch>
             <Route path="/" component={Create} />
@@ -74,9 +78,13 @@ function AppLayout() {
             <Route path="/grant-studio/templates/:key" component={GrantTemplateEditor} />
             <Route path="/grant-studio/foundations" component={GrantFoundations} />
             <Route path="/grant-studio/foundations/:ein" component={GrantFunder} />
+            <Route path="/help" component={Help} />
             <Route component={NotFound} />
           </Switch>
         </Suspense>
+        </div>
+        <AppFooter />
+        </div>
       </main>
     </div>
   );

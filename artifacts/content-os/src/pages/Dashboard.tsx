@@ -79,8 +79,8 @@ export default function Dashboard() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Command center"
-        title="Editorial command center"
+        eyebrow="Content"
+        title="Content dashboard"
         description={workspaceState}
         actions={
           <>
@@ -137,7 +137,7 @@ export default function Dashboard() {
       {stats.data && totalBrands === 0 && (
         <StateMessage
           title="Start with a brand"
-          description="A brand gives every piece a consistent voice, audience and point of view. It is the one thing Content OS needs before you create content."
+          description="A brand gives every piece a consistent voice, audience and point of view. It is the one thing GrantCrest needs before you create content."
           action={
             <Link href="/brands" className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
               <Plus className="h-4 w-4" aria-hidden="true" /> Add your first brand
@@ -153,6 +153,12 @@ export default function Dashboard() {
             {projects.isLoading && (
               <div className="space-y-3 p-5" role="status" aria-label="Loading projects">
                 {[0, 1, 2].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}
+              </div>
+            )}
+            {!projects.isLoading && continueWorking.length === 0 && totalBrands === 0 && (
+              <div className="px-6 py-10 text-center">
+                <p className="text-sm font-medium text-foreground">Nothing in progress yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Add a brand above, then create your first piece. Work in progress appears here so you can pick it back up.</p>
               </div>
             )}
             {!projects.isLoading && continueWorking.length === 0 && totalBrands > 0 && (

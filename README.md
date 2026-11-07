@@ -1,6 +1,14 @@
-# Content Machine (Content OS)
+# GrantCrest
 
-An evidence-first workspace for long-form content. A user describes what they want to write; Content Machine builds a brief, research plan, sources and claims ledger, outline and draft, then supports editing, quality review, repurposing, distribution and export. Output types: blog posts, articles, guides, manuals, SOPs, reports, white papers, e-books and newsletters.
+**GrantCrest** ([grantcrest.co](https://grantcrest.co)) is grant software for nonprofits, businesses and the agencies that write for them: find federal and state opportunities, research foundation funders by their past giving, draft applications from confirmed facts, keep budgets and formats in line with the notice, collect approvals and export a submission-ready package. Its grant workspace is **Grant Studio**. It also includes the Content Machine, an evidence-first workspace for long-form content.
+
+**Using GrantCrest?** Read the [user guide](docs/USER_GUIDE.md), written for grant writers and agency owners. It also opens inside the app from **Help**.
+
+This repository keeps its original name (`agency-content-grants`) and package names; only user-facing text carries the GrantCrest name.
+
+## Content Machine
+
+A user describes what they want to write; the Content Machine builds a brief, research plan, sources and claims ledger, outline and draft, then supports editing, quality review, repurposing, distribution and export. Output types: blog posts, articles, guides, manuals, SOPs, reports, white papers, e-books and newsletters.
 
 Delivered capabilities:
 
@@ -11,10 +19,11 @@ Delivered capabilities:
 - Automation API with scoped keys and signed webhooks (`docs/automation-api.md`).
 - One dark command-center design system across every screen (`docs/DESIGN_SYSTEM.md`), accessibility-gated in CI.
 
-Grants:
+## Grants
 
 - A curated grant resource directory at `/grants`: funding types, eligibility summaries, permitted uses, timing and official sources ([`docs/GRANT_RESOURCES.md`](docs/GRANT_RESOURCES.md)).
 - Grant Studio at `/grant-studio`: organization profiles, readiness, daily Grants.gov and California Grants Portal matching with stated reasons, alerts and deadline calendars, a sourced fact library, grounded AI drafting and review, budgets, approvals, the final DOCX package, saved writing, outcomes and an editable template registry ([`docs/GRANT_STUDIO.md`](docs/GRANT_STUDIO.md)). It never submits an application and never presents a match as an eligibility decision.
+- Grants.gov attribution: as the [Grants.gov API terms](https://grants.gov/api/terms-conditions) require, the app shows "This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services." on the grant screens and in the footer of every signed-in page.
 - Long-running AI and sync work runs on a durable background job queue ([`docs/BACKGROUND_JOBS.md`](docs/BACKGROUND_JOBS.md)).
 
 ## Status
@@ -30,7 +39,7 @@ pnpm workspace, TypeScript, Node 24.
 
 | Path | Role |
 |---|---|
-| `artifacts/content-os` | Frontend: React 19, Vite 7, Tailwind v4, Radix UI, TanStack Query, wouter, TipTap. Playwright + axe accessibility gate in `e2e/` |
+| `artifacts/content-os` | Frontend (the GrantCrest app): React 19, Vite 7, Tailwind v4, Radix UI, TanStack Query, wouter, TipTap. Playwright + axe accessibility gate in `e2e/` |
 | `artifacts/api-server` | Express 5 API: sessions, ownership-scoped CRUD, media and source upload, AI providers, exports, publishing, automation, `/api/healthz` (liveness + running commit) and `/api/readyz` (database, migrations, writable storage, production config). Serves the built frontend same-origin. Applies migrations at startup |
 | `lib/db` | Drizzle schema and SQL migrations (PostgreSQL 16) |
 | `lib/api-spec`, `lib/api-zod`, `lib/api-client-react` | OpenAPI spec and generated schemas/client (`pnpm --filter @workspace/api-spec run codegen`) |
@@ -98,4 +107,4 @@ Render blueprint [`render.yaml`](render.yaml): web service + managed PostgreSQL 
 
 ## Documentation
 
-Start at [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). User manual: [`docs/CLIENT_USER_MANUAL.md`](docs/CLIENT_USER_MANUAL.md). Operators: [`docs/ADMIN_OPERATIONS_MANUAL.md`](docs/ADMIN_OPERATIONS_MANUAL.md). Agent rules: [`AGENTS.md`](AGENTS.md). Which documents are current and which are historical: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](docs/DOCUMENT_OWNERSHIP_MAP.md).
+Start at [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). User guide (task by task, also in the app at `/help`): [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md). Full user manual: [`docs/CLIENT_USER_MANUAL.md`](docs/CLIENT_USER_MANUAL.md). Operators: [`docs/ADMIN_OPERATIONS_MANUAL.md`](docs/ADMIN_OPERATIONS_MANUAL.md). Agent rules: [`AGENTS.md`](AGENTS.md). Which documents are current and which are historical: [`docs/DOCUMENT_OWNERSHIP_MAP.md`](docs/DOCUMENT_OWNERSHIP_MAP.md).

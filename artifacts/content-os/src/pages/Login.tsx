@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PenLine } from 'lucide-react';
+import { BrandLockup } from '@/components/layout/Brand';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -84,15 +84,7 @@ export default function Login({ onSuccess }: LoginProps) {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
       <div className="relative w-full max-w-md">
         {/* Logo */}
-        <div className="mb-8 flex items-center justify-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand/30 bg-primary/15 text-brand">
-            <PenLine className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-foreground">Content OS</p>
-            <p className="mt-1 text-xs leading-none text-muted-foreground">Editorial command center</p>
-          </div>
-        </div>
+        <BrandLockup />
 
         {/* Card */}
         <div className="rounded-2xl border border-border bg-card p-7 shadow-2xl shadow-black/40 sm:p-9">
@@ -141,7 +133,7 @@ export default function Login({ onSuccess }: LoginProps) {
           ) : (
           <>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Welcome back</p>
-          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">Sign in to Content OS</h1>
+          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">Sign in to GrantCrest</h1>
           <p className="mb-7 text-sm leading-relaxed text-muted-foreground">Sign in with your email and password. Operators can leave email empty and use the team password.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">

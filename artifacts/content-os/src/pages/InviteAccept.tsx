@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { PenLine } from 'lucide-react';
+import { BrandLockup } from '@/components/layout/Brand';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -62,10 +62,7 @@ export default function InviteAccept({ token, onDone }: { token: string; onDone:
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center justify-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand/30 bg-primary/15 text-brand"><PenLine className="h-5 w-5" aria-hidden="true" /></div>
-          <p className="text-sm font-semibold text-foreground">Content OS</p>
-        </div>
+        <BrandLockup />
         <div className="rounded-2xl border border-border bg-card p-7 sm:p-9">
           {!info && !loadError && <p role="status" className="text-sm text-muted-foreground">Checking your invitation…</p>}
           {loadError && (
