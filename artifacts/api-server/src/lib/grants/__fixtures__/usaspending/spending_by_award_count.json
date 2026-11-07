@@ -1,0 +1,5 @@
+{
+  "_comment": "SYNTHETIC response shaped after usaspending-api api_contracts/contracts/v2/search/spending_by_award_count.md. Not a recorded live response (api.usaspending.gov was blocked by the build environment's proxy).",
+  "results": { "contracts": 0, "direct_payments": 0, "grants": 6, "idvs": 0, "loans": 0, "other": 0 },
+  "messages": []
+}

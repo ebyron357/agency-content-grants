@@ -9,7 +9,8 @@ import { FOUNDATION_IMPORT_KEY, foundationImportEnabled, foundationImportJob } f
 import { activeJob } from "../lib/jobs/queue";
 import { currentWorker } from "../lib/jobs/worker";
 import { NTEE_GROUPS } from "../lib/foundations/aggregate";
-import { CAUSES, HISTORY_LABEL, SOURCE, breakdown, causeLabel, causesFor, filingLinks, formatEin, stateLabel, suggestionReasons } from "../lib/foundations/profile";
+import { CAUSES, HISTORY_LABEL, SOURCE, breakdown, causeLabel, causesFor, filingLinks, formatEin, stateLabel } from "../lib/foundations/profile";
+import { WEIGHTS, policyView, rankFunders, type MatchFunder } from "../lib/foundations/matching";
 
 /**
  * Foundations (docs/GRANT_STUDIO.md, Foundations): search funders and read a
@@ -52,6 +53,7 @@ function summary(f: FoundationFunder) {
     lastTaxYear: f.lastTaxYear,
     medianGrantUsd: f.sizeStats.median ?? null,
     topCauses: breakdown(f.givingByCategory, Number(f.totalPaidUsd), causeLabel, 3),
+    applicationPolicy: policyView(f),
     label: HISTORY_LABEL,
   };
 }
@@ -121,6 +123,9 @@ router.get("/grants/foundations/:ein", async (req, res): Promise<void> => {
       amountUsd: Number(g.amountUsd), taxYear: g.taxYear, purpose: g.purpose, cause: g.category ? causeLabel(g.category) : null, objectId: g.objectId,
     })),
     filings: Object.entries(f.filings).map(([taxPeriodEnd, objectId]) => ({ taxPeriodEnd, objectId })).sort((a, b) => b.taxPeriodEnd.localeCompare(a.taxPeriodEnd)),
+    // Part XIV line 2b–2d as filed (no contact names), only from the filing the policy came from.
+    applicationInfo: policyView(f).status === "unknown" ? {} : f.applicationInfo,
+    applicationPolicyFiling: f.applicationPolicyObjectId ? { ...filingLinks(f.ein, f.applicationPolicyObjectId), taxYear: f.applicationPolicyTaxYear, taxPeriodEnd: f.applicationPolicyTaxPeriodEnd } : null,
     source: {
       ...SOURCE,
       datasetVersion: f.datasetVersion,
@@ -134,10 +139,14 @@ router.get("/grants/foundations/:ein", async (req, res): Promise<void> => {
 });
 
 /**
- * GET /grants/applicants/:id/foundation-suggestions: funders that paid grants
- * in the organization's state and to its causes, each with its reasons. A
- * guide to research, never an eligibility decision or an open call.
+ * GET /grants/applicants/:id/foundation-suggestions?request=&cause=&hideInvitationOnly=:
+ * funders ranked for the organization by giving in its state, to its causes
+ * (NTEE major groups), grant size against its budget or request, and how
+ * recently and steadily they gave. Each comes with its reasons and the filings
+ * behind them. Funding history and a guide to research: never an open call,
+ * never an eligibility decision.
  */
+const CANDIDATES = 300;
 router.get("/grants/applicants/:id/foundation-suggestions", async (req, res): Promise<void> => {
   const [applicant] = await db
     .select()
@@ -146,26 +155,48 @@ router.get("/grants/applicants/:id/foundation-suggestions", async (req, res): Pr
     .limit(1);
   if (!applicant) return fail(res, 404, "Organization not found");
   const state = applicant.state?.trim().toUpperCase() ?? "";
-  const causes = causesFor({ state, focusAreas: applicant.focusAreas, mission: applicant.mission });
-  const base = { label: HISTORY_LABEL, state: state || null, causes, note: "Suggestions come from past giving in tax filings. They are a starting point for research, not an eligibility decision and not an open call. Many private foundations do not accept unsolicited proposals; check each funder's own instructions." };
+  const extra = queryText(req, "cause", 30).toUpperCase().split(",").map((c) => c.trim()).filter(Boolean);
+  if (extra.some((c) => !NTEE_GROUPS[c] || c === "Z")) return fail(res, 400, "cause must be NTEE major group letters (A to Y)");
+  const requestText = queryText(req, "request", 15);
+  const requestUsd = requestText ? Number(requestText) : null;
+  if (requestUsd !== null && (!Number.isFinite(requestUsd) || requestUsd <= 0 || requestUsd > 1e10)) return fail(res, 400, "request must be a positive amount in dollars");
+  const hideInvitationOnly = req.query.hideInvitationOnly === "true";
+  const fromProfile = causesFor({ state, focusAreas: applicant.focusAreas, mission: applicant.mission });
+  const causes = extra.length ? extra.map((key) => ({ key, label: causeLabel(key), from: "your choice" })) : fromProfile;
+  const base = {
+    label: HISTORY_LABEL,
+    state: state || null,
+    causes,
+    causesFromProfile: fromProfile,
+    annualBudget: applicant.annualBudget,
+    requestUsd,
+    weights: WEIGHTS,
+    note: "Suggestions come from past giving in tax filings. They are a starting point for research, not an eligibility decision and not an open call. Many private foundations do not accept unsolicited proposals; check each funder's own instructions.",
+  };
   if (!STATE.test(state)) return void res.json({ ...base, missing: "Add the organization's two-letter state to see funders that gave there.", suggestions: [] });
   if (!causes.length) return void res.json({ ...base, missing: "Add focus areas (for example literacy, food security, housing) to see funders that gave to your causes.", suggestions: [] });
   const keys = causes.map((c) => c.key);
   const inState = sql`COALESCE((${foundationFundersTable.givingByState} ->> ${state})::bigint, 0)`;
   const causeGiving = sql.join(keys.map((k) => sql`COALESCE((${foundationFundersTable.givingByCategory} ->> ${k})::bigint, 0)`), sql` + `);
+  // Candidates: funders that gave both in the state and to a cause, the largest in-state givers first; then scored on every factor.
   const rows = await db
     .select()
     .from(foundationFundersTable)
     .where(and(sql`${inState} > 0`, sql`(${causeGiving}) > 0`))
     .orderBy(desc(inState), asc(foundationFundersTable.ein))
-    .limit(10);
+    .limit(CANDIDATES);
+  const [{ latest }] = await db.select({ latest: sql<number | null>`max(${foundationFundersTable.lastTaxYear})` }).from(foundationFundersTable);
+  const latestDataYear = Number(latest) || new Date().getUTCFullYear() - 2;
+  const byEin = new Map(rows.map((r) => [r.ein, r]));
+  const ranked = rankFunders(rows.map((r): MatchFunder => ({ ...r, totalPaidUsd: Number(r.totalPaidUsd) })), { state, causes, annualBudget: applicant.annualBudget, requestUsd }, latestDataYear, { limit: 10, hideInvitationOnly });
   res.json({
     ...base,
-    suggestions: rows.map((f) => ({
-      ...summary(f),
-      inStateUsd: Number(f.givingByState[state] ?? 0),
-      reasons: suggestionReasons({ ...f, totalPaidUsd: Number(f.totalPaidUsd) }, state, causes),
-    })),
+    latestDataYear,
+    candidates: rows.length,
+    suggestions: ranked.map((m) => {
+      const f = byEin.get(m.ein)!;
+      return { ...summary(f), ...m, label: HISTORY_LABEL };
+    }),
   });
 });
 

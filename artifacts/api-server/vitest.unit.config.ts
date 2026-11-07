@@ -35,6 +35,8 @@ export default defineConfig({
       "src/lib/jobs/jobs.unit.test.ts",
       "src/lib/grants/templateRegistry.unit.test.ts",
       "src/lib/foundations/foundations.unit.test.ts",
+      "src/lib/foundations/matching.unit.test.ts",
+      "src/lib/grants/usaspending.unit.test.ts",
       "src/lib/onboarding/onboarding.unit.test.ts",
       "src/lib/grants/sources/sources.unit.test.ts",
       "src/lib/ai/providerRequest.test.ts",

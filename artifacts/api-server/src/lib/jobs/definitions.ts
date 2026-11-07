@@ -119,6 +119,26 @@ export const FOUNDATION_IMPORT_KEY = "foundation_import";
 
 /** Off unless the owner sets FOUNDATIONS_IMPORT_ENABLED=true: no import runs, by schedule or by hand, until then. */
 export const foundationImportEnabled = () => process.env.FOUNDATIONS_IMPORT_ENABLED === "true";
+// ── Past federal awards (USAspending) ───────────────────────────────────────────
+// Reads one Assistance Listing's recent grants into usaspending_award_cache. A
+// retry is safe: each run replaces the listing's row.
+
+export const usaspendingAwardsJob = defineJob<{ programNumber: string }>({
+  kind: "usaspending_awards",
+  label: "Read past federal awards from USAspending",
+  maxAttempts: 2,
+  timeoutMs: 2 * 60_000,
+  backoffMs: exponentialBackoff(60_000, 10 * 60_000),
+  concurrency: 1,
+  run: async ({ payload, signal }) => {
+    const { refreshListing } = await import("../grants/pastAwards");
+    return { ...(await refreshListing(payload.programNumber, { signal })) };
+  },
+});
+
+/** One read per listing queued or running at a time. */
+export const usaspendingKey = (programNumber: string) => `usaspending:${programNumber}`;
+
 // ── Source registry (docs/SOURCE_REGISTRY.md) ────────────────────────────────
 
 export const sourceExtractJob = defineJob<{ checkId: string }>({

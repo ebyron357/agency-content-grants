@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC test filing: every name, EIN, address and amount is invented. Shaped like an IRS 2023v4.0 Form 990-PF e-file return. -->
+<Return xmlns="http://www.irs.gov/efile" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" returnVersion="2023v4.0">
+  <ReturnHeader binaryAttachmentCnt="0">
+    <ReturnTs>2025-04-02T10:00:00-05:00</ReturnTs>
+    <TaxPeriodEndDt>2024-12-31</TaxPeriodEndDt>
+    <PreparerFirmGrp>
+      <PreparerFirmEIN>999999999</PreparerFirmEIN>
+    </PreparerFirmGrp>
+    <ReturnTypeCd>990PF</ReturnTypeCd>
+    <TaxPeriodBeginDt>2024-01-01</TaxPeriodBeginDt>
+    <Filer>
+      <EIN>000000101</EIN>
+      <BusinessName>
+        <BusinessNameLine1Txt>ALDER SYNTHETIC FAMILY FOUNDATION INC</BusinessNameLine1Txt>
+      </BusinessName>
+      <USAddress>
+        <AddressLine1Txt>1 SYNTHETIC WAY</AddressLine1Txt>
+        <CityNm>DURHAM</CityNm>
+        <StateAbbreviationCd>NC</StateAbbreviationCd>
+        <ZIPCd>27701</ZIPCd>
+      </USAddress>
+    </Filer>
+    <TaxYr>2024</TaxYr>
+  </ReturnHeader>
+  <ReturnData documentCnt="1">
+    <IRS990PF documentId="IRS990PF">
+      <SupplementaryInformationGrp>
+        <ContributingManagerNm>NONE</ContributingManagerNm>
+        <ApplicationSubmissionInfoGrp>
+          <RecipientPersonNm>SYNTHETIC CONTACT PERSON</RecipientPersonNm>
+          <RecipientPhoneNum>5555550100</RecipientPhoneNum>
+          <FormAndInfoAndMaterialsTxt>A TWO-PAGE LETTER OF INQUIRY DESCRIBING THE PROGRAM, BUDGET AND IRS DETERMINATION LETTER</FormAndInfoAndMaterialsTxt>
+          <SubmissionDeadlinesTxt>MARCH 1 AND SEPTEMBER 1</SubmissionDeadlinesTxt>
+          <RestrictionsOnAwardsTxt>501(C)(3) ORGANIZATIONS IN NORTH CAROLINA; NO GRANTS TO INDIVIDUALS</RestrictionsOnAwardsTxt>
+        </ApplicationSubmissionInfoGrp>
+        <GrantOrContributionPdDurYrGrp>
+          <RecipientBusinessName>
+            <BusinessNameLine1Txt>PIEDMONT SYNTHETIC LITERACY COUNCIL</BusinessNameLine1Txt>
+          </RecipientBusinessName>
+          <Amt>120000</Amt>
+        </GrantOrContributionPdDurYrGrp>
+      </SupplementaryInformationGrp>
+    </IRS990PF>
+  </ReturnData>
+</Return>
