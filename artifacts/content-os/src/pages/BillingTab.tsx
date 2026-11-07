@@ -159,8 +159,8 @@ export default function BillingTab() {
     return (
       <Notice tone="info" title="Billing is off">
         {b.forcedOff
-          ? 'Billing is switched off on this server (BILLING_DISABLED). Nothing is limited and nobody is charged.'
-          : `Nothing is limited and nobody is charged. To switch billing on, the owner adds these settings on the server: ${b.missingSettings.join(', ')}.`}
+          ? 'Your GrantCrest administrator has turned billing off. Nothing is limited and nobody is charged.'
+          : `Nothing is limited and nobody is charged. Billing has not been set up yet; your GrantCrest administrator turns it on (server settings still needed: ${b.missingSettings.join(', ')}).`}
       </Notice>
     );
   }

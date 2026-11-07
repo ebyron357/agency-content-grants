@@ -5,6 +5,7 @@ import { withRequestContext } from "../lib/requestContext";
 
 // ── Public routers (no auth required) ────────────────────────────────────────
 import authRouter from "./auth";
+import signupRouter from "./signup"; // self sign-up — 404 unless SELF_SIGNUP_ENABLED=true and email is configured
 import healthRouter from "./health";
 import automationRouter from "./automation"; // action API — API-key-or-session auth handled internally
 import watchEventsRouter from "./watch-events"; // changedetection.io change notifications — shared secret checked internally
@@ -39,6 +40,7 @@ import workspaceRouter from "./workspace";
 import accountRouter from "./account";
 import jobsRouter from "./jobs";
 import billingRouter from "./billing";
+import onboardingRouter from "./onboarding";
 
 export const router = Router();
 
@@ -47,6 +49,7 @@ router.use(withRequestContext);
 
 // ── Public routes (must be mounted BEFORE requireAuth) ────────────────────────
 router.use(authRouter); // /auth/login, /auth/logout, /auth/me
+router.use(signupRouter); // /auth/signup, /auth/signup/verify, /auth/signup/status
 router.use(healthRouter); // /healthz
 router.use(watchEventsRouter); // /watch-events/changedetection — shared-secret header, checked inside the router
 // Session callers of the automation API get the same membership re-check and role
@@ -92,3 +95,4 @@ router.use(workspaceRouter);
 router.use(accountRouter);
 router.use(jobsRouter);
 router.use(billingRouter);
+router.use(onboardingRouter);

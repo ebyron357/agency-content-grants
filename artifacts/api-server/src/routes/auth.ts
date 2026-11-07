@@ -12,6 +12,7 @@ import { hashPassword, verifyPassword } from "../lib/password";
 import { permissionsOf } from "../lib/permissions";
 import { consumeSecondFactor } from "../lib/secondFactor";
 import { checkInviteAcceptance, limitResponse } from "../lib/billing/service";
+import { signupConfig } from "../lib/signup/config";
 import { memberSessionActive, revokeMemberSession, revokeMemberSessions, startMemberSession } from "../lib/memberSessions";
 import { ROLES, ensureAgencyWorkspace, hashToken, isRole, memberView, memberWorkspaces, membershipOf, normalizeEmail, passwordProblem, upgradeLegacySession, type WorkspaceAccess } from "../lib/workspaces";
 
@@ -79,7 +80,7 @@ let dummyHash: Promise<string> | null = null;
  * Regenerates the session (no fixation) and signs a member in to one workspace,
  * with a member_sessions row for this browser. The previous row, if any, ends.
  */
-async function signInMember(req: Request, res: Response, member: { id: string; name: string }, access: WorkspaceAccess, status = 200, method: "password" | "mfa" | "recovery_code" | "invite" = "password"): Promise<void> {
+export async function signInMember(req: Request, res: Response, member: { id: string; name: string }, access: WorkspaceAccess, status = 200, method: "password" | "mfa" | "recovery_code" | "invite" | "signup" = "password"): Promise<void> {
   await revokeMemberSession(req.session.memberSessionId);
   const memberSessionId = await startMemberSession(req, member.id, access.workspace.id, method);
   req.session.regenerate((err) => {
@@ -289,7 +290,13 @@ router.get("/auth/me", async (req, res) => {
   const authenticated = req.session.authenticated === true;
   if (!authenticated) {
     const pending = req.session.pendingMfa;
-    res.json({ authenticated: false, isAdmin: false, mfaPending: !!pending && Date.now() - pending.at < PENDING_MFA_MS });
+    res.json({
+      authenticated: false,
+      isAdmin: false,
+      mfaPending: !!pending && Date.now() - pending.at < PENDING_MFA_MS,
+      // Whether the public landing page and sign-up are offered (routes/signup.ts, docs/SELF_SIGNUP.md).
+      signupOpen: signupConfig().enabled,
+    });
     return;
   }
   await upgradeLegacySession(req.session);
@@ -318,7 +325,15 @@ router.get("/auth/me", async (req, res) => {
     authenticated: true,
     isAdmin: req.session.isAdmin === true,
     member,
-    workspace: workspace ? { id: workspace.id, name: workspace.name, kind: workspace.kind } : null,
+    workspace: workspace
+      ? {
+          id: workspace.id,
+          name: workspace.name,
+          kind: workspace.kind,
+          // A workspace its owner signed up for opens on the getting-started checklist until someone hides it.
+          firstRun: workspace.createdVia === "self_signup" && !workspace.onboardingDismissedAt,
+        }
+      : null,
     role: role ?? null,
     roleLabel: role && isRole(role) ? ROLES[role].label : null,
     permissions: permissionsOf(role),

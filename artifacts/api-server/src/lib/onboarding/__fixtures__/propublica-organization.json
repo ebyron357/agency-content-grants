@@ -1,0 +1,25 @@
+{
+  "_comment": "SYNTHETIC fixture in the documented shape of GET /nonprofits/api/v2/organizations/{ein}.json. Every name, EIN, address and amount is invented.",
+  "organization": {
+    "id": 201,
+    "ein": 201,
+    "name": "PIEDMONT SYNTHETIC LITERACY COUNCIL INC",
+    "careofname": null,
+    "address": "100 EXAMPLE ST",
+    "city": "DURHAM",
+    "state": "NC",
+    "zipcode": "27701-0000",
+    "subsection_code": 3,
+    "ntee_code": "B92",
+    "ruling_date": "2011-05-01",
+    "tax_period": 202212,
+    "revenue_amount": 398000,
+    "income_amount": 410000,
+    "asset_amount": 120000
+  },
+  "filings_with_data": [
+    { "tax_prd": 202212, "tax_prd_yr": 2022, "formtype": 0, "totrevenue": 398000, "totfuncexpns": 371000 },
+    { "tax_prd": 202312, "tax_prd_yr": 2023, "formtype": 0, "totrevenue": 412500, "totfuncexpns": 389000 }
+  ],
+  "filings_without_data": []
+}

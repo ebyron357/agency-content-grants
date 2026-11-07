@@ -15,7 +15,7 @@ export const TOTP_DIGITS = 6;
 /** Accept the previous and next step too, for clock drift. */
 export const TOTP_WINDOW = 1;
 export const RECOVERY_CODE_COUNT = 10;
-export const ISSUER = "Content Machine";
+export const ISSUER = "GrantCrest";
 
 const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 

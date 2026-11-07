@@ -53,7 +53,7 @@ describe("TOTP (RFC 6238 SHA-1 test vectors)", () => {
 
   it("builds an authenticator link", () => {
     const uri = otpauthUri("ABCDEFGH", "ana@example.org");
-    expect(uri).toBe("otpauth://totp/Content%20Machine%3Aana%40example.org?secret=ABCDEFGH&issuer=Content+Machine&algorithm=SHA1&digits=6&period=30");
+    expect(uri).toBe("otpauth://totp/GrantCrest%3Aana%40example.org?secret=ABCDEFGH&issuer=GrantCrest&algorithm=SHA1&digits=6&period=30");
     expect(groupSecret("ABCDEFGHIJ")).toBe("ABCD EFGH IJ");
   });
 });

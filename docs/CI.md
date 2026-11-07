@@ -23,7 +23,7 @@ Job **Format, typecheck, tests, build** (PostgreSQL 16 service container):
 7. Content OS tests: `pnpm --filter @workspace/content-os test`
 8. API and frontend builds, then an isolated API server
 9. Integration tests: `bash tests/integration-tests.sh` (no skips allowed)
-10. Authenticated accessibility gate: `pnpm --filter @workspace/content-os test:a11y` — Playwright + axe (WCAG 2.0/2.1 A/AA, serious and critical) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, 404 and all nine Project workflow tabs, plus dark-shell token, 390px navigation and no-horizontal-overflow assertions
+10. Authenticated accessibility gate: `pnpm --filter @workspace/content-os test:a11y` — Playwright + axe (WCAG 2.0/2.1 A/AA, serious and critical) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, Help, Grant Studio, Foundations, Grants, 404 and all nine Project workflow tabs, plus dark-shell token, 390px navigation, no-horizontal-overflow, GrantCrest title and Grants.gov notice assertions
 11. Production build: `pnpm run build`
 
 Job **Secret scan, dependency audit, SBOM**:

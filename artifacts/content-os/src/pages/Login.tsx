@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { PenLine } from 'lucide-react';
+import { BrandLockup } from '@/components/layout/Brand';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 interface LoginProps {
   onSuccess: () => void;
+  /** Show the link to self sign-up (the server's signupOpen, docs/SELF_SIGNUP.md). */
+  signupOpen?: boolean;
 }
 
-export default function Login({ onSuccess }: LoginProps) {
+export default function Login({ onSuccess, signupOpen = false }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -84,15 +86,7 @@ export default function Login({ onSuccess }: LoginProps) {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
       <div className="relative w-full max-w-md">
         {/* Logo */}
-        <div className="mb-8 flex items-center justify-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand/30 bg-primary/15 text-brand">
-            <PenLine className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-foreground">GrantCrest</p>
-            <p className="mt-1 text-xs leading-none text-muted-foreground">Editorial command center</p>
-          </div>
-        </div>
+        <BrandLockup />
 
         {/* Card */}
         <div className="rounded-2xl border border-border bg-card p-7 shadow-2xl shadow-black/40 sm:p-9">
@@ -188,6 +182,11 @@ export default function Login({ onSuccess }: LoginProps) {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+          {signupOpen && (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              New to GrantCrest? <a href={`${BASE}/signup`} className="font-medium text-brand underline underline-offset-4">Create an account</a>
+            </p>
+          )}
           </>
           )}
         </div>

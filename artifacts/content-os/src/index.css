@@ -86,23 +86,23 @@
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
 
-  /* Shell and layered charcoal surfaces */
-  --background: 223 30% 4.5%; /* #080a0f */
-  --foreground: 220 14% 96%; /* #f3f4f6 */
-  --card: 222 24% 8.2%; /* #10131a */
-  --card-foreground: 220 14% 96%;
-  --card-border: 223 20% 17.3%;
-  --popover: 223 26% 10.6%; /* #141822 */
-  --popover-foreground: 220 14% 96%;
-  --popover-border: 223 20% 20%;
-  --secondary: 221 23% 13.7%; /* raised controls #1b202b */
-  --secondary-foreground: 220 14% 96%;
-  --muted: 223 25% 11%; /* inset wells #151923 */
-  --muted-foreground: 218 10% 64%; /* #9aa1ad, >= 6.5:1 on every surface */
-  --accent: 221 24% 13.3%; /* hover surface */
-  --accent-foreground: 220 14% 96%;
-  --border: 223 20% 17.3%; /* soft low-contrast border */
-  --input: 222 18% 22%;
+  /* Shell and layered surfaces: warm charcoal (neutral, no blue cast) */
+  --background: 240 4.3% 9.0%; /* #161618 */
+  --foreground: 240 4.8% 95.9%; /* #f4f4f5 */
+  --card: 240 4.3% 13.5%; /* #212124 */
+  --card-foreground: 240 4.8% 95.9%; /* #f4f4f5 */
+  --card-border: 240 4.0% 24.5%; /* #3c3c41 */
+  --popover: 240 3.7% 15.9%; /* #27272a */
+  --popover-foreground: 240 4.8% 95.9%; /* #f4f4f5 */
+  --popover-border: 240 4.3% 27.1%; /* #424248 */
+  --secondary: 240 4.1% 19.2%; /* #2f2f33 */
+  --secondary-foreground: 240 4.8% 95.9%; /* #f4f4f5 */
+  --muted: 240 3.6% 16.3%; /* #28282b */
+  --muted-foreground: 240 4.5% 69.2%; /* #adadb4 */
+  --accent: 240 4.1% 19.2%; /* #2f2f33 */
+  --accent-foreground: 240 4.8% 95.9%; /* #f4f4f5 */
+  --border: 240 4.0% 24.5%; /* #3c3c41 */
+  --input: 240 4.0% 29.4%; /* #48484e */
 
   /* Warm red/coral brand: --primary fills actions (white text 4.8:1),
      --brand is the coral used for accent text and indicators (7:1+). */
@@ -119,13 +119,13 @@
   --destructive-foreground: 0 0% 100%;
 
   /* Navigation rail */
-  --sidebar: 225 27% 5.9%; /* #0b0d13 */
-  --sidebar-foreground: 220 14% 90%;
-  --sidebar-border: 223 20% 14%;
+  --sidebar: 240 5.5% 10.8%; /* #1a1a1d */
+  --sidebar-foreground: 240 5.9% 90.0%; /* #e4e4e7 */
+  --sidebar-border: 240 3.8% 20.4%; /* #323236 */
   --sidebar-primary: 358 65% 52.2%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 221 24% 12%;
-  --sidebar-accent-foreground: 220 14% 96%;
+  --sidebar-accent: 240 3.4% 17.5%; /* #2b2b2e */
+  --sidebar-accent-foreground: 240 4.8% 95.9%; /* #f4f4f5 */
   --sidebar-ring: 0 100% 73.7%;
 
   --chart-1: 0 100% 73.7%;
