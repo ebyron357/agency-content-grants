@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, count } from "drizzle-orm";
 import {
   db,
@@ -8,7 +8,9 @@ import {
   grantApplicationsTable,
   grantApprovalsTable,
   grantBudgetLinesTable,
+  grantClaimFlagsTable,
   grantFactsTable,
+  grantFederalFormsTable,
   grantNoticesTable,
   grantSnippetsTable,
   grantSupportLettersTable,
@@ -65,6 +67,7 @@ import { currentWorker, runJobNow } from "../lib/jobs/worker";
 import { daysUntil } from "../lib/grants/gate";
 import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
 import { CA_SOURCE } from "../lib/grants/california";
+import { STATE_SOURCE_LABELS } from "../lib/grants/states";
 import { PLACE_DESIGNATIONS, PLACE_STATUSES, effectiveStatus, isPlaceKind, needsRecheck, placeCatalog, validGeoRef, COUNTY_FIPS, TRACT_GEOID, type PlaceDesignations, type PlaceRecord } from "../lib/grants/places";
 import {
   DEFAULT_FORMAT,
@@ -85,6 +88,12 @@ import {
 import { checkNewOrganization, claimAiDraftedApplication, limitResponse } from "../lib/billing/service";
 import { calibration, rateCompetitiveness, type RatingBand } from "../lib/grants/competitiveness";
 import { FACT_CATEGORIES, SECTION_FACT_CATEGORIES, factLine, factsForSection, isFactCategory } from "../lib/grants/facts";
+import { flagView, syncClaimChecks } from "../lib/grants/claimsWork";
+import { CLAIM_KIND_LABELS } from "../lib/grants/claims";
+import { FORM_SHORT_LABELS, FORM_SOURCE, coerceValue, entryFields, formsCheck, type FormView } from "../lib/grants/federalForms/engine";
+import { formsContext, loadFormViews } from "../lib/grants/federalForms/store";
+import { buildFormsPdf, formRows, formsJson } from "../lib/grants/federalForms/render";
+import { isFederalFormKey, type FederalFormKey } from "../lib/grants/federalForms/types";
 
 /**
  * Grant Studio API (docs/GRANT_STUDIO.md).
@@ -240,7 +249,7 @@ function readinessView(applicant: GrantApplicant, items: (typeof grantReadinessI
 }
 
 /** Display names for each source, and California's own wording for the eligibility codes it maps to. */
-const SOURCE_LABELS: Record<string, string> = { grants_gov: "Grants.gov", [CA_SOURCE]: "California Grants Portal" };
+const SOURCE_LABELS: Record<string, string> = { grants_gov: "Grants.gov", [CA_SOURCE]: "California Grants Portal", ...STATE_SOURCE_LABELS };
 const CA_CODE_LABELS: Record<string, string> = { "12": "Nonprofit", "13": "Nonprofit", "22": "Business", "23": "Business", "25": "Other legal entity" };
 
 function eligibilityLabels(o: GrantOpportunity): string[] {
@@ -803,9 +812,30 @@ function noticeView(n: GrantNotice | undefined, rows: { noticeId: string | null;
   };
 }
 
+/** One section's claim check: when it ran, by which method, and its flags (open first). */
+function claimsView(section: typeof grantSectionsTable.$inferSelect, flags: (typeof grantClaimFlagsTable.$inferSelect)[]) {
+  const mine = flags
+    .filter((f) => f.sectionId === section.id)
+    .sort((a, b) => (a.status === b.status ? a.createdAt.getTime() - b.createdAt.getTime() : a.status === "open" ? -1 : 1));
+  const aiCurrent = Boolean(section.claimsAiHash && section.claimsAiHash === createHash("sha256").update(section.content).digest("hex"));
+  return {
+    checkedAt: section.claimsCheckedAt,
+    method: "Rule check (no AI): numbers, dates, results, named partners and credentials are matched against confirmed facts, this application's records and sources cited in the text.",
+    aiCheckedAt: section.claimsAiCheckedAt,
+    aiProvider: section.claimsAiProvider,
+    aiCurrent,
+    open: mine.filter((f) => f.status === "open").length,
+    flags: mine.map(flagView),
+  };
+}
+
+function formSummary(v: FormView) {
+  return { key: v.key, label: FORM_SHORT_LABELS[v.key], formName: v.formName, status: v.status, errorCount: v.errorCount, counts: v.counts, notApplicable: v.notApplicable, reviewedBy: v.reviewedBy, reviewedAt: v.reviewedAt, canBeNotApplicable: v.canBeNotApplicable };
+}
+
 async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
-  const [allRequirements, sections, lines, approvals, readiness] = await Promise.all([
+  const [allRequirements, sectionRows, lines, approvals, readiness] = await Promise.all([
     db.select().from(grantRequirementsTable).where(eq(grantRequirementsTable.applicationId, app.id)).orderBy(asc(grantRequirementsTable.position), asc(grantRequirementsTable.createdAt)),
     db.select().from(grantSectionsTable).where(eq(grantSectionsTable.applicationId, app.id)).orderBy(asc(grantSectionsTable.position)),
     db.select().from(grantBudgetLinesTable).where(eq(grantBudgetLinesTable.applicationId, app.id)).orderBy(asc(grantBudgetLinesTable.position), asc(grantBudgetLinesTable.createdAt)),
@@ -815,6 +845,11 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   const libraryFacts = await db.select().from(grantFactsTable).where(eq(grantFactsTable.applicantId, applicant.id)).orderBy(desc(grantFactsTable.updatedAt));
   const letters = await db.select().from(grantSupportLettersTable).where(eq(grantSupportLettersTable.applicationId, app.id)).orderBy(asc(grantSupportLettersTable.createdAt));
   const [notice] = await db.select().from(grantNoticesTable).where(eq(grantNoticesTable.applicationId, app.id)).limit(1);
+  // The unsupported-claim check runs on any section whose text or records changed since it last ran.
+  const flags = await syncClaimChecks(app, applicant, sectionRows);
+  const sections = await db.select().from(grantSectionsTable).where(eq(grantSectionsTable.applicationId, app.id)).orderBy(asc(grantSectionsTable.position));
+  const openBySection = new Map<string, number>();
+  for (const f of flags) if (f.status === "open") openBySection.set(f.sectionId, (openBySection.get(f.sectionId) ?? 0) + 1);
   // A rejected row is kept for the record but is no longer part of the matrix, the checks or the package.
   const requirements = allRequirements.filter((r) => !r.rejectedAt);
   const rejectedRequirements = allRequirements.filter((r) => r.rejectedAt);
@@ -824,6 +859,8 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
   const profile = formatProfileOf(app.formatProfile);
   const format = checkFormat(profile, sections);
   const logicModel = (app.logicModel ?? {}) as LogicModel;
+  const federal = !opp.jurisdiction;
+  const forms = await loadFormViews(app, formsContext(app, applicant, opp, budget, lines.length > 0), federal);
   // The organization's own recorded decisions, for the rating's context.
   const decisions = await db.select({ outcome: grantApplicationsTable.outcome, n: count() }).from(grantApplicationsTable).where(and(eq(grantApplicationsTable.applicantId, applicant.id), inArray(grantApplicationsTable.outcome, ["awarded", "declined"]))).groupBy(grantApplicationsTable.outcome);
   const match = isApplicantType(applicant.applicantType) ? matchOpportunity(matchInput(applicant), opp, readiness) : null;
@@ -840,6 +877,8 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     wordsPerPage: format.wordsPerPage,
     format: formatSet ? format : undefined,
     letters,
+    claims: { open: [...openBySection.values()].reduce((a, b) => a + b, 0), sections: sections.filter((s) => openBySection.has(s.id)).map((s) => s.title) },
+    forms: federal ? formsCheck(forms) : undefined,
   });
   const rating = rateCompetitiveness({
     match,
@@ -865,7 +904,10 @@ async function workspace(app: GrantApplication, applicant: GrantApplicant) {
     requirements,
     rejectedRequirements,
     notice: noticeView(notice, allRequirements),
-    sections: sections.map((s) => ({ ...s, limitCheck: checkLimit(s.content, s.limitType, s.limitValue, format.wordsPerPage), writingChecks: sectionWritingChecks(s) })),
+    sections: sections.map((s) => ({ ...s, limitCheck: checkLimit(s.content, s.limitType, s.limitValue, format.wordsPerPage), writingChecks: sectionWritingChecks(s), claims: claimsView(s, flags) })),
+    claimKinds: CLAIM_KIND_LABELS,
+    /** The federal forms' status (the fields are at GET /grants/applications/:id/forms). Null for a state program. */
+    federalForms: federal ? forms.map(formSummary) : null,
     format: { ...format, set: formatSet, fonts: FORMAT_FONTS, defaults: DEFAULT_FORMAT },
     logicModel: { model: logicModel, gaps: logicModelGaps(logicModel), columns: Object.entries(LOGIC_MODEL_COLUMNS).map(([key, c]) => ({ key, ...c })) },
     letters: letters.map(letterView),
@@ -1291,6 +1333,13 @@ router.post("/grants/sections/:sid/approve", async (req, res): Promise<void> => 
   if (!limit.words) return fail(res, 409, "Write the section before approving it.");
   if (owned.row.demoContent) return fail(res, 409, "Replace the demo scaffold with your own writing before approving.");
   if (limit.over) return fail(res, 409, `The section is over its limit (${limit.used} of ${limit.limit} ${limit.unit}).`);
+  // The unsupported-claim check runs on the current text first; an open flag blocks approval.
+  const flags = await syncClaimChecks(owned.app, owned.applicant, [owned.row]);
+  const open = flags.filter((f) => f.sectionId === owned.row.id && f.status === "open");
+  if (open.length) {
+    res.status(409).json({ error: `${open.length} unsupported claim${open.length === 1 ? " is" : "s are"} open in this section. Link each to a confirmed fact, edit the text, or dismiss it with a reason, then approve.`, openClaims: open.map(flagView) });
+    return;
+  }
   const username = await actorOf(req);
   const [row] = await db.update(grantSectionsTable).set({ status: "approved", approvedBy: username, approvedAt: new Date() }).where(eq(grantSectionsTable.id, owned.row.id)).returning();
   await db.insert(grantApprovalsTable).values({ id: randomUUID(), applicationId: owned.app.id, scope: "section", subjectId: row.id, role: "reviewer", approvedBy: username });
@@ -1431,6 +1480,7 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
     requirements: ws.requirements,
     approvals: ws.approvals,
     format: ws.format.profile,
+    forms: (await applicationForms(owned.app, owned.applicant)).views.map(formRows),
     generatedAt: new Date(),
   });
   if (!draft) {
@@ -1444,6 +1494,221 @@ router.get("/grants/applications/:id/package.docx", async (req, res): Promise<vo
   res.setHeader("Content-Disposition", `attachment; filename="${name}.docx"`);
   res.setHeader("Cache-Control", "no-store");
   res.send(buffer);
+});
+
+// ── Federal forms ─────────────────────────────────────────────────────────
+// SF-424, SF-424A, SF-424B and SF-LLL from HHS/simpler-grants-gov's public-domain
+// definitions (lib/grants/federalForms). Prefilled from the organization, the
+// opportunity and the budget; everything else is for a person. Nothing is sent
+// to Grants.gov: the forms go into the package a person submits.
+
+async function applicationForms(app: GrantApplication, applicant: GrantApplicant) {
+  const [opp] = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.id, app.opportunityId)).limit(1);
+  const lines = await db.select().from(grantBudgetLinesTable).where(eq(grantBudgetLinesTable.applicationId, app.id));
+  const federal = !opp.jurisdiction;
+  const ctx = formsContext(app, applicant, opp, summarizeBudget(lines, app.indirectRatePercent, opp.awardCeiling), lines.length > 0);
+  return { opp, federal, ctx, views: await loadFormViews(app, ctx, federal) };
+}
+
+function formParam(req: Request, res: Response): FederalFormKey | null {
+  const key = param(req, "form");
+  if (!isFederalFormKey(key)) {
+    fail(res, 404, "Unknown form");
+    return null;
+  }
+  return key;
+}
+
+async function upsertForm(applicationId: string, key: FederalFormKey, values: Partial<typeof grantFederalFormsTable.$inferInsert>): Promise<void> {
+  await db
+    .insert(grantFederalFormsTable)
+    .values({ id: randomUUID(), applicationId, formKey: key, ...values })
+    .onConflictDoUpdate({ target: [grantFederalFormsTable.applicationId, grantFederalFormsTable.formKey], set: { ...values, updatedAt: new Date() } });
+}
+
+async function formsResponse(app: GrantApplication, applicant: GrantApplicant) {
+  const { federal, views } = await applicationForms(app, applicant);
+  return { federal, source: FORM_SOURCE, forms: views, check: federal ? formsCheck(views) : null };
+}
+
+router.get("/grants/applications/:id/forms", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  res.json(await formsResponse(owned.app, owned.applicant));
+});
+
+router.put("/grants/applications/:id/forms/:form", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const key = formParam(req, res);
+  if (!key) return;
+  const body = pick(req.body, ["values", "reset"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  const { federal } = await applicationForms(owned.app, owned.applicant);
+  if (!federal) return fail(res, 409, "State programs use the forms on their own portal; GrantCrest fills federal forms only.");
+  const values = body.values ?? {};
+  if (!values || typeof values !== "object" || Array.isArray(values)) return fail(res, 400, "values must be an object of field: value.");
+  const reset = body.reset ?? [];
+  if (!Array.isArray(reset) || reset.some((r) => typeof r !== "string")) return fail(res, 400, "reset must be a list of field ids.");
+  const entries = Object.entries(values as Record<string, unknown>);
+  if (entries.length + reset.length > 300) return fail(res, 400, "Too many fields in one save.");
+  const fields = entryFields(key);
+  const [row] = await db.select().from(grantFederalFormsTable).where(and(eq(grantFederalFormsTable.applicationId, owned.app.id), eq(grantFederalFormsTable.formKey, key))).limit(1);
+  const next: Record<string, unknown> = { ...(row?.values ?? {}) };
+  const problems: string[] = [];
+  for (const [id, raw] of entries) {
+    const field = fields.get(id);
+    if (!field) {
+      problems.push(`${id} is not a field a person fills in on this form.`);
+      continue;
+    }
+    const coerced = coerceValue(field, raw);
+    if (!coerced.ok) problems.push(coerced.error);
+    else next[id] = coerced.value;
+  }
+  for (const id of reset as string[]) {
+    if (!fields.has(id)) problems.push(`${id} is not a field a person fills in on this form.`);
+    else delete next[id];
+  }
+  if (problems.length) {
+    res.status(400).json({ error: problems[0], errors: problems });
+    return;
+  }
+  await upsertForm(owned.app.id, key, { values: next, updatedBy: await actorOf(req) });
+  await invalidatePackage(owned.app.id);
+  res.json(await formsResponse(owned.app, owned.applicant));
+});
+
+router.post("/grants/applications/:id/forms/:form/review", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const key = formParam(req, res);
+  if (!key) return;
+  const { federal, views } = await applicationForms(owned.app, owned.applicant);
+  if (!federal) return fail(res, 409, "State programs use the forms on their own portal.");
+  const view = views.find((v) => v.key === key)!;
+  if (view.notApplicable) return fail(res, 409, "This form is marked not applicable.");
+  if (view.errorCount > 0) return fail(res, 409, `Complete the ${view.counts.toComplete} field${view.counts.toComplete === 1 ? "" : "s"} marked on this form before marking it reviewed.`);
+  await upsertForm(owned.app.id, key, { reviewedBy: await actorOf(req), reviewedAt: new Date(), reviewedHash: view.dataHash });
+  res.json(await formsResponse(owned.app, owned.applicant));
+});
+
+router.post("/grants/applications/:id/forms/:form/applicability", async (req, res): Promise<void> => {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const key = formParam(req, res);
+  if (!key) return;
+  if (key !== "sflll") return fail(res, 400, "Only the SF-LLL can be marked not applicable.");
+  const body = pick(req.body, ["notApplicable", "reason"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  if (typeof body.notApplicable !== "boolean") return fail(res, 400, "notApplicable must be true or false.");
+  const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 1000) : "";
+  if (body.notApplicable && reason.length < 10) return fail(res, 400, "Say why the SF-LLL does not apply (at least 10 characters), for example that no one is paid to lobby for this award.");
+  const { federal } = await applicationForms(owned.app, owned.applicant);
+  if (!federal) return fail(res, 409, "State programs use the forms on their own portal.");
+  const actor = await actorOf(req);
+  await upsertForm(owned.app.id, key, body.notApplicable
+    ? { notApplicable: true, notApplicableReason: reason, notApplicableBy: actor, notApplicableAt: new Date() }
+    : { notApplicable: false, notApplicableReason: null, notApplicableBy: null, notApplicableAt: null });
+  await invalidatePackage(owned.app.id);
+  res.json(await formsResponse(owned.app, owned.applicant));
+});
+
+/** The filled forms as JSON (Simpler Grants' data shape) or as a readable PDF; final only once the package is approved. */
+async function sendForms(req: Request, res: Response, kind: "json" | "pdf"): Promise<void> {
+  const owned = await ownedApplication(param(req, "id"), req.session.userId!, res);
+  if (!owned) return;
+  const { federal, views, opp } = await applicationForms(owned.app, owned.applicant);
+  if (!federal) return fail(res, 404, "This application is for a state program: its forms are on the state's portal.");
+  const draft = req.query.draft === "1" || req.query.draft === "true";
+  if (!draft && !(await workspace(owned.app, owned.applicant)).compliance.readyToExport) {
+    return fail(res, 409, "The final forms come with the approved package. Download a draft instead.");
+  }
+  const meta = { draft, applicantName: owned.applicant.name, opportunityTitle: opp.title, opportunityNumber: opp.number, generatedAt: new Date() };
+  const stem = `${defaultFileStem(owned.applicant.name, opp.number, draft)}_forms`;
+  res.setHeader("Cache-Control", "no-store");
+  if (kind === "json") {
+    res.setHeader("Content-Disposition", `attachment; filename="${stem}.json"`);
+    res.json(formsJson(views, meta));
+    return;
+  }
+  const pdf = await buildFormsPdf(views, meta);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${stem}.pdf"`);
+  res.send(pdf);
+}
+
+router.get("/grants/applications/:id/forms.json", (req, res) => sendForms(req, res, "json"));
+router.get("/grants/applications/:id/forms.pdf", (req, res) => sendForms(req, res, "pdf"));
+
+// ── Unsupported-claim check ───────────────────────────────────────────────
+// Flags are kept per section (grant_claim_flags). A person resolves each one:
+// links it to a confirmed fact, edits the text (the check closes it), or
+// dismisses it with a recorded reason. Approval is refused while any is open.
+
+async function ownedFlag(id: string, userId: string, res: Response) {
+  const [found] = await db
+    .select({ flag: grantClaimFlagsTable, section: grantSectionsTable, app: grantApplicationsTable, applicant: grantApplicantsTable })
+    .from(grantClaimFlagsTable)
+    .innerJoin(grantSectionsTable, eq(grantClaimFlagsTable.sectionId, grantSectionsTable.id))
+    .innerJoin(grantApplicationsTable, eq(grantClaimFlagsTable.applicationId, grantApplicationsTable.id))
+    .innerJoin(grantApplicantsTable, eq(grantApplicationsTable.applicantId, grantApplicantsTable.id))
+    .where(and(eq(grantClaimFlagsTable.id, id), eq(grantApplicantsTable.userId, userId)))
+    .limit(1);
+  if (!found) fail(res, 404, "Claim flag not found");
+  return found ?? null;
+}
+
+async function sectionClaims(sectionId: string, app: GrantApplication, applicant: GrantApplicant) {
+  const [section] = await db.select().from(grantSectionsTable).where(eq(grantSectionsTable.id, sectionId)).limit(1);
+  const flags = await syncClaimChecks(app, applicant, [section]);
+  const [fresh] = await db.select().from(grantSectionsTable).where(eq(grantSectionsTable.id, sectionId)).limit(1);
+  return claimsView(fresh, flags);
+}
+
+router.post("/grants/sections/:sid/claims/check", async (req, res): Promise<void> => {
+  const owned = await ownedChild(grantSectionsTable, param(req, "sid"), req.session.userId!, res);
+  if (!owned) return;
+  await syncClaimChecks(owned.app, owned.applicant, [owned.row], { force: [owned.row.id] });
+  res.json({ claims: await sectionClaims(owned.row.id, owned.app, owned.applicant) });
+});
+
+router.post("/grants/claim-flags/:fid/resolve", async (req, res): Promise<void> => {
+  const owned = await ownedFlag(param(req, "fid"), req.session.userId!, res);
+  if (!owned) return;
+  const body = pick(req.body, ["action", "factId", "reason", "sameSentence"]);
+  if (typeof body === "string") return fail(res, 400, body);
+  if (owned.flag.status !== "open") return fail(res, 409, "This flag is already resolved.");
+  const actor = await actorOf(req);
+  let values: Partial<typeof grantClaimFlagsTable.$inferInsert>;
+  if (body.action === "link") {
+    if (typeof body.factId !== "string") return fail(res, 400, "Choose a confirmed fact from this organization's library.");
+    const [fact] = await db.select().from(grantFactsTable).where(and(eq(grantFactsTable.id, body.factId), eq(grantFactsTable.applicantId, owned.applicant.id))).limit(1);
+    if (!fact || !fact.confirmedAt) return fail(res, 400, "Choose a confirmed fact from this organization's library.");
+    values = { status: "resolved", resolution: "linked", factId: fact.id, dismissReason: null, resolvedBy: actor, resolvedAt: new Date() };
+  } else if (body.action === "dismiss") {
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (reason.length < 10 || reason.length > 1000) return fail(res, 400, "Say why this claim needs no fact or source (10 to 1,000 characters). The reason is kept with the application.");
+    values = { status: "resolved", resolution: "dismissed", factId: null, dismissReason: reason, resolvedBy: actor, resolvedAt: new Date() };
+  } else {
+    return fail(res, 400, "action must be link or dismiss. To fix the text instead, edit the section: the check closes the flag when the claim is gone.");
+  }
+  // With sameSentence, one fact or reason resolves every open flag in the same sentence.
+  const scope = body.sameSentence === true
+    ? and(eq(grantClaimFlagsTable.sectionId, owned.flag.sectionId), eq(grantClaimFlagsTable.sentence, owned.flag.sentence), eq(grantClaimFlagsTable.status, "open"))
+    : eq(grantClaimFlagsTable.id, owned.flag.id);
+  const updated = await db.update(grantClaimFlagsTable).set(values).where(scope).returning({ id: grantClaimFlagsTable.id });
+  await logActivity("grant_claim_resolved", `Claim ${values.resolution}: "${owned.flag.claim.slice(0, 80)}" in ${owned.section.title}`, { userId: req.session.userId, actorName: req.session.actorName }).catch(() => {});
+  res.json({ resolved: updated.length, claims: await sectionClaims(owned.flag.sectionId, owned.app, owned.applicant) });
+});
+
+router.post("/grants/claim-flags/:fid/reopen", async (req, res): Promise<void> => {
+  const owned = await ownedFlag(param(req, "fid"), req.session.userId!, res);
+  if (!owned) return;
+  if (owned.flag.status !== "resolved" || (owned.flag.resolution !== "linked" && owned.flag.resolution !== "dismissed")) return fail(res, 409, "Only a linked or dismissed flag can be reopened.");
+  if (owned.section.status === "approved") return fail(res, 409, "Reopen the section before reopening one of its flags.");
+  await db.update(grantClaimFlagsTable).set({ status: "open", resolution: null, factId: null, dismissReason: null, resolvedBy: null, resolvedAt: null }).where(eq(grantClaimFlagsTable.id, owned.flag.id));
+  res.json({ claims: await sectionClaims(owned.flag.sectionId, owned.app, owned.applicant) });
 });
 
 // ── Saved writing ──────────────────────────────────────────────────────────

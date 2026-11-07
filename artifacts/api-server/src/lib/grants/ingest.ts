@@ -4,7 +4,9 @@ import { randomUUID } from "crypto";
 import { INGEST_ELIGIBILITY_CODES } from "./eligibility";
 import { evaluateGate } from "./gate";
 import { emitDeadlineReminders, emitMatchAlerts } from "./alerts";
-import { CA_CONNECTOR_VERSION, CA_SOURCE, caChecksum, fetchOpenCaRecords, normalizeCaRecord, type CaFetchLike } from "./california";
+import { CA_CONNECTOR_VERSION, CA_SOURCE, fetchOpenCaRecords, normalizeCaRecord, type CaFetchLike } from "./california";
+import { stateChecksum, type StateRecord } from "./states/common";
+import { STATE_FEEDS, type StateFeed, type StateFeedDeps } from "./states";
 import {
   GRANTS_GOV_CONNECTOR_VERSION,
   GRANTS_GOV_SOURCE,
@@ -222,31 +224,30 @@ export async function syncGrantsGov(fetchImpl?: FetchLike): Promise<SyncResult> 
 }
 
 /**
- * California Grants Portal sync: every open record is complete, so it is
- * upserted with its detail, gated, and records that leave the open set are
- * marked closed. Recorded as its own sync run.
+ * Stores one state feed's complete listing (California, and the state feeds in
+ * ./states): every record is upserted with its detail and gated, and records
+ * that leave the listing are marked closed. Recorded as its own sync run.
+ * `read` returns the normalized records; a throw fails the run and changes nothing.
  */
-export async function syncCalifornia(fetchImpl?: CaFetchLike): Promise<SyncResult> {
+export async function syncStateFeed(source: string, connectorVersion: string, read: () => Promise<StateRecord[]>): Promise<SyncResult> {
   const runId = randomUUID();
   const startedAt = new Date();
-  await db.insert(grantSyncRunsTable).values({ id: runId, source: CA_SOURCE, startedAt, status: "running" });
+  await db.insert(grantSyncRunsTable).values({ id: runId, source, startedAt, status: "running" });
   let fetched = 0;
   let upserted = 0;
   try {
-    const records = await fetchOpenCaRecords(fetchImpl);
+    const records = await read();
     const seen: string[] = [];
-    for (const raw of records) {
-      const rec = normalizeCaRecord(raw);
-      if (!rec) continue;
+    for (const rec of records) {
       fetched++;
       seen.push(rec.sourceRef);
-      const checksum = caChecksum(rec);
+      const checksum = stateChecksum(rec);
       const gate = evaluateGate({ title: rec.title, officialUrl: rec.officialUrl, fetchedAt: startedAt, status: rec.status, closeDate: rec.closeDate, rollingDeadline: rec.rollingDeadline }, startedAt);
       const { sourceRef, ...fields } = rec;
       const [existing] = await db
         .select({ id: grantOpportunitiesTable.id, checksum: grantOpportunitiesTable.checksum })
         .from(grantOpportunitiesTable)
-        .where(and(eq(grantOpportunitiesTable.source, CA_SOURCE), eq(grantOpportunitiesTable.sourceRef, sourceRef)))
+        .where(and(eq(grantOpportunitiesTable.source, source), eq(grantOpportunitiesTable.sourceRef, sourceRef)))
         .limit(1);
       const common = { fetchedAt: startedAt, detailFetchedAt: startedAt, publishable: gate.publishable, gateMissing: gate.missing };
       if (existing && existing.checksum === checksum) {
@@ -254,9 +255,9 @@ export async function syncCalifornia(fetchImpl?: CaFetchLike): Promise<SyncResul
         continue;
       }
       if (existing) {
-        await db.update(grantOpportunitiesTable).set({ ...fields, ...common, checksum, connectorVersion: CA_CONNECTOR_VERSION }).where(eq(grantOpportunitiesTable.id, existing.id));
+        await db.update(grantOpportunitiesTable).set({ ...fields, ...common, checksum, connectorVersion }).where(eq(grantOpportunitiesTable.id, existing.id));
       } else {
-        await db.insert(grantOpportunitiesTable).values({ id: randomUUID(), source: CA_SOURCE, sourceRef, ...fields, ...common, checksum, connectorVersion: CA_CONNECTOR_VERSION });
+        await db.insert(grantOpportunitiesTable).values({ id: randomUUID(), source, sourceRef, ...fields, ...common, checksum, connectorVersion });
       }
       upserted++;
     }
@@ -265,8 +266,9 @@ export async function syncCalifornia(fetchImpl?: CaFetchLike): Promise<SyncResul
         .update(grantOpportunitiesTable)
         .set({ status: "closed", publishable: false, gateMissing: ["open status (posted or forecasted)"] })
         .where(and(
-          eq(grantOpportunitiesTable.source, CA_SOURCE),
-          inArray(grantOpportunitiesTable.status, ["posted", "forecasted"]),
+          eq(grantOpportunitiesTable.source, source),
+          // "listed" is a directory entry (North Carolina, Utah); one that leaves the directory is closed too.
+          inArray(grantOpportunitiesTable.status, ["posted", "forecasted", "listed"]),
           sql`${grantOpportunitiesTable.sourceRef} NOT IN (${sql.join(seen.map((v) => sql`${v}`), sql`, `)})`,
         ));
     }
@@ -279,17 +281,45 @@ export async function syncCalifornia(fetchImpl?: CaFetchLike): Promise<SyncResul
   }
 }
 
+/** California Grants Portal sync: every open record, normalized, through the shared state feed store. */
+export async function syncCalifornia(fetchImpl?: CaFetchLike): Promise<SyncResult> {
+  return syncStateFeed(CA_SOURCE, CA_CONNECTOR_VERSION, async () =>
+    (await fetchOpenCaRecords(fetchImpl)).map(normalizeCaRecord).filter((r): r is NonNullable<typeof r> => r !== null),
+  );
+}
+
+/** Runs one state feed connector (./states) through the shared store. */
+export async function syncStateConnector(feed: StateFeed, deps: StateFeedDeps = {}): Promise<SyncResult> {
+  return syncStateFeed(feed.source, feed.version, () => feed.read(deps));
+}
+
 // ── The sync job ─────────────────────────────────────────────────────────────
 // Runs as the "grant_sync" background job (lib/jobs/definitions.ts): the queue
 // keeps one at a time, retries it with backoff, and schedules it daily.
 
 export interface GrantSyncProgress {
-  step: "grants.gov" | "california" | "alerts" | "done";
+  step: "grants.gov" | "california" | "state feeds" | "alerts" | "done";
   [key: string]: unknown;
 }
 
+/**
+ * The state feeds (./states) whose registry row may run now: active, with
+ * terms recorded as checked and permitting automated reading. A feed whose row
+ * is missing or not running is skipped; registry problems skip every state feed.
+ */
+async function runnableStateFeeds(): Promise<StateFeed[]> {
+  try {
+    const { runnableFeedConnectors } = await import("./sources/service");
+    const allowed = await runnableFeedConnectors(STATE_FEEDS.map((f) => f.source));
+    return STATE_FEEDS.filter((f) => allowed.has(f.source));
+  } catch (err) {
+    console.warn("[grants-sync] source registry not readable; state feeds skipped", (err as Error).message);
+    return [];
+  }
+}
+
 /** Refreshes every source, then sends alerts. Throws when every source failed, so the job is retried. */
-export async function runGrantSync(opts: { fetchImpl?: FetchLike; caFetch?: CaFetchLike; onProgress?: (p: GrantSyncProgress) => Promise<void> | void; signal?: AbortSignal } = {}): Promise<{ grantsGov: SyncResult; california: SyncResult | null; alerts: number | null }> {
+export async function runGrantSync(opts: { fetchImpl?: FetchLike; caFetch?: CaFetchLike; stateDeps?: StateFeedDeps; onProgress?: (p: GrantSyncProgress) => Promise<void> | void; signal?: AbortSignal } = {}): Promise<{ grantsGov: SyncResult; california: SyncResult | null; states: Record<string, SyncResult>; alerts: number | null }> {
   const report = async (p: GrantSyncProgress) => {
     if (opts.signal?.aborted) throw opts.signal.reason ?? new Error("Aborted");
     await opts.onProgress?.(p);
@@ -303,11 +333,20 @@ export async function runGrantSync(opts: { fetchImpl?: FetchLike; caFetch?: CaFe
     california = await syncCalifornia(opts.caFetch);
     console.log(`[grants-sync] california status=${california.status} fetched=${california.fetched} upserted=${california.upserted}${california.error ? ` error=${california.error}` : ""}`);
   }
+  // State feeds run only when their registry row allows it (docs/SOURCE_REGISTRY.md §7).
+  const states: Record<string, SyncResult> = {};
+  for (const feed of await runnableStateFeeds()) {
+    await report({ step: "state feeds", source: feed.source });
+    const result = await syncStateConnector(feed, opts.stateDeps);
+    states[feed.source] = result;
+    console.log(`[grants-sync] ${feed.source} status=${result.status} fetched=${result.fetched} upserted=${result.upserted}${result.error ? ` error=${result.error}` : ""}`);
+  }
   // Freshness on the source registry (docs/SOURCE_REGISTRY.md). Best-effort: it never changes the sync's outcome.
   try {
     const { recordFeedRun } = await import("./sources/service");
     await recordFeedRun(GRANTS_GOV_SOURCE, grantsGov);
     if (california) await recordFeedRun(CA_SOURCE, california);
+    for (const [source, result] of Object.entries(states)) await recordFeedRun(source, result);
   } catch (err) {
     console.warn("[grants-sync] source registry freshness not recorded", (err as Error).message);
   }
@@ -319,7 +358,8 @@ export async function runGrantSync(opts: { fetchImpl?: FetchLike; caFetch?: CaFe
   } catch (err) {
     console.warn("[grants-sync] alerts failed", (err as Error).message);
   }
-  const failed = [grantsGov, california].filter((r): r is SyncResult => r !== null && r.status === "failed");
-  if (failed.length === (california ? 2 : 1)) throw new Error(`Every grant source failed: ${failed.map((r) => r.error ?? "unknown error").join("; ")}`);
-  return { grantsGov, california, alerts };
+  const ran = [grantsGov, california, ...Object.values(states)].filter((r): r is SyncResult => r !== null);
+  const failed = ran.filter((r) => r.status === "failed");
+  if (failed.length === ran.length) throw new Error(`Every grant source failed: ${failed.map((r) => r.error ?? "unknown error").join("; ")}`);
+  return { grantsGov, california, states, alerts };
 }

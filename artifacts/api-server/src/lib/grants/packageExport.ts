@@ -4,6 +4,7 @@ import type { BudgetLineInput, BudgetSummary } from "./budget";
 import { lineTotal } from "./budget";
 import { BUDGET_CATEGORIES, type BudgetCategory } from "./eligibility";
 import { DEFAULT_FORMAT, type FormatProfile } from "./writing";
+import type { FormRows } from "./federalForms/render";
 
 /**
  * Builds the application package as a DOCX in memory. Nothing is written to
@@ -25,6 +26,8 @@ export interface PackageInput {
   approvals: { scope: string; role: string; approvedBy: string; createdAt: Date }[];
   /** Font, size, spacing and margins from the notice (writing toolkit); Times New Roman 12 pt, single spaced, 1-inch margins by default. */
   format?: FormatProfile;
+  /** The federal forms (SF-424, SF-424A, SF-424B, SF-LLL) as readable rows, for a federal opportunity. */
+  forms?: FormRows[];
   generatedAt: Date;
 }
 
@@ -130,6 +133,21 @@ export async function buildApplicationPackage(input: PackageInput): Promise<Buff
     ? "Confirm the exact forms, attachments and submission method on the state program's page and application portal before submitting."
     : "Confirm the exact form set and attachments in the opportunity's package in Grants.gov Workspace before submitting.";
   children.push(new Paragraph({ children: [new TextRun({ text: formsNote, italics: true })], spacing: { before: 120, after: 120 } }));
+
+  if (input.forms?.length) {
+    children.push(new Paragraph({ text: "Federal forms", heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 120 } }));
+    children.push(new Paragraph({ children: [new TextRun({ text: "Enter these values in the forms in Grants.gov Workspace. The same data comes as JSON and as a PDF from the package step. GrantCrest does not submit the forms.", italics: true })], spacing: { after: 160 } }));
+    for (const form of input.forms) {
+      children.push(new Paragraph({ text: form.title, heading: HeadingLevel.HEADING_2, spacing: { before: 280, after: 60 } }));
+      if (form.subtitle) children.push(new Paragraph({ children: [new TextRun({ text: form.subtitle, color: "555555" })], spacing: { after: 60 } }));
+      if (form.statusNote) children.push(new Paragraph({ children: [new TextRun({ text: form.statusNote, italics: true })], spacing: { after: 120 } }));
+      for (const section of form.sections) {
+        children.push(new Paragraph({ text: section.title, heading: HeadingLevel.HEADING_3, spacing: { before: 160, after: 60 } }));
+        children.push(table([["Field", "Value"], ...section.rows.map((r) => [r.label, r.value])]));
+      }
+      for (const note of form.notes) children.push(new Paragraph({ text: note, bullet: { level: 0 }, spacing: { after: 60 } }));
+    }
+  }
 
   children.push(new Paragraph({ text: "Approvals", heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 120 } }));
   if (input.approvals.length === 0) children.push(new Paragraph({ text: "No approvals recorded." }));

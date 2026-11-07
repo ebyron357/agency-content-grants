@@ -14,10 +14,12 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
+import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantSourcesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
-import { syncCalifornia, syncGrantsGov } from "../lib/grants/ingest";
+import { syncCalifornia, syncGrantsGov, syncStateConnector } from "../lib/grants/ingest";
+import { STATE_FEEDS } from "../lib/grants/states";
+import { runnableFeedConnectors } from "../lib/grants/sources/service";
 import type { CaFetchLike } from "../lib/grants/california";
 import { alertSummaryStats, emitDeadlineReminders, emitMatchAlerts, resetAlertSummaryCache } from "../lib/grants/alerts";
 import type { FetchLike } from "../lib/grants/grantsgov";
@@ -98,7 +100,7 @@ beforeAll(async () => {
     { id: OTHER, username: `other-${OTHER.slice(-8)}`, passwordHash: "x" },
   ]);
   await db.insert(grantOpportunitiesTable).values([
-    opportunity(NONPROFIT_OPP, { title: "Community Literacy for Youth", description: "Supports youth literacy programs in rural communities.", eligibilityCodes: ["12", "13"], awardCeiling: 150000, awardFloor: 25000 }),
+    opportunity(NONPROFIT_OPP, { title: "Community Literacy for Youth", number: "TEST-LIT-2026-01", assistanceListings: ["84.000"], description: "Supports youth literacy programs in rural communities.", eligibilityCodes: ["12", "13"], awardCeiling: 150000, awardFloor: 25000 }),
     opportunity(BUSINESS_OPP, { title: "Small Business Water Quality Innovation", description: "Supports water quality technology from small businesses.", eligibilityCodes: ["23"], awardCeiling: 100000 }),
     opportunity(CLOSED_OPP, { title: "Closed literacy grant", eligibilityCodes: ["12"], status: "closed", publishable: false, gateMissing: ["open status (posted or forecasted)"] }),
   ]);
@@ -248,6 +250,44 @@ describe("Grant Studio end to end", () => {
     ws = (await api("GET", `/grants/applications/${appId}`)).data;
     for (const req of ws.requirements) await api("PATCH", `/grants/requirements/${req.id}`, { status: "covered" });
 
+    // The federal forms: the rest of the SF-424 and SF-424A by a person, SF-424B copied from the SF-424,
+    // SF-LLL not applicable with a reason; each reviewed (the full flow is in grant-forms-claims.integration.test.ts).
+    ws = (await api("GET", `/grants/applications/${appId}`)).data;
+    expect(ws.compliance.checks.find((c: any) => c.id === "federal_forms").ok).toBe(false);
+    const sf424 = await api("PUT", `/grants/applications/${appId}/forms/sf424`, {
+      values: {
+        submission_type: "Application",
+        application_type: "New",
+        "applicant.street1": "1 Library Lane",
+        "applicant.city": "Wilson",
+        "applicant.zip_code": "278930001",
+        "contact_person.first_name": "Ana",
+        "contact_person.last_name": "Diaz",
+        phone_number: "252-555-0100",
+        email: "ana@example.org",
+        congressional_district_applicant: "NC-001",
+        congressional_district_program_project: "NC-001",
+        project_start_date: "2027-07-01",
+        project_end_date: "2028-06-30",
+        state_estimated_funding: "0.00",
+        local_estimated_funding: "0.00",
+        other_estimated_funding: "0.00",
+        program_income_estimated_funding: "0.00",
+        state_review: "c. Program is not covered by E.O. 12372.",
+        delinquent_federal_debt: false,
+        certification_agree: true,
+        "authorized_representative.first_name": "Sam",
+        "authorized_representative.last_name": "Lee",
+        authorized_representative_title: "Executive Director",
+        authorized_representative_phone_number: "252-555-0101",
+        authorized_representative_email: "sam@example.org",
+      },
+    });
+    expect(sf424.data.forms.find((f: any) => f.key === "sf424").errorCount).toBe(0);
+    await api("PUT", `/grants/applications/${appId}/forms/sf424a`, { values: { "activity_line_items.0.activity_title": "Readers Rising tutoring", confirmation: true } });
+    await api("POST", `/grants/applications/${appId}/forms/sflll/applicability`, { notApplicable: true, reason: "No one is paid to lobby for this award." });
+    for (const form of ["sf424", "sf424a", "sf424b"]) expect((await api("POST", `/grants/applications/${appId}/forms/${form}/review`)).status).toBe(200);
+
     ws = (await api("GET", `/grants/applications/${appId}`)).data;
     expect(ws.budget.requested).toBe(102300);
     expect(ws.compliance.checks.filter((c: any) => !c.ok).map((c: any) => c.id)).toEqual(["package_approval"]);
@@ -319,7 +359,11 @@ describe("Grant Studio end to end", () => {
     expect(after.data.broadTopics).toEqual([]);
     const fresh = after.data.matches.find((m: any) => m.opportunity.id === FRESH_OPP);
     expect(fresh.isNew).toBe(true);
-    expect((await api("GET", `/grants/applicants/${id}/matches?newOnly=1`)).data.matches.map((m: any) => m.opportunity.id)).toEqual([FRESH_OPP]);
+    // Test files share one database and run in parallel, so another file may store an opportunity
+    // after this organization was added; judge only this file's own opportunities.
+    const ownIds = new Set<string>([NONPROFIT_OPP, BUSINESS_OPP, CLOSED_OPP, FRESH_OPP]);
+    const newOnly = (await api("GET", `/grants/applicants/${id}/matches?newOnly=1`)).data.matches.map((m: any) => m.opportunity.id);
+    expect(newOnly.filter((oppId: string) => ownIds.has(oppId))).toEqual([FRESH_OPP]);
     const listed = (await api("GET", "/grants/applicants")).data.find((a: any) => a.id === id);
     expect(listed.alerts).toEqual({ newMatches: 1, closingSoon: 1 });
 
@@ -485,6 +529,79 @@ describe("Grant Studio end to end", () => {
     await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "ca_grants_portal"));
   }, 30_000);
 
+  it("registers the state feeds and watch lists disabled, and syncs the Illinois and North Carolina connectors through the gate", async () => {
+    // Migration 0035: every new state source is disabled, none may run, and the terms are recorded as not checked.
+    const stateRows = await db.select().from(grantSourcesTable).where(inArray(grantSourcesTable.id, ["src-il-csfa", "src-nc-grant-directory", "src-ut-funding-portal", "src-tx-egrants", "src-fl-dep-grants", "src-ny-sfs-funding-search", "src-ny-dos-funding", "src-ny-agm-funding", "src-pa-grants", "src-oh-grants-partnership", "src-ga-opb-grants", "src-mi-mde-grants"]));
+    expect(stateRows).toHaveLength(12);
+    for (const r of stateRows) {
+      expect(r, r.key).toMatchObject({ status: "disabled", termsChecked: false, termsPermitAutomation: false, jurisdictionKind: "state" });
+      expect(r.termsNote, r.key).toBeTruthy();
+    }
+    expect(new Set(stateRows.map((r) => r.jurisdictionCode))).toEqual(new Set(["IL", "NC", "UT", "TX", "FL", "NY", "PA", "OH", "GA", "MI"]));
+    const feedKeys = STATE_FEEDS.map((f) => f.source);
+    expect(await runnableFeedConnectors(feedKeys)).toEqual(new Set());
+
+    // A state feed runs only once a person records checked terms that permit automated reading and activates it.
+    await db.update(grantSourcesTable).set({ termsChecked: true, termsPermitAutomation: true, status: "active" }).where(eq(grantSourcesTable.key, "il_csfa"));
+    try {
+      expect(await runnableFeedConnectors(feedKeys)).toEqual(new Set(["il_csfa"]));
+    } finally {
+      await db.update(grantSourcesTable).set({ termsChecked: false, termsPermitAutomation: false, status: "disabled" }).where(eq(grantSourcesTable.key, "il_csfa"));
+    }
+
+    const us = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}`;
+    const ilRow = (i: number, range: string, award = "$1000 - $50000") =>
+      `<tr><td><i class="gms">GMS</i>&nbsp;<a href="https://omb.illinois.gov/public/gata/csfa/GMS.aspx?url=https%3a%2f%2fil.amplifund.com%2fPublic%2fOpportunities%2fDetails%2f00000000-0000-4000-8000-${String(i).padStart(12, "0")}&amp;title=x" target="_blank">Synthetic Illinois Program ${i}</a></td><td>TEST (000)</td><td>${range}</td><td>${award}</td></tr>`;
+    let ilRows = [
+      ilRow(1, `${us(inDays(-5))} - ${us(inDays(40))}`),
+      ilRow(2, `${us(inDays(-400))} - No end date`),
+      ilRow(3, `${us(inDays(-60))} - ${us(inDays(-1))}`),
+      ilRow(4, `${us(inDays(10))} - ${us(inDays(90))}`),
+      ...Array.from({ length: 18 }, (_, i) => ilRow(10 + i, `${us(inDays(-1))} - ${us(inDays(20))}`)),
+    ];
+    const il = STATE_FEEDS.find((f) => f.source === "il_csfa")!;
+    const ilPage = async (url: string) => ({ status: url === il.url ? 200 : 404, body: `<table><tbody>${ilRows.join("")}</tbody></table>` });
+    const ilResult = await syncStateConnector(il, { fetchPage: ilPage });
+    expect(ilResult).toMatchObject({ status: "succeeded", fetched: 22, upserted: 22 });
+    const ilStored = new Map((await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "il_csfa"))).map((r) => [r.title, r]));
+    expect(ilStored.get("Synthetic Illinois Program 1")).toMatchObject({ jurisdiction: "IL", status: "posted", closeDate: inDays(40), publishable: true, awardCeiling: 50000, connectorVersion: "il-csfa@1", officialUrl: "https://il.amplifund.com/Public/Opportunities/Details/00000000-0000-4000-8000-000000000001" });
+    expect(ilStored.get("Synthetic Illinois Program 2")).toMatchObject({ status: "posted", rollingDeadline: true, closeDate: null, publishable: true });
+    expect(ilStored.get("Synthetic Illinois Program 3")).toMatchObject({ status: "closed", publishable: false });
+    expect(ilStored.get("Synthetic Illinois Program 4")).toMatchObject({ status: "forecasted", publishable: true });
+
+    // It reaches applicants like any state program, labelled with its source.
+    const api = client(await login(OWNER));
+    const detail = await api("GET", `/grants/opportunities/${ilStored.get("Synthetic Illinois Program 1")!.id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.data.opportunity).toMatchObject({ sourceLabel: "Illinois CSFA opportunity list", jurisdiction: "IL", federal: false });
+
+    // A listing that leaves the page is closed; a page that parses too few rows changes nothing and fails visibly.
+    ilRows = ilRows.slice(1);
+    expect((await syncStateConnector(il, { fetchPage: ilPage })).status).toBe("succeeded");
+    expect((await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.source, "il_csfa"), eq(grantOpportunitiesTable.title, "Synthetic Illinois Program 1"))))[0]).toMatchObject({ status: "closed", publishable: false });
+    const broken = await syncStateConnector(il, { fetchPage: async () => ({ status: 200, body: "<p>Down for maintenance</p>" }) });
+    expect(broken.status).toBe("failed");
+    expect(broken.error).toMatch(/fewer than the 20 expected/);
+    expect((await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.source, "il_csfa"), eq(grantOpportunitiesTable.publishable, true)))).length).toBe(20);
+
+    // North Carolina's directory: stored, never published, nothing guessed.
+    const nc = STATE_FEEDS.find((f) => f.source === "nc_grant_directory")!;
+    const ncBody = `<table><tbody>${Array.from({ length: 21 }, (_, i) => `<tr><td class="app-drupal-data-table__control-cell"><button type="button">+</button></td><td>Synthetic</td><td><a href="https://example.nc.gov/p${i}">Synthetic NC Program ${i}</a></td><td>TEST</td><td>Synthetic description ${i}.</td></tr>`).join("")}</tbody></table>`;
+    const ncResult = await syncStateConnector(nc, { fetchPage: async () => ({ status: 200, body: ncBody }) });
+    expect(ncResult).toMatchObject({ status: "succeeded", fetched: 21 });
+    const ncStored = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "nc_grant_directory"));
+    expect(ncStored).toHaveLength(21);
+    expect(ncStored.every((r) => r.status === "listed" && !r.publishable && r.jurisdiction === "NC" && r.closeDate === null && r.awardCeiling === null)).toBe(true);
+
+    // Utah cannot run here: no browser renderer.
+    const ut = STATE_FEEDS.find((f) => f.source === "ut_funding_portal")!;
+    const utResult = await syncStateConnector(ut);
+    expect(utResult.status).toBe("failed");
+    expect(utResult.error).toMatch(/only renders in a browser/);
+
+    await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.source, ["il_csfa", "nc_grant_directory", "ut_funding_portal"]));
+  }, 30_000);
+
   it("reuses hub alert summaries until the organization, its readiness or the opportunity store changes", async () => {
     const api = client(await login(OWNER));
     const org = (await api("POST", "/grants/applicants", { name: "Cache Test Readers", applicantType: "nonprofit_501c3", focusAreas: ["literacy"] })).data;
@@ -563,7 +680,10 @@ describe("Grant Studio end to end", () => {
     // Only approved, non-demo text can be saved.
     await api("PATCH", `/grants/sections/${capA.id}`, { content: "<p>Founded in 2009, we run reading programs at 12 schools.</p><script>x()</script>" });
     expect((await api("POST", `/grants/sections/${capA.id}/save-to-library`, {})).status).toBe(409);
-    await api("POST", `/grants/sections/${capA.id}/approve`);
+    // The founding year and the count are claims: approval waits for a confirmed fact behind them.
+    expect((await api("POST", `/grants/sections/${capA.id}/approve`)).status).toBe(409);
+    await api("POST", `/grants/applicants/${org.id}/facts`, { category: "history", label: "History and reach", body: "Founded in 2009; reading programs at 12 schools.", confirmed: true });
+    expect((await api("POST", `/grants/sections/${capA.id}/approve`)).status).toBe(200);
     const saved = await api("POST", `/grants/sections/${capA.id}/save-to-library`, {});
     expect(saved.status).toBe(201);
     expect(saved.data).toMatchObject({ sectionKey: "capacity", sourceApplicationId: appA.id, words: 10 });

@@ -92,6 +92,12 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { method: "POST", path: "/grants/sections/:sid/review", needs: ["grants.write", "grants.review"] },
   { method: "POST", path: "/grants/sections/:sid/approve", needs: "grants.review" },
   { method: "POST", path: "/grants/sections/:sid/reopen", needs: "grants.review" },
+  // The unsupported-claim check: writers fix their drafts, reviewers resolve flags before approving.
+  { method: "POST", path: "/grants/sections/:sid/claims/check", needs: ["grants.write", "grants.review"] },
+  { method: "POST", path: "/grants/claim-flags/:fid/resolve", needs: ["grants.write", "grants.review"] },
+  { method: "POST", path: "/grants/claim-flags/:fid/reopen", needs: ["grants.write", "grants.review"] },
+  // Federal forms: writers fill them (the default grants.write rule below); a writer or a reviewer marks one reviewed.
+  { method: "POST", path: "/grants/applications/:id/forms/:form/review", needs: ["grants.write", "grants.review"] },
   { method: "POST", path: "/grants/applications/:id/approve-package", needs: "grants.approve" },
   ...writes("/grants/applications/:id/outcome", ["grants.approve", "grants.finance"]),
   ...writes("/grants/applications/:id/budget-lines", "grants.finance"),

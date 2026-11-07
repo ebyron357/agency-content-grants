@@ -19,6 +19,7 @@ import { placeStatements, type PlaceDesignations } from "./places";
 import { htmlToText } from "./text";
 import { draftSection, extractRequirements, reviewSection, type DraftContext } from "./ai";
 import { PermanentJobError } from "../jobs/types";
+import { claimContext, runAiClaimCheck, syncClaimChecks } from "./claimsWork";
 
 /**
  * The AI work in Grant Studio: drafting and reviewing a section, and
@@ -105,7 +106,10 @@ export async function runSectionReview(sectionId: string, userId: string): Promi
   const { section, app, applicant } = await ownedSection(sectionId, userId);
   const outcome = await reviewSection(await draftContext(section.id, app, applicant));
   await db.update(grantSectionsTable).set({ reviewScore: outcome.value.score, reviewNotes: outcome.value.notes }).where(eq(grantSectionsTable.id, section.id));
-  return { demo: outcome.demo, message: outcome.message ?? null, score: outcome.value.score };
+  // The claim check: the rules always run; with an AI provider, the model adds claims the rules miss.
+  await syncClaimChecks(app, applicant, [section]);
+  const ai = outcome.demo ? null : await runAiClaimCheck(section, app.id, await claimContext(app, applicant));
+  return { demo: outcome.demo, message: outcome.message ?? null, score: outcome.value.score, aiClaims: ai ? { provider: ai.provider, added: ai.added, dropped: ai.dropped } : null };
 }
 
 /** Extracts requirements from the application's stored notice text and adds them unconfirmed. */

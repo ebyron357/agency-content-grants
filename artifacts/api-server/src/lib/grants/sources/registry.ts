@@ -21,8 +21,11 @@ export const PAGE_CONNECTOR_TYPES: readonly ConnectorType[] = ["portal_page", "w
 export const SOURCE_STATUSES = ["active", "paused", "disabled"] as const;
 export type SourceStatus = (typeof SOURCE_STATUSES)[number];
 
-/** Connectors that exist in code. A `feed` row must name one; new feeds need a release. */
-export const FEED_CONNECTORS = ["grants_gov", "ca_grants_portal"] as const;
+/**
+ * Connectors that exist in code. A `feed` row must name one; new feeds need a
+ * release. The state feeds (lib/grants/states) run only while their row may run.
+ */
+export const FEED_CONNECTORS = ["grants_gov", "ca_grants_portal", "il_csfa", "nc_grant_directory", "ut_funding_portal"] as const;
 
 /** USPS codes for the 50 states, DC and the territories. */
 export const STATE_CODES = [
