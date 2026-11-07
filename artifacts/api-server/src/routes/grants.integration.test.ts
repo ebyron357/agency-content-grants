@@ -98,7 +98,7 @@ beforeAll(async () => {
     { id: OTHER, username: `other-${OTHER.slice(-8)}`, passwordHash: "x" },
   ]);
   await db.insert(grantOpportunitiesTable).values([
-    opportunity(NONPROFIT_OPP, { title: "Community Literacy for Youth", description: "Supports youth literacy programs in rural communities.", eligibilityCodes: ["12", "13"], awardCeiling: 150000, awardFloor: 25000 }),
+    opportunity(NONPROFIT_OPP, { title: "Community Literacy for Youth", number: "TEST-LIT-2026-01", assistanceListings: ["84.000"], description: "Supports youth literacy programs in rural communities.", eligibilityCodes: ["12", "13"], awardCeiling: 150000, awardFloor: 25000 }),
     opportunity(BUSINESS_OPP, { title: "Small Business Water Quality Innovation", description: "Supports water quality technology from small businesses.", eligibilityCodes: ["23"], awardCeiling: 100000 }),
     opportunity(CLOSED_OPP, { title: "Closed literacy grant", eligibilityCodes: ["12"], status: "closed", publishable: false, gateMissing: ["open status (posted or forecasted)"] }),
   ]);
@@ -247,6 +247,44 @@ describe("Grant Studio end to end", () => {
     // Every matrix row covered.
     ws = (await api("GET", `/grants/applications/${appId}`)).data;
     for (const req of ws.requirements) await api("PATCH", `/grants/requirements/${req.id}`, { status: "covered" });
+
+    // The federal forms: the rest of the SF-424 and SF-424A by a person, SF-424B copied from the SF-424,
+    // SF-LLL not applicable with a reason; each reviewed (the full flow is in grant-forms-claims.integration.test.ts).
+    ws = (await api("GET", `/grants/applications/${appId}`)).data;
+    expect(ws.compliance.checks.find((c: any) => c.id === "federal_forms").ok).toBe(false);
+    const sf424 = await api("PUT", `/grants/applications/${appId}/forms/sf424`, {
+      values: {
+        submission_type: "Application",
+        application_type: "New",
+        "applicant.street1": "1 Library Lane",
+        "applicant.city": "Wilson",
+        "applicant.zip_code": "278930001",
+        "contact_person.first_name": "Ana",
+        "contact_person.last_name": "Diaz",
+        phone_number: "252-555-0100",
+        email: "ana@example.org",
+        congressional_district_applicant: "NC-001",
+        congressional_district_program_project: "NC-001",
+        project_start_date: "2027-07-01",
+        project_end_date: "2028-06-30",
+        state_estimated_funding: "0.00",
+        local_estimated_funding: "0.00",
+        other_estimated_funding: "0.00",
+        program_income_estimated_funding: "0.00",
+        state_review: "c. Program is not covered by E.O. 12372.",
+        delinquent_federal_debt: false,
+        certification_agree: true,
+        "authorized_representative.first_name": "Sam",
+        "authorized_representative.last_name": "Lee",
+        authorized_representative_title: "Executive Director",
+        authorized_representative_phone_number: "252-555-0101",
+        authorized_representative_email: "sam@example.org",
+      },
+    });
+    expect(sf424.data.forms.find((f: any) => f.key === "sf424").errorCount).toBe(0);
+    await api("PUT", `/grants/applications/${appId}/forms/sf424a`, { values: { "activity_line_items.0.activity_title": "Readers Rising tutoring", confirmation: true } });
+    await api("POST", `/grants/applications/${appId}/forms/sflll/applicability`, { notApplicable: true, reason: "No one is paid to lobby for this award." });
+    for (const form of ["sf424", "sf424a", "sf424b"]) expect((await api("POST", `/grants/applications/${appId}/forms/${form}/review`)).status).toBe(200);
 
     ws = (await api("GET", `/grants/applications/${appId}`)).data;
     expect(ws.budget.requested).toBe(102300);
@@ -563,7 +601,10 @@ describe("Grant Studio end to end", () => {
     // Only approved, non-demo text can be saved.
     await api("PATCH", `/grants/sections/${capA.id}`, { content: "<p>Founded in 2009, we run reading programs at 12 schools.</p><script>x()</script>" });
     expect((await api("POST", `/grants/sections/${capA.id}/save-to-library`, {})).status).toBe(409);
-    await api("POST", `/grants/sections/${capA.id}/approve`);
+    // The founding year and the count are claims: approval waits for a confirmed fact behind them.
+    expect((await api("POST", `/grants/sections/${capA.id}/approve`)).status).toBe(409);
+    await api("POST", `/grants/applicants/${org.id}/facts`, { category: "history", label: "History and reach", body: "Founded in 2009; reading programs at 12 schools.", confirmed: true });
+    expect((await api("POST", `/grants/sections/${capA.id}/approve`)).status).toBe(200);
     const saved = await api("POST", `/grants/sections/${capA.id}/save-to-library`, {});
     expect(saved.status).toBe(201);
     expect(saved.data).toMatchObject({ sectionKey: "capacity", sourceApplicationId: appA.id, words: 10 });

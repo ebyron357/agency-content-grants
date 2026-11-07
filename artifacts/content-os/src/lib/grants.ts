@@ -210,6 +210,103 @@ export interface Section {
   approvedAt: string | null;
   limitCheck: LimitCheck;
   writingChecks?: WritingChecks;
+  /** The unsupported-claim check on this section (rules always; an AI pass only with a provider). */
+  claims?: SectionClaims;
+}
+
+export type ClaimKind = 'number' | 'date' | 'outcome' | 'partner' | 'credential';
+
+export interface ClaimFlag {
+  id: string;
+  sectionId: string;
+  kind: ClaimKind;
+  claim: string;
+  sentence: string;
+  reason: string;
+  detectedBy: string;
+  method: string;
+  status: 'open' | 'resolved';
+  resolution: 'linked' | 'dismissed' | 'edited' | 'now_supported' | null;
+  factId: string | null;
+  dismissReason: string | null;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+export interface SectionClaims {
+  checkedAt: string | null;
+  method: string;
+  aiCheckedAt: string | null;
+  aiProvider: string | null;
+  aiCurrent: boolean;
+  open: number;
+  flags: ClaimFlag[];
+}
+
+export type FederalFormKey = 'sf424' | 'sf424a' | 'sf424b' | 'sflll';
+export type FormStatus = 'not_started' | 'in_progress' | 'ready_to_review' | 'complete' | 'not_applicable';
+
+export interface FormFieldView {
+  id: string;
+  section: string;
+  label: string;
+  description: string | null;
+  control: 'text' | 'textarea' | 'select' | 'multiselect' | 'checkbox' | 'yesno' | 'date' | 'money' | 'email';
+  valueType: 'string' | 'integer' | 'boolean' | 'array';
+  entry: 'person' | 'computed' | 'record' | 'grants_gov' | 'attachment';
+  options?: string[];
+  maxLength?: number;
+  maxItems?: number;
+  required: boolean;
+  value: unknown;
+  origin: 'entered' | 'prefill' | 'computed' | null;
+  source: string | null;
+  errors: string[];
+}
+
+export interface FederalFormView {
+  key: FederalFormKey;
+  formName: string;
+  shortFormName: string;
+  formVersion: string;
+  ombNumber: string | null;
+  expirationDate: string | null;
+  canBeNotApplicable: boolean;
+  status: FormStatus;
+  notApplicable: boolean;
+  notApplicableReason: string | null;
+  notApplicableBy: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewCurrent: boolean;
+  updatedBy: string | null;
+  updatedAt: string | null;
+  errorCount: number;
+  formErrors: string[];
+  attachmentNotes: string[];
+  counts: { toComplete: number; prefilled: number; entered: number };
+  sections: { title: string; fields: FormFieldView[] }[];
+}
+
+export interface FederalFormsResponse {
+  federal: boolean;
+  source: { repository: string; commit: string; path: string; license: string };
+  forms: FederalFormView[];
+  check: { ok: boolean; detail: string } | null;
+}
+
+export interface FederalFormSummary {
+  key: FederalFormKey;
+  label: string;
+  formName: string;
+  status: FormStatus;
+  errorCount: number;
+  counts: { toComplete: number; prefilled: number; entered: number };
+  notApplicable: boolean;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  canBeNotApplicable: boolean;
 }
 
 export interface ObjectiveCheck {
@@ -408,6 +505,10 @@ export interface Workspace {
   letterStatuses?: { key: SupportLetter['status']; label: string }[];
   /** The organization's fact library: confirmed facts and which categories each section draws on. */
   library: { total: number; confirmed: Fact[]; sectionCategories: Record<string, string[]> };
+  /** Labels for the five kinds of claim the check looks for. */
+  claimKinds?: Record<ClaimKind, string>;
+  /** The federal forms' status; null for a state program (its forms are on its own portal). */
+  federalForms?: FederalFormSummary[] | null;
   aiDemo: boolean;
 }
 
@@ -434,6 +535,7 @@ export const keys = {
   opportunity: (id: string, applicantId?: string) => ['grants', 'opportunity', id, applicantId ?? ''] as const,
   applications: ['grants', 'applications'] as const,
   workspace: (id: string) => ['grants', 'workspace', id] as const,
+  forms: (id: string) => ['grants', 'forms', id] as const,
   facts: (id: string) => ['grants', 'facts', id] as const,
   snippets: (id: string) => ['grants', 'snippets', id] as const,
 };
@@ -516,6 +618,9 @@ export const useOpportunity = (id: string, applicantId?: string) =>
 export const useWorkspace = (id: string) =>
   useQuery({ queryKey: keys.workspace(id), queryFn: () => apiGet<Workspace>(`/grants/applications/${id}`), refetchInterval: (q) => (q.state.data?.aiJobs?.length ? 2500 : false) });
 
+export const useFederalForms = (id: string, enabled = true) =>
+  useQuery({ queryKey: keys.forms(id), queryFn: () => apiGet<FederalFormsResponse>(`/grants/applications/${id}/forms`), enabled });
+
 export const grantsApi = {
   createApplicant: (body: Partial<Applicant>) => apiPost('/grants/applicants', body) as Promise<Applicant>,
   updateApplicant: (id: string, body: Partial<Applicant>) => apiPatch(`/grants/applicants/${id}`, body) as Promise<Applicant>,
@@ -550,6 +655,13 @@ export const grantsApi = {
   draftSection: (sid: string) => apiPost(`/grants/sections/${sid}/draft`) as Promise<{ section: Section; demo: boolean; message: string | null } | PendingJob>,
   reviewSection: (sid: string) => apiPost(`/grants/sections/${sid}/review`) as Promise<{ section: Section; demo: boolean; message: string | null } | PendingJob>,
   approveSection: (sid: string) => apiPost(`/grants/sections/${sid}/approve`) as Promise<Section>,
+  checkClaims: (sid: string) => apiPost(`/grants/sections/${sid}/claims/check`) as Promise<{ claims: SectionClaims }>,
+  resolveClaim: (fid: string, body: { action: 'link'; factId: string; sameSentence?: boolean } | { action: 'dismiss'; reason: string; sameSentence?: boolean }) =>
+    apiPost(`/grants/claim-flags/${fid}/resolve`, body) as Promise<{ resolved: number; claims: SectionClaims }>,
+  reopenClaim: (fid: string) => apiPost(`/grants/claim-flags/${fid}/reopen`) as Promise<{ claims: SectionClaims }>,
+  saveForm: (id: string, form: FederalFormKey, body: { values?: Record<string, unknown>; reset?: string[] }) => apiPut(`/grants/applications/${id}/forms/${form}`, body) as Promise<FederalFormsResponse>,
+  reviewForm: (id: string, form: FederalFormKey) => apiPost(`/grants/applications/${id}/forms/${form}/review`) as Promise<FederalFormsResponse>,
+  setFormApplicability: (id: string, form: FederalFormKey, body: { notApplicable: boolean; reason?: string }) => apiPost(`/grants/applications/${id}/forms/${form}/applicability`, body) as Promise<FederalFormsResponse>,
   reopenSection: (sid: string) => apiPost(`/grants/sections/${sid}/reopen`) as Promise<Section>,
   addBudgetLine: (id: string, body: Partial<BudgetLine>) => apiPost(`/grants/applications/${id}/budget-lines`, body),
   updateBudgetLine: (lid: string, body: Partial<BudgetLine>) => apiPatch(`/grants/budget-lines/${lid}`, body),
@@ -603,6 +715,12 @@ export function calendarUrl(kind: 'application' | 'opportunity' | 'all', id?: st
   const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
   if (kind === 'all') return `${BASE}/api/grants/calendar.ics`;
   return `${BASE}/api/grants/${kind === 'application' ? 'applications' : 'opportunities'}/${id}/deadline.ics`;
+}
+
+/** The federal forms as JSON (Simpler Grants' data shape) or as a readable PDF. */
+export function formsUrl(id: string, kind: 'json' | 'pdf', draft: boolean): string {
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${BASE}/api/grants/applications/${id}/forms.${kind}${draft ? '?draft=1' : ''}`;
 }
 
 export function packageUrl(id: string, draft: boolean): string {

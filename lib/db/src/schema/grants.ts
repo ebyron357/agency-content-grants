@@ -271,6 +271,13 @@ export const grantSectionsTable = pgTable("grant_sections", {
   approvedBy: text("approved_by"),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
   position: integer("position").notNull().default(0),
+  /** The unsupported-claim check: a hash of the text and the records it was checked against, and when it ran (rules). */
+  claimsCheckedHash: text("claims_checked_hash"),
+  claimsCheckedAt: timestamp("claims_checked_at", { withTimezone: true }),
+  /** The AI pass of the claim check (only with an AI provider): when it ran, with which provider, on which text. */
+  claimsAiCheckedAt: timestamp("claims_ai_checked_at", { withTimezone: true }),
+  claimsAiProvider: text("claims_ai_provider"),
+  claimsAiHash: text("claims_ai_hash"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [uniqueIndex("uq_grant_section_key").on(table.applicationId, table.key)]);
@@ -414,3 +421,68 @@ export const grantSupportLettersTable = pgTable("grant_support_letters", {
 }, (table) => [index("idx_grant_letters_app").on(table.applicationId)]);
 
 export type GrantSupportLetter = typeof grantSupportLettersTable.$inferSelect;
+
+/**
+ * The federal forms of an application (SF-424, SF-424A, SF-424B, SF-LLL),
+ * defined by HHS/simpler-grants-gov's public-domain schemas. Only what a person
+ * entered is stored; prefilled values are recomputed from the organization,
+ * the opportunity and the budget on every read. Grant Studio never submits them.
+ */
+export const grantFederalFormsTable = pgTable("grant_federal_forms", {
+  id: text("id").primaryKey(),
+  applicationId: text("application_id").notNull().references(() => grantApplicationsTable.id, { onDelete: "cascade" }),
+  /** sf424 | sf424a | sf424b | sflll */
+  formKey: text("form_key").notNull(),
+  /** Values a person entered, keyed by field path (for example `applicant.zip_code`). */
+  values: jsonb("values").$type<Record<string, unknown>>().notNull().default({}),
+  /** SF-LLL only: a person recorded that no one is paid to lobby for this award. */
+  notApplicable: boolean("not_applicable").notNull().default(false),
+  notApplicableReason: text("not_applicable_reason"),
+  notApplicableBy: text("not_applicable_by"),
+  notApplicableAt: timestamp("not_applicable_at", { withTimezone: true }),
+  /** A person reviewed the whole form; the hash is of the data they reviewed, so any later change needs a new review. */
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewedHash: text("reviewed_hash"),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [uniqueIndex("uq_grant_federal_form").on(table.applicationId, table.formKey)]);
+
+export type GrantFederalForm = typeof grantFederalFormsTable.$inferSelect;
+
+/**
+ * A claim in a drafted section that no confirmed fact or cited source backs
+ * (the API's lib/grants/claims.ts). An open flag blocks approval until a person
+ * links it to a fact, edits the text, or dismisses it with a recorded reason.
+ */
+export const grantClaimFlagsTable = pgTable("grant_claim_flags", {
+  id: text("id").primaryKey(),
+  applicationId: text("application_id").notNull().references(() => grantApplicationsTable.id, { onDelete: "cascade" }),
+  sectionId: text("section_id").notNull().references(() => grantSectionsTable.id, { onDelete: "cascade" }),
+  /** number | date | outcome | partner | credential */
+  kind: text("kind").notNull(),
+  /** The words flagged, as they appear in the section. */
+  claim: text("claim").notNull(),
+  sentence: text("sentence").notNull(),
+  reason: text("reason").notNull(),
+  /** Stable across re-checks: kind, claim and sentence. */
+  fingerprint: text("fingerprint").notNull(),
+  /** `rules` (deterministic, no AI) or `ai:<provider>`. */
+  detectedBy: text("detected_by").notNull(),
+  /** open | resolved */
+  status: text("status").notNull().default("open"),
+  /** linked | dismissed | edited | now_supported */
+  resolution: text("resolution"),
+  factId: text("fact_id").references(() => grantFactsTable.id, { onDelete: "set null" }),
+  dismissReason: text("dismiss_reason"),
+  resolvedBy: text("resolved_by"),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  uniqueIndex("uq_grant_claim_flag").on(table.sectionId, table.detectedBy, table.fingerprint),
+  index("idx_grant_claim_flags_app").on(table.applicationId),
+]);
+
+export type GrantClaimFlag = typeof grantClaimFlagsTable.$inferSelect;

@@ -14,7 +14,9 @@ import { cn } from '@/lib/utils';
 import { CompetitivenessPanel, RatingChip } from '@/components/grants/Competitiveness';
 import { LogicModelPanel, ToolkitStep, WritingChecksPanel, isLogicModelSection, toolkitDone } from '@/components/grants/WritingToolkit';
 import { NoticePanel, provenanceText } from '@/components/grants/NoticeChecklist';
-import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace, followJob, isPendingJob, type AiJob, type PendingJob } from '@/lib/grants';
+import { ClaimFlagsPanel } from '@/components/grants/ClaimFlags';
+import { FederalFormsStep } from '@/components/grants/FederalForms';
+import { calendarUrl, deadlineLabel, errorMessage, useSnippets, grantsApi, formsUrl, packageUrl, usd, useGrantMeta, useInvalidateGrants, useWorkspace, type Requirement, type Section, type Workspace, followJob, isPendingJob, type AiJob, type PendingJob } from '@/lib/grants';
 
 const KIND_LABELS: Record<string, string> = {
   section: 'Section',
@@ -290,6 +292,7 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
       setCopied('');
     }
   }
+  const openClaims = section.claims?.open ?? 0;
   const live: Section = { ...section, limitType: (limitType || null) as Section['limitType'], limitValue: limitValue ? Number(limitValue) : null };
 
   return (
@@ -302,6 +305,7 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
               <StatusPill status={section.status} />
               {section.demoContent && <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-0.5 text-xs text-amber-300">Demo scaffold</span>}
               {section.reviewScore != null && <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">Reviewer score {section.reviewScore}</span>}
+              {openClaims > 0 && <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-0.5 text-xs text-amber-300">{openClaims} claim{openClaims === 1 ? '' : 's'} to back up</span>}
             </div>
           </div>
           <LimitMeter section={live} liveWords={counts.words} liveChars={counts.chars} wordsPerPage={ws.format?.wordsPerPage} />
@@ -337,15 +341,17 @@ function SectionEditor({ ws, section }: { ws: Workspace; section: Section }) {
               {(canWrite || canApprove) && <Button size="sm" variant="secondary" disabled={busy === 'review' || dirty} onClick={() => run('review', () => grantsApi.reviewSection(section.id), (r) => (r.demo ? { tone: 'warn', text: r.message ?? 'Rule checks only.' } : null))}>
                 {busy === 'review' ? 'Reviewing…' : 'Review'}
               </Button>}
-              {canApprove ? <Button size="sm" variant="outline" disabled={dirty || busy === 'approve'} onClick={() => run('approve', () => grantsApi.approveSection(section.id), () => ({ tone: 'ok', text: 'Section approved.' }))} className="gap-1.5">
+              {canApprove ? <Button size="sm" variant="outline" disabled={dirty || busy === 'approve' || openClaims > 0} onClick={() => run('approve', () => grantsApi.approveSection(section.id), () => ({ tone: 'ok', text: 'Section approved.' }))} className="gap-1.5">
                 <Check className="h-3.5 w-3.5" aria-hidden="true" /> Approve
               </Button> : <span className="text-xs text-muted-foreground">{canWrite ? 'A reviewer approves this section.' : `Your role (${roleLabel ?? 'none'}) can read this section.`}</span>}
+              {canApprove && openClaims > 0 && <span className="text-xs text-amber-300">Resolve the {openClaims === 1 ? 'flagged claim' : `${openClaims} flagged claims`} below to approve.</span>}
               {dirty && <span className="text-xs text-amber-300">Unsaved changes</span>}
             </>
           )}
         </div>
       </Panel>
       <ActionMessage message={message} />
+      <ClaimFlagsPanel section={section} facts={ws.library.confirmed} canResolve={canWrite || canApprove} dirty={dirty} aiDemo={ws.aiDemo} applicantId={ws.applicant.id} />
       {message === null && section.reviewNotes.length > 0 && (
         <Panel>
           <PanelHeader title="Review notes" description={section.reviewScore != null ? `Reviewer score: ${section.reviewScore} of 100` : 'Rule-based checks'} />
@@ -474,7 +480,7 @@ function WriteStep({ ws }: { ws: Workspace }) {
                   {s.status === 'approved' ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" /> : s.limitCheck.over ? <XCircle className="h-4 w-4 shrink-0 text-red-300" aria-hidden="true" /> : <Circle className={cn('h-4 w-4 shrink-0', s.limitCheck.words ? 'text-brand' : 'text-muted-foreground')} aria-hidden="true" />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-foreground">{s.title}</span>
-                    <span className="block text-[11px] text-muted-foreground">{s.limitCheck.words} words{s.limitCheck.limit ? ` · limit ${s.limitCheck.limit} ${s.limitCheck.unit}` : ''}</span>
+                    <span className="block text-[11px] text-muted-foreground">{s.limitCheck.words} words{s.limitCheck.limit ? ` · limit ${s.limitCheck.limit} ${s.limitCheck.unit}` : ''}{s.claims?.open ? ` · ${s.claims.open} claim${s.claims.open === 1 ? '' : 's'} to back up` : ''}</span>
                   </span>
                 </button>
               </li>
@@ -674,7 +680,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
   const [approving, setApproving] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [note, setNote] = useState('');
-  const stepFor: Record<string, string> = { eligibility: 'requirements', matrix_confirmed: 'requirements', matrix_covered: 'requirements', sections_written: 'write', limits: 'write', no_demo: 'write', sections_approved: 'write', no_placeholders: 'write', budget: 'budget', format: 'toolkit', letters: 'toolkit' };
+  const stepFor: Record<string, string> = { eligibility: 'requirements', matrix_confirmed: 'requirements', matrix_covered: 'requirements', sections_written: 'write', limits: 'write', no_demo: 'write', sections_approved: 'write', no_placeholders: 'write', budget: 'budget', format: 'toolkit', letters: 'toolkit', claims_supported: 'write', federal_forms: 'forms' };
   const passed = ws.compliance.checks.filter((c) => c.ok).length;
 
   return (
@@ -698,7 +704,7 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
       <div className="space-y-4">
         {ws.rating && <CompetitivenessPanel rating={ws.rating} />}
         <Panel>
-          <PanelHeader title="Package" description="A DOCX with every section, the budget, the compliance checklist and the approval record." />
+          <PanelHeader title="Package" description={ws.federalForms ? 'A DOCX with every section, the budget, the federal forms, the compliance checklist and the approval record.' : 'A DOCX with every section, the budget, the compliance checklist and the approval record.'} />
           <div className="space-y-3 px-5 py-4">
             {ws.compliance.readyToExport ? (
               <Notice tone="ok" title="Approved for submission">{ws.opportunity.federal ? 'Export the final package, then submit it through Grants.gov Workspace before the deadline.' : "Export the final package, then submit it through the state program's application portal before the deadline."}</Notice>
@@ -724,6 +730,15 @@ function PackageStep({ ws, goTo }: { ws: Workspace; goTo: (step: string) => void
             <Button asChild variant="ghost" className="w-full gap-2">
               <a href={packageUrl(ws.application.id, true)}><Download className="h-4 w-4" aria-hidden="true" /> Download draft</a>
             </Button>
+            {ws.federalForms && (
+              <p className="text-xs text-muted-foreground">
+                Federal forms on their own:{' '}
+                <a className="text-brand hover:underline" href={formsUrl(ws.application.id, 'pdf', !ws.compliance.readyToExport)}>{ws.compliance.readyToExport ? 'PDF' : 'draft PDF'}</a>
+                {' · '}
+                <a className="text-brand hover:underline" href={formsUrl(ws.application.id, 'json', !ws.compliance.readyToExport)}>{ws.compliance.readyToExport ? 'JSON data' : 'draft JSON data'}</a>
+                . GrantCrest never submits them; you enter them in Grants.gov Workspace.
+              </p>
+            )}
             {ws.application.exportedAt && <p className="text-xs text-muted-foreground">Final package last exported {new Date(ws.application.exportedAt).toLocaleString('en-US')}.</p>}
           </div>
         </Panel>
@@ -769,6 +784,7 @@ const STEPS = [
   { key: 'requirements', label: 'Requirements' },
   { key: 'write', label: 'Write' },
   { key: 'budget', label: 'Budget' },
+  { key: 'forms', label: 'Federal forms', federalOnly: true },
   { key: 'toolkit', label: 'Format & letters' },
   { key: 'package', label: 'Review & package' },
 ];
@@ -793,9 +809,11 @@ export default function GrantApplication() {
     requirements: w.requirements.length > 0 && w.requirements.every((r) => r.confirmed && r.status !== 'open'),
     write: w.sections.every((s) => s.status === 'approved'),
     budget: w.budgetLines.length > 0 && w.budget.issues.length === 0,
+    forms: Boolean(w.federalForms?.length) && (w.federalForms ?? []).every((f) => f.status === 'complete' || f.status === 'not_applicable'),
     toolkit: toolkitDone(w),
     package: w.compliance.readyToExport,
   };
+  const steps = STEPS.filter((s) => !s.federalOnly || w.federalForms);
   const passed = w.compliance.checks.filter((c) => c.ok).length;
 
   return (
@@ -841,8 +859,8 @@ export default function GrantApplication() {
       </div>
       {w.aiDemo && <div className="mb-6"><Notice tone="warn" title="Demo mode">No AI provider is configured: drafting adds a labelled scaffold, extraction from pasted text is unavailable, a notice PDF is checked by labelled pattern matching (each row still cites its page) and review runs rule checks only. Everything else works.</Notice></div>}
       <Tabs value={step} onValueChange={setStep}>
-        <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
-          {STEPS.map((s, i) => (
+        <TabsList className={cn('mb-6 grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3', steps.length === 6 ? 'lg:grid-cols-6' : 'lg:grid-cols-5')}>
+          {steps.map((s, i) => (
             <TabsTrigger key={s.key} value={s.key} className="gap-2 py-2">
               {done[s.key] ? <CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden="true" /> : <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px]" aria-hidden="true">{i + 1}</span>}
               {s.label}
@@ -853,6 +871,7 @@ export default function GrantApplication() {
         <TabsContent value="requirements"><RequirementsStep ws={w} /></TabsContent>
         <TabsContent value="write"><WriteStep ws={w} /></TabsContent>
         <TabsContent value="budget"><BudgetStep ws={w} /></TabsContent>
+        {w.federalForms && <TabsContent value="forms"><FederalFormsStep ws={w} /></TabsContent>}
         <TabsContent value="toolkit"><ToolkitStep ws={w} /></TabsContent>
         <TabsContent value="package"><PackageStep ws={w} goTo={setStep} /></TabsContent>
       </Tabs>

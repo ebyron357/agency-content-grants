@@ -26,6 +26,10 @@ export interface ComplianceInput {
   format?: FormatCheck;
   /** Letters of support being tracked for this application. */
   letters?: { name: string; organization: string | null; status: string }[];
+  /** Open unsupported-claim flags, by section title (lib/grants/claims.ts). */
+  claims?: { open: number; sections: string[] };
+  /** The federal forms check (federal opportunities only; lib/grants/federalForms). */
+  forms?: { ok: boolean; detail: string };
 }
 
 export interface ComplianceCheck {
@@ -132,6 +136,21 @@ export function evaluateCompliance(input: ComplianceInput): ComplianceReport {
       ok: outstanding.length === 0,
       detail: outstanding.length ? `Still waiting for: ${list(outstanding)}. Mark a letter Declined if it will not come.` : "Every tracked letter is received or closed.",
     });
+  }
+
+  if (input.claims) {
+    checks.push({
+      id: "claims_supported",
+      label: "Every factual claim backed by a confirmed fact or a cited source",
+      ok: input.claims.open === 0,
+      detail: input.claims.open
+        ? `${input.claims.open} unsupported claim${input.claims.open === 1 ? "" : "s"} open in: ${list(input.claims.sections)}. Link each to a fact, edit the text, or dismiss it with a reason.`
+        : "No open claim flags.",
+    });
+  }
+
+  if (input.forms) {
+    checks.push({ id: "federal_forms", label: "Federal forms complete (SF-424, SF-424A, SF-424B, SF-LLL)", ok: input.forms.ok, detail: input.forms.detail });
   }
 
   const unapproved = input.sections.filter((s) => s.status !== "approved").map((s) => s.title);
