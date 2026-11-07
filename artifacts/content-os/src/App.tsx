@@ -5,12 +5,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import Login from "@/pages/Login";
-import InviteAccept from "@/pages/InviteAccept";
+import Landing from "@/pages/Landing";
 import Signup from "@/pages/Signup";
+import InviteAccept from "@/pages/InviteAccept";
 import SignupVerify from "@/pages/SignupVerify";
 import MfaRequired from "@/pages/MfaRequired";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingState } from "@/components/layout/Page";
+import { AppFooter } from "@/components/layout/Brand";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const BrandsList = lazy(() => import("@/pages/BrandsList"));
@@ -30,6 +32,7 @@ const GrantTemplates = lazy(() => import("@/pages/GrantTemplates"));
 const GrantTemplateEditor = lazy(() => import("@/pages/GrantTemplateEditor"));
 const GrantFoundations = lazy(() => import("@/pages/GrantFoundations"));
 const GrantFunder = lazy(() => import("@/pages/GrantFunder"));
+const Help = lazy(() => import("@/pages/Help"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const GetStarted = lazy(() => import("@/pages/GetStarted"));
@@ -57,6 +60,8 @@ function AppLayout({ firstRun }: { firstRun: boolean }) {
         tabIndex={-1}
         className="min-w-0 flex-1 overflow-y-auto"
       >
+        <div className="flex min-h-full flex-col">
+        <div className="flex-1">
         <Suspense fallback={<RouteLoading />}>
           <Switch>
             {/* A workspace its owner just signed up for opens on its getting-started checklist. */}
@@ -81,16 +86,20 @@ function AppLayout({ firstRun }: { firstRun: boolean }) {
             <Route path="/grant-studio/templates/:key" component={GrantTemplateEditor} />
             <Route path="/grant-studio/foundations" component={GrantFoundations} />
             <Route path="/grant-studio/foundations/:ein" component={GrantFunder} />
+            <Route path="/help" component={Help} />
             <Route component={NotFound} />
           </Switch>
         </Suspense>
+        </div>
+        <AppFooter />
+        </div>
       </main>
     </div>
   );
 }
 
 function AuthGate() {
-  const { isAuthenticated, isLoading, mfaEnrollmentRequired, firstRun, refetch } = useAuth();
+  const { isAuthenticated, isLoading, mfaEnrollmentRequired, signupOpen, firstRun, refetch } = useAuth();
   // Invitation links work whether or not someone is signed in.
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname.slice(base.length);
@@ -112,10 +121,17 @@ function AuthGate() {
   }
 
   if (!isAuthenticated) {
-    // /signup shows the sign-up form only while the server has self sign-up on; otherwise the sign-in page.
-    if (path === "/signup") return <Signup onSignedIn={refetch} />;
-    return <Login onSuccess={refetch} />;
+    // With sign-up closed (the server's signupOpen, docs/SELF_SIGNUP.md), every signed-out
+    // address shows the sign-in screen, as before: no landing page and no sign-up link.
+    if (!signupOpen) return <Login onSuccess={refetch} />;
+    // Sign-up only sends a confirmation email; the account exists once its link is opened (/signup/verify).
+    if (path === "/signup") return <Signup />;
+    if (path === "/" || path === "") return <Landing />;
+    return <Login onSuccess={refetch} signupOpen />;
   }
+
+  // Signed in from /login or /signup: open the app's home, not a "page not found".
+  if (path === "/login" || path === "/signup") window.history.replaceState(null, "", `${base}/`);
 
   if (mfaEnrollmentRequired) {
     return <MfaRequired onDone={refetch} />;

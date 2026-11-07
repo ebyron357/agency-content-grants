@@ -1,10 +1,10 @@
 # Security and Access Handoff
 
-How access to Content Machine works, who controls it, and which controls protect it. Owner: `ebyron357`. No secret values appear in this repository. Updated 4 November 2026 for account security (R1, step 3 of `GRANT_PLATFORM_PLAN.md`): two-factor sign-in, per-browser sessions, sign-out everywhere and the audit log. Step 1 was workspaces and personal accounts; step 2 was per-role permissions.
+How access to GrantCrest (formerly Content Machine) works, who controls it, and which controls protect it. Owner: `ebyron357`. No secret values appear in this repository. Updated 4 November 2026 for account security (R1, step 3 of `GRANT_PLATFORM_PLAN.md`): two-factor sign-in, per-browser sessions, sign-out everywhere and the audit log. Step 1 was workspaces and personal accounts; step 2 was per-role permissions.
 
 ## 1. Account model (actual behaviour)
 
-Content Machine is organized into **workspaces**. A workspace is one organization: the agency itself, or a client nonprofit or business. Every record belongs to exactly one workspace, and no workspace can read or change another's records.
+GrantCrest is organized into **workspaces**. A workspace is one organization: the agency itself, or a client nonprofit or business. Every record belongs to exactly one workspace, and no workspace can read or change another's records.
 
 - **How isolation works.** Each workspace owns its data through its own principal row in `users`. When someone signs in to a workspace, the session carries that principal as `session.userId`. The ownership check that every route already performs therefore limits them to that workspace: brands, projects, documents, media, exports, publishing, API keys, webhooks and all of Grant Studio. A record from another workspace is a 404.
 - **Personal accounts (members).** A member signs in with their email and password, and belongs to one or more workspaces, each with a role. Passwords are hashed with scrypt (random salt, 64-byte key) and must be at least 12 characters, not repetitive, and not contain the email name. Emails are stored lowercased.
@@ -150,3 +150,20 @@ Keep this current at handoff (names and roles only, never credentials). Settings
 | AI provider receives document content for generation | Use a provider account whose data-use terms the owner accepts; demo mode sends nothing externally |
 
 Report a suspected security issue to the owner privately (see `TROUBLESHOOTING_AND_SUPPORT.md`), not in a public GitHub issue.
+
+
+## Self sign-up
+
+Full detail: `docs/SELF_SIGNUP.md`. Off by default. The switch is `SELF_SIGNUP_ENABLED=true`; `SELF_SERVE_SIGNUP=on` (the name the first landing-page release used) is accepted as the same switch. Either way sign-up stays off until an email provider (`EMAIL_PROVIDER`, with `RESEND_API_KEY` and `EMAIL_FROM`) and `APP_BASE_URL` are set too. With it off, every signed-out address shows the sign-in screen exactly as before: no landing page, no sign-up link, and every sign-up route answers 404 and writes nothing.
+
+With it on, signed-out visitors to `/` see the public landing page, `/signup` shows the sign-up form, and the sign-in screen (`/login` and every other signed-out address) has a "Create an account" link.
+
+- **Email verification before anything exists.** `POST /api/auth/signup { name, organizationName, email, password }` only stores a pending sign-up (`pending_signups`: scrypt password hash, SHA-256 hash of a 32-byte random token, 24-hour expiry) and emails a one-time link (`APP_BASE_URL/signup/verify#token=…`; the token is in the fragment, so it never reaches a server log). `POST /api/auth/signup/verify { token }` then creates, in one transaction, the client workspace, the member and the owner membership, and signs the person in. No member, workspace or session exists until the link is opened. There is no other sign-up endpoint: the first release's instant-account endpoint was replaced by this flow before sign-up was ever switched on.
+- **No account enumeration.** The answer (202, same message) and the work done are the same whether or not the email already has an account; an existing account gets a "you already have an account" email instead.
+- **Rate limits** in PostgreSQL (`rate_limits` keys `signup-ip`, `signup-email`, `signup-verify`): 10 sign-up requests an hour per IP, 3 an hour per email from any IP, 20 failed link attempts per 15 minutes per IP.
+- **Bot honeypot:** a hidden field; a bot that fills it gets the normal answer and nothing is stored or sent.
+- **Audit log:** `workspace_created` and `member_joined` (and `billing_trial_started`) in the new workspace's log.
+- **Billing:** with billing on, the new workspace starts the free trial (`SELF_SIGNUP_TRIAL_PLAN`, default `starter`); with billing off there are no limits.
+- The person is an ordinary owner of an ordinary client workspace: same roles, permissions, two-factor settings, sessions and tenant isolation as an invited owner.
+
+Not in place: a CAPTCHA such as Cloudflare Turnstile (an owner decision, as it is a third-party service).

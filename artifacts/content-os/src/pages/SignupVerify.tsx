@@ -60,7 +60,7 @@ export default function SignupVerify({ onDone }: { onDone: () => void }) {
         <>
           <h1 className="mb-2 text-2xl font-semibold text-foreground">You already have an account</h1>
           <p role="alert" className="text-sm leading-relaxed text-muted-foreground">{state.message}</p>
-          <a href={`${BASE}/`} className="mt-5 inline-block text-sm font-medium text-brand hover:underline">Go to sign in</a>
+          <a href={`${BASE}/login`} className="mt-5 inline-block text-sm font-medium text-brand hover:underline">Go to sign in</a>
         </>
       )}
       {state.kind === 'error' && (

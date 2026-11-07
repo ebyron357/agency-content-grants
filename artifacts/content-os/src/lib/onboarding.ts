@@ -73,17 +73,7 @@ export const onboardingApi = {
   },
 };
 
-/** Public sign-up calls; these run signed out, so they use fetch directly. */
-export async function signupStatus(): Promise<boolean> {
-  try {
-    const res = await fetch(`${BASE}/api/auth/signup/status`);
-    if (!res.ok) return false;
-    return ((await res.json()) as { enabled?: boolean }).enabled === true;
-  } catch {
-    return false;
-  }
-}
-
+/** Public sign-up calls run signed out, so they use fetch directly. Whether sign-up is open comes from /auth/me (hooks/use-auth.ts). */
 export async function postJson(path: string, body: unknown): Promise<{ status: number; data: Record<string, unknown> }> {
   const res = await fetch(`${BASE}/api${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;

@@ -35,11 +35,11 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
     }
   }
   function download() {
-    const blob = new Blob([`Content Machine recovery codes\nEach code works once. Keep them somewhere safe.\n\n${text}\n`], { type: 'text/plain' });
+    const blob = new Blob([`GrantCrest recovery codes\nEach code works once. Keep them somewhere safe.\n\n${text}\n`], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'content-machine-recovery-codes.txt';
+    a.download = 'grantcrest-recovery-codes.txt';
     a.click();
     URL.revokeObjectURL(url);
     setSaved(true);

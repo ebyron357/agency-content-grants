@@ -157,6 +157,15 @@ describe("self sign-up switch", () => {
     expect(signupConfig(ready).enabled).toBe(true);
   });
 
+  it("also accepts SELF_SERVE_SIGNUP=on, the first landing-page release's name for the switch", () => {
+    const { SELF_SIGNUP_ENABLED: _flag, ...settings } = ready;
+    expect(signupConfig({ ...settings, SELF_SERVE_SIGNUP: "on" })).toMatchObject({ flag: true, enabled: true });
+    expect(signupConfig({ ...settings, SELF_SERVE_SIGNUP: "true" }).flag).toBe(false);
+    expect(signupConfig({ ...settings, SELF_SERVE_SIGNUP: "ON" }).flag).toBe(false);
+    // The alias still needs email and a base URL: it never skips email verification.
+    expect(signupConfig({ SELF_SERVE_SIGNUP: "on" })).toMatchObject({ flag: true, enabled: false, missing: ["EMAIL_PROVIDER", "APP_BASE_URL"] });
+  });
+
   it("stays off, naming what is missing, without email or a base URL", () => {
     expect(signupConfig({ SELF_SIGNUP_ENABLED: "true" })).toMatchObject({ flag: true, enabled: false, missing: ["EMAIL_PROVIDER", "APP_BASE_URL"] });
     expect(signupConfig({ ...ready, APP_BASE_URL: "" })).toMatchObject({ enabled: false, missing: ["APP_BASE_URL"] });

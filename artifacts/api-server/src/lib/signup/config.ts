@@ -1,7 +1,9 @@
 /**
  * Whether self sign-up is on (docs/SELF_SIGNUP.md).
  *
- * Off unless SELF_SIGNUP_ENABLED is exactly "true". Even then it is on only
+ * Off unless SELF_SIGNUP_ENABLED is exactly "true" (or SELF_SERVE_SIGNUP is
+ * exactly "on", the name the first landing-page release used; either one works).
+ * Even then it is on only
  * when the verification email can be sent (an email provider) and its link can
  * be built (APP_BASE_URL). With any of these missing the sign-up routes answer
  * 404 and the sign-in page shows no sign-up link: nothing changes.
@@ -25,8 +27,13 @@ export const DEFAULT_TRIAL_PLAN = "starter";
 /** How long a verification link works. */
 export const SIGNUP_TOKEN_TTL_HOURS = 24;
 
+/** The owner's switch: SELF_SIGNUP_ENABLED=true, or its alias SELF_SERVE_SIGNUP=on. */
+export function signupFlag(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.SELF_SIGNUP_ENABLED === "true" || env.SELF_SERVE_SIGNUP === "on";
+}
+
 export function signupConfig(env: NodeJS.ProcessEnv = process.env): SignupConfig {
-  const flag = env.SELF_SIGNUP_ENABLED === "true";
+  const flag = signupFlag(env);
   const trialPlan = env.SELF_SIGNUP_TRIAL_PLAN?.trim() || DEFAULT_TRIAL_PLAN;
   if (!flag) return { flag, enabled: false, missing: [], problem: null, trialPlan };
   const missing: string[] = [];
@@ -45,8 +52,9 @@ export function verifyLink(token: string, env: NodeJS.ProcessEnv = process.env):
   return `${base}/signup/verify#token=${token}`;
 }
 
+/** The sign-in screen. While sign-up is open "/" is the public landing page, so the link names /login. */
 export function signInLink(env: NodeJS.ProcessEnv = process.env): string {
-  return `${(env.APP_BASE_URL ?? "").trim().replace(/\/+$/, "")}/`;
+  return `${(env.APP_BASE_URL ?? "").trim().replace(/\/+$/, "")}/login`;
 }
 
 export function verificationEmail(name: string, organization: string, link: string) {

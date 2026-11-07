@@ -12,6 +12,7 @@ import { hashPassword, verifyPassword } from "../lib/password";
 import { permissionsOf } from "../lib/permissions";
 import { consumeSecondFactor } from "../lib/secondFactor";
 import { checkInviteAcceptance, limitResponse } from "../lib/billing/service";
+import { signupConfig } from "../lib/signup/config";
 import { memberSessionActive, revokeMemberSession, revokeMemberSessions, startMemberSession } from "../lib/memberSessions";
 import { ROLES, ensureAgencyWorkspace, hashToken, isRole, memberView, memberWorkspaces, membershipOf, normalizeEmail, passwordProblem, upgradeLegacySession, type WorkspaceAccess } from "../lib/workspaces";
 
@@ -289,7 +290,13 @@ router.get("/auth/me", async (req, res) => {
   const authenticated = req.session.authenticated === true;
   if (!authenticated) {
     const pending = req.session.pendingMfa;
-    res.json({ authenticated: false, isAdmin: false, mfaPending: !!pending && Date.now() - pending.at < PENDING_MFA_MS });
+    res.json({
+      authenticated: false,
+      isAdmin: false,
+      mfaPending: !!pending && Date.now() - pending.at < PENDING_MFA_MS,
+      // Whether the public landing page and sign-up are offered (routes/signup.ts, docs/SELF_SIGNUP.md).
+      signupOpen: signupConfig().enabled,
+    });
     return;
   }
   await upgradeLegacySession(req.session);

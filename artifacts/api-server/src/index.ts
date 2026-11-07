@@ -53,7 +53,7 @@ runMigrations()
         .catch((err: unknown) => logger.error({ err }, "Could not check workspaces for a billing plan"));
       // Self sign-up switched on but not usable: say which settings (names only) are missing (docs/SELF_SIGNUP.md).
       const signup = signupConfig();
-      if (signup.flag && !signup.enabled) logger.warn({ missing: signup.missing, problem: signup.problem }, "SELF_SIGNUP_ENABLED is true but self sign-up stays off until these are set");
+      if (signup.flag && !signup.enabled) logger.warn({ missing: signup.missing, problem: signup.problem }, "Self sign-up is switched on (SELF_SIGNUP_ENABLED=true or SELF_SERVE_SIGNUP=on) but stays off until these are set");
       else if (signup.enabled) logger.info({ trialPlan: signup.trialPlan }, "Self sign-up is on");
     });
   })

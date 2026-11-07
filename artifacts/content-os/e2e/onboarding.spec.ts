@@ -87,22 +87,40 @@ async function seed(client: pg.Client): Promise<string[]> {
   return ids;
 }
 
-test("self sign-up is off by default: the sign-in page is unchanged and /signup is the sign-in page", async ({ page }) => {
+test("self sign-up is off by default: no landing page, the sign-in page is unchanged and /signup is the sign-in page", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Sign in to GrantCrest" })).toBeVisible();
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("link", { name: "Create a workspace" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Create an account" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Start free" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /Every grant you qualify for/ })).toHaveCount(0);
+  expect((await (await page.request.get("/api/auth/me")).json()).signupOpen).toBe(false);
   expect(await (await page.request.get("/api/auth/signup/status")).json()).toEqual({ enabled: false });
   expect((await page.request.post("/api/auth/signup", { data: { name: "X", organizationName: "Y", email: "off@example.org", password: "Correct horse battery staple 42" } })).status()).toBe(404);
   await page.goto("/signup");
   await expect(page.getByRole("heading", { name: "Sign in to GrantCrest" })).toBeVisible();
 });
 
-test("sign-up, check-your-email and confirmation screens pass the accessibility gate", async ({ page }) => {
-  await page.route("**/api/auth/signup/status", (route) => route.fulfill({ json: { enabled: true } }));
+test("landing, sign-up, check-your-email and confirmation screens pass the accessibility gate", async ({ page }) => {
+  // The server's answer with sign-up open (SELF_SIGNUP_ENABLED=true or SELF_SERVE_SIGNUP=on, plus email).
+  await page.route("**/api/auth/me", (route) => route.fulfill({ json: { authenticated: false, isAdmin: false, mfaPending: false, signupOpen: true } }));
   await page.goto("/");
-  await page.getByRole("link", { name: "Create a workspace" }).click();
-  await expect(page.getByRole("heading", { name: "Create your GrantCrest workspace" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Every grant you qualify for/ })).toBeVisible();
+  await bothWidths(page, "landing page");
+
+  // The sign-in screen offers sign-up while it is open.
+  await page.getByRole("link", { name: "Log in" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to GrantCrest" })).toBeVisible();
+  await page.getByRole("link", { name: "Create an account" }).click();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+
+  // An email typed on the landing page carries to the form (session storage, never the address bar).
+  await page.goto("/");
+  await page.getByLabel("Work email").fill("sam@synthetic.example");
+  await page.getByRole("button", { name: "Get my matches" }).click();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+  expect(new URL(page.url()).search).toBe("");
+  await expect(page.getByLabel("Work email")).toHaveValue("sam@synthetic.example");
   await bothWidths(page, "sign-up form");
 
   // A password the server refuses shows its reason.
@@ -115,12 +133,11 @@ test("sign-up, check-your-email and confirmation screens pass the accessibility 
   });
   await page.getByLabel("Your name").fill("Sam Synthetic");
   await page.getByLabel("Organization name").fill("Synthetic Readers");
-  await page.getByLabel("Work email").fill("sam@synthetic.example");
-  await page.getByLabel("Choose a password").fill("short");
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.getByLabel("Password").fill("short");
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("alert")).toContainText("12 characters");
-  await page.getByLabel("Choose a password").fill("Correct horse battery staple 42");
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.getByLabel("Password").fill("Correct horse battery staple 42");
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
   await expect(page.getByText("sam@synthetic.example")).toBeVisible();
   await bothWidths(page, "check your email");

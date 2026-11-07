@@ -9,6 +9,10 @@
  * - The answer never shows whether an email already has an account.
  * - Per-address and per-email limits, the honeypot, single-use and expiring links.
  * - With billing on, the new workspace starts the free trial.
+ * - SELF_SERVE_SIGNUP=on (the first landing-page release's switch) is an alias
+ *   for SELF_SIGNUP_ENABLED=true, and goes through the same verified flow: there
+ *   is one sign-up endpoint, and it never creates an account before the email
+ *   link is opened.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
@@ -28,7 +32,7 @@ const PASSWORD = "Correct horse battery staple 42";
 const STAMP = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const DOMAIN = `signup-${STAMP}.example`;
 const outbox: EmailMessage[] = [];
-const ENV_KEYS = ["SELF_SIGNUP_ENABLED", "APP_BASE_URL", "EMAIL_PROVIDER", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "BILLING_DISABLED", "SELF_SIGNUP_TRIAL_PLAN"] as const;
+const ENV_KEYS = ["SELF_SIGNUP_ENABLED", "SELF_SERVE_SIGNUP", "APP_BASE_URL", "EMAIL_PROVIDER", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "BILLING_DISABLED", "SELF_SIGNUP_TRIAL_PLAN"] as const;
 const savedEnv = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 
 /**
@@ -74,6 +78,7 @@ function turnOff() {
     else process.env[k] = savedEnv[k];
   }
   delete process.env.SELF_SIGNUP_ENABLED;
+  delete process.env.SELF_SERVE_SIGNUP;
   setEmailTransportForTests(null);
 }
 
@@ -112,8 +117,8 @@ describe("self sign-up switched off (the default)", () => {
     expect(await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.email, `off@${DOMAIN}`))).toEqual([]);
     expect((await db.select({ id: workspacesTable.id }).from(workspacesTable)).length).toBe(before);
     expect(outbox).toHaveLength(0);
-    // Signed-out identity is exactly as before.
-    expect((await visitor("GET", "/auth/me")).data).toEqual({ authenticated: false, isAdmin: false, mfaPending: false });
+    // Signed-out identity is as before, plus the closed sign-up (the web app then shows only the sign-in screen).
+    expect((await visitor("GET", "/auth/me")).data).toEqual({ authenticated: false, isAdmin: false, mfaPending: false, signupOpen: false });
   });
 
   it("stays off with the flag on but no email provider", async () => {
@@ -122,7 +127,18 @@ describe("self sign-up switched off (the default)", () => {
     delete process.env.EMAIL_PROVIDER;
     const visitor = person();
     expect((await visitor("GET", "/auth/signup/status")).data).toEqual({ enabled: false });
+    expect((await visitor("GET", "/auth/me")).data.signupOpen).toBe(false);
     expect((await visitor("POST", "/auth/signup", signupBody(`noemail@${DOMAIN}`))).status).toBe(404);
+  });
+
+  it("stays off with the SELF_SERVE_SIGNUP=on alias but no email provider", async () => {
+    process.env.SELF_SERVE_SIGNUP = "on";
+    process.env.APP_BASE_URL = "https://grantcrest.test";
+    delete process.env.EMAIL_PROVIDER;
+    const visitor = person();
+    expect((await visitor("GET", "/auth/me")).data.signupOpen).toBe(false);
+    expect((await visitor("POST", "/auth/signup", signupBody(`alias-noemail@${DOMAIN}`))).status).toBe(404);
+    expect(await db.select().from(membersTable).where(eq(membersTable.email, `alias-noemail@${DOMAIN}`))).toEqual([]);
   });
 });
 
@@ -132,7 +148,9 @@ describe("self sign-up switched on", () => {
     const email = `owner@${DOMAIN}`;
     const visitor = person();
     expect((await visitor("GET", "/auth/signup/status")).data).toEqual({ enabled: true });
-    const sent = await visitor("POST", "/auth/signup", signupBody(email));
+    expect((await visitor("GET", "/auth/me")).data.signupOpen).toBe(true);
+    // The address is stored lowercased, however it was typed.
+    const sent = await visitor("POST", "/auth/signup", signupBody(email.toUpperCase()));
     expect(sent.status).toBe(202);
     expect(sent.data.status).toBe("check_email");
     // Nothing exists until the link is opened.
@@ -149,6 +167,8 @@ describe("self sign-up switched on", () => {
     expect(done.status).toBe(201);
     expect(done.data).toMatchObject({ authenticated: true, role: "owner" });
     const me = (await visitor("GET", "/auth/me")).data;
+    expect(me.authenticated).toBe(true);
+    expect(me.isAdmin).toBe(false);
     expect(me.member).toMatchObject({ email, name: "Sam Synthetic", mfaEnabled: false });
     expect(me.role).toBe("owner");
     expect(me.workspace).toMatchObject({ name: `Synthetic Org ${STAMP}`, kind: "client", firstRun: true });
@@ -162,6 +182,11 @@ describe("self sign-up switched on", () => {
     // Audit log: who created what, in the new workspace's own log.
     const audit = (await visitor("GET", "/workspace/audit?category=members")).data.entries.map((e: any) => e.type);
     expect(audit).toEqual(expect.arrayContaining(["workspace_created", "member_joined"]));
+
+    // The new workspace starts empty.
+    const brands = await visitor("GET", "/brands");
+    expect(brands.status).toBe(200);
+    expect(brands.data).toEqual([]);
 
     // Isolation: the operator's data is not visible, and the new workspace's data is not visible to the operator.
     const operator = person();
@@ -177,7 +202,10 @@ describe("self sign-up switched on", () => {
       await db.delete(brandsTable).where(eq(brandsTable.id, brand.id));
     }
 
-    // The new owner signs in again with email and password.
+    // The new owner signs out, and signs in again with email and password.
+    await visitor("POST", "/auth/logout");
+    expect((await visitor("GET", "/auth/me")).data.authenticated).toBe(false);
+    expect((await visitor("POST", "/auth/login", { email, password: PASSWORD })).status).toBe(200);
     const again = person();
     expect((await again("POST", "/auth/login", { email, password: PASSWORD })).status).toBe(200);
   });
@@ -187,12 +215,15 @@ describe("self sign-up switched on", () => {
     const email = `existing@${DOMAIN}`;
     await db.insert(membersTable).values({ id: randomUUID(), email, name: "Already Here", passwordHash: await hashPassword(PASSWORD) });
     const fresh = await person()("POST", "/auth/signup", signupBody(`brand-new@${DOMAIN}`));
-    const taken = await person()("POST", "/auth/signup", signupBody(email));
+    const otherOrg = `Another org ${STAMP}`;
+    const taken = await person()("POST", "/auth/signup", signupBody(email, { organizationName: otherOrg }));
     expect(taken.status).toBe(fresh.status);
     expect(taken.data).toEqual(fresh.data);
     expect(lastTo(email)?.tag).toBe("signup_existing_account");
     expect(lastTo(email)?.text).not.toContain("#token=");
     expect(await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.email, email))).toEqual([]);
+    // No second workspace for the existing email.
+    expect(await db.select().from(workspacesTable).where(eq(workspacesTable.name, otherOrg))).toEqual([]);
   });
 
   it("refuses an account that appeared after sign-up, without creating a workspace", async () => {
@@ -212,15 +243,50 @@ describe("self sign-up switched on", () => {
   it("checks the form, and expired or made-up links do not work", async () => {
     turnOn();
     const visitor = person();
-    expect((await visitor("POST", "/auth/signup", signupBody(`short@${DOMAIN}`, { password: "short" }))).status).toBe(400);
+    const weak = await visitor("POST", "/auth/signup", signupBody(`short@${DOMAIN}`, { password: "short" }));
+    expect(weak.status).toBe(400);
+    expect(weak.data.error).toMatch(/12 characters/);
     expect((await visitor("POST", "/auth/signup", signupBody("not-an-email"))).status).toBe(400);
+    expect((await visitor("POST", "/auth/signup", signupBody(`noname@${DOMAIN}`, { name: "" }))).status).toBe(400);
     expect((await visitor("POST", "/auth/signup", signupBody(`noorg@${DOMAIN}`, { organizationName: " " }))).status).toBe(400);
+    for (const refused of ["short", "noname", "noorg"]) {
+      expect(await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.email, `${refused}@${DOMAIN}`))).toEqual([]);
+      expect(await db.select().from(membersTable).where(eq(membersTable.email, `${refused}@${DOMAIN}`))).toEqual([]);
+    }
     const email = `expired@${DOMAIN}`;
     expect((await visitor("POST", "/auth/signup", signupBody(email))).status).toBe(202);
     await db.update(pendingSignupsTable).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(pendingSignupsTable.email, email));
     expect((await visitor("POST", "/auth/signup/verify", { token: tokenFrom(lastTo(email)!) })).status).toBe(404);
     expect((await visitor("POST", "/auth/signup/verify", { token: "a".repeat(43) })).data.code).toBe("signup_link_invalid");
     expect((await visitor("POST", "/auth/signup/verify", {})).status).toBe(404);
+  });
+
+  it("accepts SELF_SERVE_SIGNUP=on as the switch, through the same email-verified flow", async () => {
+    turnOn();
+    delete process.env.SELF_SIGNUP_ENABLED;
+    process.env.SELF_SERVE_SIGNUP = "on";
+    const email = `alias@${DOMAIN}`;
+    const visitor = person();
+    expect((await visitor("GET", "/auth/me")).data.signupOpen).toBe(true);
+    expect((await visitor("POST", "/auth/signup", signupBody(email))).status).toBe(202);
+    // Not signed in and no account until the link is opened.
+    expect((await visitor("GET", "/auth/me")).data.authenticated).toBe(false);
+    expect(await db.select().from(membersTable).where(eq(membersTable.email, email))).toEqual([]);
+    const done = await visitor("POST", "/auth/signup/verify", { token: tokenFrom(lastTo(email)!) });
+    expect(done.status).toBe(201);
+    expect((await visitor("GET", "/auth/me")).data).toMatchObject({ authenticated: true, role: "owner", workspace: { kind: "client", firstRun: true } });
+  });
+
+  it("does not create an account from the first release's sign-up form shape (no instant accounts)", async () => {
+    turnOn();
+    const email = `instant@${DOMAIN}`;
+    const visitor = person();
+    // #63's form posted { name, email, password, organization } and was signed in at once.
+    const res = await visitor("POST", "/auth/signup", { name: "Ada Founder", email, password: PASSWORD, organization: `Instant Org ${STAMP}` });
+    expect(res.status).toBe(400);
+    expect((await visitor("GET", "/auth/me")).data.authenticated).toBe(false);
+    expect(await db.select().from(membersTable).where(eq(membersTable.email, email))).toEqual([]);
+    expect(await db.select().from(workspacesTable).where(eq(workspacesTable.name, `Instant Org ${STAMP}`))).toEqual([]);
   });
 
   it("answers a bot that fills the hidden field like a person, and does nothing", async () => {

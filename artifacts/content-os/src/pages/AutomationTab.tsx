@@ -72,7 +72,7 @@ function ApiKeysSection() {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-foreground flex items-center gap-2"><Key className="w-4 h-4" /> API Keys</h3>
+          <h3 className="font-semibold text-foreground flex items-center gap-2"><Key className="w-4 h-4" aria-hidden="true" /> API keys</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Bearer tokens for external tools (e.g. n8n) to call <code className="font-mono">/api/automation/*</code> instead of a session cookie.</p>
         </div>
         {!creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="w-3.5 h-3.5 mr-1" /> New key</Button>}
@@ -106,7 +106,7 @@ function ApiKeysSection() {
       )}
 
       {isLoading && <div className="h-16 bg-muted animate-pulse rounded-lg" />}
-      {keys?.length === 0 && <div className="bg-card border border-border rounded-2xl p-6 text-center text-muted-foreground text-sm">No API keys yet.</div>}
+      {keys?.length === 0 && <div className="bg-card border border-border rounded-2xl p-6 text-center text-muted-foreground text-sm">No API keys yet. Create one with <strong className="font-medium text-foreground">New key</strong> to let a tool such as n8n call GrantCrest.</div>}
       {keys?.map(key => (
         <div key={key.id} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between">
           <div>
@@ -209,7 +209,7 @@ function WebhooksSection() {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-foreground flex items-center gap-2"><Webhook className="w-4 h-4" /> Webhook Subscriptions</h3>
+          <h3 className="font-semibold text-foreground flex items-center gap-2"><Webhook className="w-4 h-4" aria-hidden="true" /> Webhook subscriptions</h3>
           <p className="text-xs text-muted-foreground mt-0.5">HMAC-signed (Standard Webhooks) deliveries for lifecycle events. See <code className="font-mono">docs/automation-api.md</code> for verification code.</p>
         </div>
         {!creating && <Button size="sm" variant="outline" onClick={() => setCreating(true)}><Plus className="w-3.5 h-3.5 mr-1" /> New subscription</Button>}
@@ -243,7 +243,7 @@ function WebhooksSection() {
       )}
 
       {isLoading && <div className="h-16 bg-muted animate-pulse rounded-lg" />}
-      {subs?.length === 0 && <div className="bg-card border border-border rounded-2xl p-6 text-center text-muted-foreground text-sm">No webhook subscriptions yet.</div>}
+      {subs?.length === 0 && <div className="bg-card border border-border rounded-2xl p-6 text-center text-muted-foreground text-sm">No webhook subscriptions yet. Add one with <strong className="font-medium text-foreground">New subscription</strong> to be told when events you choose happen, such as new grant matches or an approaching deadline.</div>}
       {subs?.map(sub => (
         <div key={sub.id} className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="p-4 flex items-center justify-between gap-3">

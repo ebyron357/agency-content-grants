@@ -31,7 +31,7 @@ import {
   getListExportsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { apiPost, apiPatch, apiDelete, resolveApiAssetUrl } from "@/lib/api";
+import { apiPost, apiPatch, apiDelete, friendlyError, resolveApiAssetUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   useDraftAllSections,
@@ -410,7 +410,7 @@ function SourcesTab({ projectId }: { projectId: string }) {
       setPdfFile(null);
       setPdfMeta({ title: "", publisher: "", author: "", publicationDate: "" });
     } catch (err: any) {
-      setPdfError(err.message ?? "Upload failed");
+      setPdfError(friendlyError(err, "Upload failed. Try again."));
     } finally {
       setPdfUploading(false);
     }
@@ -1278,7 +1278,7 @@ function EditorTab({ projectId }: { projectId: string }) {
       });
       await refresh();
     } catch (err) {
-      setSaveError((err as Error).message ?? "Save failed");
+      setSaveError(friendlyError(err, "Save failed. Try again."));
     } finally {
       setSaving(false);
     }

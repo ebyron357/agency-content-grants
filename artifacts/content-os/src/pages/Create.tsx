@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { useListBrands } from "@workspace/api-client-react";
-import { apiPost } from "@/lib/api";
+import { apiPost, friendlyError } from "@/lib/api";
 import {
   ArrowLeft,
   ArrowRight,
@@ -178,11 +178,7 @@ export default function Create() {
       await apiPost(`/projects/${projectId}/generate-brief`);
       navigate(`/projects/${projectId}?mode=quick`);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Generation failed. Please try again.",
-      );
+      setError(friendlyError(err, "Generation failed. Please try again."));
       setIsGenerating(false);
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     }
