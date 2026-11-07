@@ -12,8 +12,9 @@ import { hashPassword, verifyPassword } from "../lib/password";
 import { permissionsOf } from "../lib/permissions";
 import { consumeSecondFactor } from "../lib/secondFactor";
 import { checkInviteAcceptance, limitResponse } from "../lib/billing/service";
+import { signupConfig } from "../lib/signup/config";
 import { memberSessionActive, revokeMemberSession, revokeMemberSessions, startMemberSession } from "../lib/memberSessions";
-import { ROLES, createWorkspace, ensureAgencyWorkspace, hashToken, isRole, memberView, memberWorkspaces, membershipOf, normalizeEmail, passwordProblem, upgradeLegacySession, type WorkspaceAccess } from "../lib/workspaces";
+import { ROLES, ensureAgencyWorkspace, hashToken, isRole, memberView, memberWorkspaces, membershipOf, normalizeEmail, passwordProblem, upgradeLegacySession, type WorkspaceAccess } from "../lib/workspaces";
 
 const router: IRouter = Router();
 
@@ -68,28 +69,6 @@ const mfaLimiter = rateLimit({
   store: new PgRateLimitStore("mfa"),
 });
 
-/** At most this many new accounts per address per hour, so sign-up cannot be used to flood the database. */
-const signupLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: { error: "Too many new accounts from this network. Try again in an hour." },
-  // Counts accounts created and "already exists" answers (so emails cannot be probed in bulk), not typos or a closed sign-up.
-  skipFailedRequests: true,
-  requestWasSuccessful: (_req, res) => res.statusCode < 400 || res.statusCode === 409,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
-  store: new PgRateLimitStore("signup"),
-});
-
-/**
- * Self-serve sign-up is off unless the owner sets SELF_SERVE_SIGNUP=on.
- * Off, the public site shows the sign-in screen exactly as before.
- */
-export function signupOpen(): boolean {
-  return process.env.SELF_SERVE_SIGNUP === "on";
-}
-
 /** A pending two-factor sign-in expires after this long. */
 const PENDING_MFA_MS = 5 * 60 * 1000;
 const PENDING_MFA_ATTEMPTS = 5;
@@ -101,7 +80,7 @@ let dummyHash: Promise<string> | null = null;
  * Regenerates the session (no fixation) and signs a member in to one workspace,
  * with a member_sessions row for this browser. The previous row, if any, ends.
  */
-async function signInMember(req: Request, res: Response, member: { id: string; name: string }, access: WorkspaceAccess, status = 200, method: "password" | "mfa" | "recovery_code" | "invite" = "password"): Promise<void> {
+export async function signInMember(req: Request, res: Response, member: { id: string; name: string }, access: WorkspaceAccess, status = 200, method: "password" | "mfa" | "recovery_code" | "invite" | "signup" = "password"): Promise<void> {
   await revokeMemberSession(req.session.memberSessionId);
   const memberSessionId = await startMemberSession(req, member.id, access.workspace.id, method);
   req.session.regenerate((err) => {
@@ -311,7 +290,13 @@ router.get("/auth/me", async (req, res) => {
   const authenticated = req.session.authenticated === true;
   if (!authenticated) {
     const pending = req.session.pendingMfa;
-    res.json({ authenticated: false, isAdmin: false, mfaPending: !!pending && Date.now() - pending.at < PENDING_MFA_MS, signupOpen: signupOpen() });
+    res.json({
+      authenticated: false,
+      isAdmin: false,
+      mfaPending: !!pending && Date.now() - pending.at < PENDING_MFA_MS,
+      // Whether the public landing page and sign-up are offered (routes/signup.ts, docs/SELF_SIGNUP.md).
+      signupOpen: signupConfig().enabled,
+    });
     return;
   }
   await upgradeLegacySession(req.session);
@@ -340,7 +325,15 @@ router.get("/auth/me", async (req, res) => {
     authenticated: true,
     isAdmin: req.session.isAdmin === true,
     member,
-    workspace: workspace ? { id: workspace.id, name: workspace.name, kind: workspace.kind } : null,
+    workspace: workspace
+      ? {
+          id: workspace.id,
+          name: workspace.name,
+          kind: workspace.kind,
+          // A workspace its owner signed up for opens on the getting-started checklist until someone hides it.
+          firstRun: workspace.createdVia === "self_signup" && !workspace.onboardingDismissedAt,
+        }
+      : null,
     role: role ?? null,
     roleLabel: role && isRole(role) ? ROLES[role].label : null,
     permissions: permissionsOf(role),
@@ -461,61 +454,6 @@ router.post("/auth/invites/:token/accept", inviteLimiter, async (req, res): Prom
   const access = await membershipOf(member.id, row.workspace.id);
   await logActivity("member_joined", `${member.name} joined ${row.workspace.name} as ${row.invite.role}`, { userId: row.workspace.principalUserId, actorName: member.name }).catch(() => {});
   await signInMember(req, res, member, access!, 201, "invite");
-});
-
-/**
- * POST /api/auth/signup { name, email, password, organization }
- * Self-serve sign-up (only while SELF_SERVE_SIGNUP=on): creates a client
- * workspace named after the organization, the person's account, and their
- * owner membership, then signs them in. With billing on, the new workspace
- * starts without a plan, so paid features stay closed until a trial or
- * subscription (docs/BILLING.md).
- */
-router.post("/auth/signup", signupLimiter, async (req, res): Promise<void> => {
-  if (!signupOpen()) {
-    res.status(404).json({ error: "Sign-up is not open. Ask your organization's owner for an invitation." });
-    return;
-  }
-  const { name, password, organization } = req.body ?? {};
-  const displayName = typeof name === "string" ? name.trim().slice(0, 120) : "";
-  const orgName = typeof organization === "string" ? organization.trim().slice(0, 120) : "";
-  const email = normalizeEmail(req.body?.email);
-  if (!displayName) {
-    res.status(400).json({ error: "Enter your name." });
-    return;
-  }
-  if (!email) {
-    res.status(400).json({ error: "Enter a valid email address." });
-    return;
-  }
-  if (!orgName) {
-    res.status(400).json({ error: "Enter your organization's name." });
-    return;
-  }
-  const problem = passwordProblem(password, email);
-  if (problem) {
-    res.status(400).json({ error: problem });
-    return;
-  }
-  const [existing] = await db.select({ id: membersTable.id }).from(membersTable).where(eq(membersTable.email, email)).limit(1);
-  if (existing) {
-    res.status(409).json({ error: "An account with this email already exists. Sign in instead." });
-    return;
-  }
-  const passwordHash = await hashPassword(password as string);
-  let member: typeof membersTable.$inferSelect;
-  try {
-    [member] = await db.insert(membersTable).values({ id: randomUUID(), email, name: displayName, passwordHash }).returning();
-  } catch {
-    // Two sign-ups for the same email at once: the unique email constraint lets only one through.
-    res.status(409).json({ error: "An account with this email already exists. Sign in instead." });
-    return;
-  }
-  const workspace = await createWorkspace(orgName);
-  await db.insert(membershipsTable).values({ id: randomUUID(), memberId: member.id, workspaceId: workspace.id, role: "owner" });
-  const access = await membershipOf(member.id, workspace.id);
-  await logActivity("workspace_created", `${member.name} signed up and created "${workspace.name}"`, { userId: workspace.principalUserId, actorName: member.name }).catch(() => {});
-  await signInMember(req, res, member, access!, 201, "password");
 });
 
 /** POST /api/auth/password { currentPassword, newPassword }: a member changes their password. */

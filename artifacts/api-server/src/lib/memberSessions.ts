@@ -14,7 +14,7 @@ import { invalidateMembershipCache } from "../middleware/requireAuth";
 /** Matches the session cookie's lifetime: rows older than this are expired. */
 export const SESSION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
-export async function startMemberSession(req: Request, memberId: string, workspaceId: string, method: "password" | "mfa" | "recovery_code" | "invite"): Promise<string> {
+export async function startMemberSession(req: Request, memberId: string, workspaceId: string, method: "password" | "mfa" | "recovery_code" | "invite" | "signup"): Promise<string> {
   const id = randomUUID();
   await db.insert(memberSessionsTable).values({
     id,

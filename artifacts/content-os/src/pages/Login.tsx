@@ -5,7 +5,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 interface LoginProps {
   onSuccess: () => void;
-  /** Show the link to self-serve sign-up. */
+  /** Show the link to self sign-up (the server's signupOpen, docs/SELF_SIGNUP.md). */
   signupOpen?: boolean;
 }
 
@@ -184,7 +184,7 @@ export default function Login({ onSuccess, signupOpen = false }: LoginProps) {
           </form>
           {signupOpen && (
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              New to GrantCrest? <a href={`${BASE}/signup`} className="text-brand underline-offset-4 hover:underline">Create an account</a>
+              New to GrantCrest? <a href={`${BASE}/signup`} className="font-medium text-brand underline underline-offset-4">Create an account</a>
             </p>
           )}
           </>

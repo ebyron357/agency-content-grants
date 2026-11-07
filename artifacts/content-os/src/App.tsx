@@ -8,6 +8,7 @@ import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import Signup from "@/pages/Signup";
 import InviteAccept from "@/pages/InviteAccept";
+import SignupVerify from "@/pages/SignupVerify";
 import MfaRequired from "@/pages/MfaRequired";
 import { useAuth } from "@/hooks/use-auth";
 import { LoadingState } from "@/components/layout/Page";
@@ -33,6 +34,8 @@ const GrantFoundations = lazy(() => import("@/pages/GrantFoundations"));
 const GrantFunder = lazy(() => import("@/pages/GrantFunder"));
 const Help = lazy(() => import("@/pages/Help"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const GetStarted = lazy(() => import("@/pages/GetStarted"));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -42,7 +45,7 @@ function RouteLoading() {
   return <LoadingState />;
 }
 
-function AppLayout() {
+function AppLayout({ firstRun }: { firstRun: boolean }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <a
@@ -61,7 +64,10 @@ function AppLayout() {
         <div className="flex-1">
         <Suspense fallback={<RouteLoading />}>
           <Switch>
-            <Route path="/" component={Create} />
+            {/* A workspace its owner just signed up for opens on its getting-started checklist. */}
+            <Route path="/" component={firstRun ? GetStarted : Create} />
+            <Route path="/get-started" component={GetStarted} />
+            <Route path="/onboarding" component={Onboarding} />
             <Route path="/create" component={Create} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/brands" component={BrandsList} />
@@ -93,12 +99,14 @@ function AppLayout() {
 }
 
 function AuthGate() {
-  const { isAuthenticated, isLoading, mfaEnrollmentRequired, signupOpen, refetch } = useAuth();
+  const { isAuthenticated, isLoading, mfaEnrollmentRequired, signupOpen, firstRun, refetch } = useAuth();
   // Invitation links work whether or not someone is signed in.
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname.slice(base.length);
   const inviteToken = path.startsWith("/invite/") ? decodeURIComponent(path.slice("/invite/".length)) : null;
   if (inviteToken) return <InviteAccept token={inviteToken} onDone={refetch} />;
+  // The confirmation link from a self sign-up email (docs/SELF_SIGNUP.md).
+  if (path === "/signup/verify") return <SignupVerify onDone={refetch} />;
 
   if (isLoading) {
     return (
@@ -113,12 +121,17 @@ function AuthGate() {
   }
 
   if (!isAuthenticated) {
-    // With sign-up closed, every signed-out address shows the sign-in screen, as before.
+    // With sign-up closed (the server's signupOpen, docs/SELF_SIGNUP.md), every signed-out
+    // address shows the sign-in screen, as before: no landing page and no sign-up link.
     if (!signupOpen) return <Login onSuccess={refetch} />;
-    if (path === "/signup") return <Signup onSuccess={refetch} />;
+    // Sign-up only sends a confirmation email; the account exists once its link is opened (/signup/verify).
+    if (path === "/signup") return <Signup />;
     if (path === "/" || path === "") return <Landing />;
     return <Login onSuccess={refetch} signupOpen />;
   }
+
+  // Signed in from /login or /signup: open the app's home, not a "page not found".
+  if (path === "/login" || path === "/signup") window.history.replaceState(null, "", `${base}/`);
 
   if (mfaEnrollmentRequired) {
     return <MfaRequired onDone={refetch} />;
@@ -126,7 +139,7 @@ function AuthGate() {
 
   return (
     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-      <AppLayout />
+      <AppLayout firstRun={firstRun} />
     </WouterRouter>
   );
 }

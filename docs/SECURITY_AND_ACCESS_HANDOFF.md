@@ -152,14 +152,18 @@ Keep this current at handoff (names and roles only, never credentials). Settings
 Report a suspected security issue to the owner privately (see `TROUBLESHOOTING_AND_SUPPORT.md`), not in a public GitHub issue.
 
 
-## Self-serve sign-up
+## Self sign-up
 
-Off by default. With `SELF_SERVE_SIGNUP=on`, signed-out visitors to `/` see the public landing page, `/signup` lets anyone create an account, and `/login` (and every other signed-out address) shows the sign-in screen with a "Create an account" link. With it off, every signed-out address shows the sign-in screen exactly as before.
+Full detail: `docs/SELF_SIGNUP.md`. Off by default. The switch is `SELF_SIGNUP_ENABLED=true`; `SELF_SERVE_SIGNUP=on` (the name the first landing-page release used) is accepted as the same switch. Either way sign-up stays off until an email provider (`EMAIL_PROVIDER`, with `RESEND_API_KEY` and `EMAIL_FROM`) and `APP_BASE_URL` are set too. With it off, every signed-out address shows the sign-in screen exactly as before: no landing page, no sign-up link, and every sign-up route answers 404 and writes nothing.
 
-`POST /api/auth/signup { name, email, password, organization }` creates a client workspace named after the organization, the person's account and their owner membership, then signs them in. The same password rules as invitations apply. It answers 404 while sign-up is off and 409 when the email already has an account.
+With it on, signed-out visitors to `/` see the public landing page, `/signup` shows the sign-up form, and the sign-in screen (`/login` and every other signed-out address) has a "Create an account" link.
 
-Abuse limits: five counted attempts per address per hour (`rate_limits` key `signup`). An account created and an "already exists" answer both count, so emails cannot be probed in bulk; typos and a closed sign-up do not.
+- **Email verification before anything exists.** `POST /api/auth/signup { name, organizationName, email, password }` only stores a pending sign-up (`pending_signups`: scrypt password hash, SHA-256 hash of a 32-byte random token, 24-hour expiry) and emails a one-time link (`APP_BASE_URL/signup/verify#token=…`; the token is in the fragment, so it never reaches a server log). `POST /api/auth/signup/verify { token }` then creates, in one transaction, the client workspace, the member and the owner membership, and signs the person in. No member, workspace or session exists until the link is opened. There is no other sign-up endpoint: the first release's instant-account endpoint was replaced by this flow before sign-up was ever switched on.
+- **No account enumeration.** The answer (202, same message) and the work done are the same whether or not the email already has an account; an existing account gets a "you already have an account" email instead.
+- **Rate limits** in PostgreSQL (`rate_limits` keys `signup-ip`, `signup-email`, `signup-verify`): 10 sign-up requests an hour per IP, 3 an hour per email from any IP, 20 failed link attempts per 15 minutes per IP.
+- **Bot honeypot:** a hidden field; a bot that fills it gets the normal answer and nothing is stored or sent.
+- **Audit log:** `workspace_created` and `member_joined` (and `billing_trial_started`) in the new workspace's log.
+- **Billing:** with billing on, the new workspace starts the free trial (`SELF_SIGNUP_TRIAL_PLAN`, default `starter`); with billing off there are no limits.
+- The person is an ordinary owner of an ordinary client workspace: same roles, permissions, two-factor settings, sessions and tenant isolation as an invited owner.
 
-With billing on, a new workspace starts without a plan, so inviting, adding organizations and AI drafting stay closed until a trial or subscription (docs/BILLING.md).
-
-Not yet in place, and worth deciding before opening sign-up to the public: email verification (an account works without proving the address), a bot check such as Cloudflare Turnstile on the form, and an "already exists" answer that does not reveal whether an email is registered.
+Not in place: a CAPTCHA such as Cloudflare Turnstile (an owner decision, as it is a third-party service).

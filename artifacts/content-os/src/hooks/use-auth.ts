@@ -7,8 +7,13 @@ interface AuthState {
   isLoading: boolean;
   /** The workspace requires two-factor and this member must turn it on first. */
   mfaEnrollmentRequired: boolean;
-  /** Self-serve sign-up is open (the server's SELF_SERVE_SIGNUP is on). */
+  /**
+   * Self sign-up is open: the server's switch (SELF_SIGNUP_ENABLED=true, or its alias
+   * SELF_SERVE_SIGNUP=on) is set and email can be sent (docs/SELF_SIGNUP.md).
+   */
   signupOpen: boolean;
+  /** A workspace its owner signed up for, with the getting-started checklist not hidden: it opens on the checklist. */
+  firstRun: boolean;
   refetch: () => void;
 }
 
@@ -17,15 +22,22 @@ export function useAuth(): AuthState {
   const [isLoading, setIsLoading] = useState(true);
   const [mfaEnrollmentRequired, setMfaEnrollmentRequired] = useState(false);
   const [signupOpen, setSignupOpen] = useState(false);
+  const [firstRun, setFirstRun] = useState(false);
 
   const check = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await fetch(`${BASE}/api/auth/me`);
-      const data = await res.json() as { authenticated: boolean; signupOpen?: boolean; mfa?: { enrollmentRequired?: boolean } };
+      const data = await res.json() as {
+        authenticated: boolean;
+        signupOpen?: boolean;
+        mfa?: { enrollmentRequired?: boolean };
+        workspace?: { firstRun?: boolean } | null;
+      };
       setIsAuthenticated(data.authenticated === true);
       setSignupOpen(data.signupOpen === true);
       setMfaEnrollmentRequired(data.mfa?.enrollmentRequired === true);
+      setFirstRun(data.workspace?.firstRun === true);
     } catch {
       setIsAuthenticated(false);
     } finally {
@@ -37,5 +49,5 @@ export function useAuth(): AuthState {
     check();
   }, [check]);
 
-  return { isAuthenticated, isLoading, mfaEnrollmentRequired, signupOpen, refetch: check };
+  return { isAuthenticated, isLoading, mfaEnrollmentRequired, signupOpen, firstRun, refetch: check };
 }
