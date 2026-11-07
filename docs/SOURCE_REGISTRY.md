@@ -95,8 +95,40 @@ A page problem (an HTTP error, a timeout, a page with no text) is recorded on th
 
 Both pages were read through a web fetch tool; this build environment's network policy blocks direct requests to either host.
 
-## 7. Tests
+## 7. State sources (week 2, migration 0035)
+
+Migration `0035_state_sources.sql` adds three state **feed** connectors and watch lists for the ten most populous states. Every new row is registered `disabled` with `terms_checked = false` and `terms_permit_automation = false`; nothing in it publishes an opportunity, and `ON CONFLICT ("key") DO NOTHING` keeps a row a person has already edited. Each row's `terms_note` records what its terms page said and where it is.
+
+**Feed connectors** live in `artifacts/api-server/src/lib/grants/states/` (`illinois.ts`, `northCarolina.ts`, `utah.ts`, shared helpers in `common.ts`). They are adapted from [KurtLehnardt/granted](https://github.com/KurtLehnardt/granted) (`scaffold/scripts/1-fetch-il-grants.mjs`, `1-fetch-nc-grants.mjs`, `1-fetch-ut-grants.mjs` and `scaffold/scripts/lib/normalizeNewSources.mjs`, commit `d6e143a`), MIT License; the notice is kept in `states/LICENSE-granted.txt` and each file's header says what changed. The daily `grant_sync` job runs a state feed **only while its registry row may run** (active, terms checked and permitting automated reading, the same rule as pages); a feed whose row is missing or disabled is skipped. Records go through the same store and publication gate as California (`syncStateFeed` in `lib/grants/ingest.ts`): a record that leaves the listing is closed, and a page that parses fewer rows than the connector's floor (Illinois 20, North Carolina 20, Utah 100) fails the run and changes nothing.
+
+- **Illinois** reads the CSFA opportunity list table. The application window sets the status (`forecasted` before it opens, `posted` while open, `closed` after it ends); "No end date" is a rolling deadline. Rows can pass the gate.
+- **North Carolina** reads the NC.gov directory. It states no deadline, amount or eligibility, so rows are stored as `listed`, which the gate never publishes.
+- **Utah** parses the Looker Studio report's rendered cards, but the report renders only in a browser two cross-origin iframes deep. The API server has no renderer, so the connector fails with a plain reason even if enabled. Rows would be `listed`.
+
+**Watch lists** are `portal_page` (a page listing many opportunities) or `watched_page` (one agency's page) rows, checked by the page watcher (§4) and extracted into drafts for review once enabled. URLs are official `.gov` pages; aggregators were used only to find them, never as the source. States a feed covers (CA, IL, NC) get no watch-list row.
+
+| State | Source | URL | Connector type | Terms status (read 7 Nov 2026) |
+|---|---|---|---|---|
+| CA | California Grants Portal (existing) | https://data.ca.gov/dataset/california-grants-portal | `feed` (`ca_grants_portal`), active | Public domain, no restrictions (§6) |
+| IL | Illinois CSFA opportunity list | https://omb.illinois.gov/public/gata/csfa/OpportunityList.aspx | `feed` (`il_csfa`), disabled | Not confirmed. The State of Illinois legal notice (https://www.illinois.gov/about/privacy.html) says nothing about automated reading and does not name omb.illinois.gov; `omb.illinois.gov/robots.txt` redirects to a gateway reading "Unauthorized access is prohibited." Confirm with Illinois OMB (GATA). |
+| NC | NC.gov grant opportunities directory | https://www.nc.gov/your-government/all-nc-state-services/grant-opportunities | `feed` (`nc_grant_directory`), disabled | Not permitted for this product as read. https://www.nc.gov/disclaimer-terms-use permits copying "for non-commercial use" only; GrantCrest is paid. Ask NC DIT for written permission. |
+| UT | Utah Funding Opportunities Portal (Looker Studio) | https://lookerstudio.google.com/u/0/reporting/ef90555b-7a4d-4b8e-898e-c427c996bf65/page/WFAzC | `feed` (`ut_funding_portal`), disabled | Not confirmed. The linking page (https://gopb.utah.gov/funding-resources/) states no terms; Google's terms could not be opened. Also needs a browser renderer. |
+| TX | Office of the Governor eGrants funding opportunities | https://egrants.gov.texas.gov/apps/egrants/fundopp.aspx | `portal_page`, disabled | Not checked; the page links no terms. |
+| FL | Florida DEP grants (Protecting Florida Together) | https://protectingfloridatogether.gov/Grants | `watched_page`, disabled | Not checked; read https://floridadep.gov/disclaimer and https://floridadep.gov/privacy-statement. |
+| NY | Statewide Financial System funding search | https://esupplier.sfs.ny.gov/psp/fscm/SUPPLIER/ERP/c/NY_SUPPUB_FL.AUC_RESP_INQ_AUC.GBL | `portal_page`, disabled | Not checked; read https://grantsmanagement.ny.gov/website-disclaimer. Needs JavaScript. |
+| NY | Department of State funding opportunities | https://dos.ny.gov/funding-bid-opportunities | `watched_page`, disabled | Not checked; read https://dos.ny.gov/disclaimer. |
+| NY | Agriculture and Markets funding opportunities | https://agriculture.ny.gov/funding-opportunities | `watched_page`, disabled | Not checked; read https://agriculture.ny.gov/disclaimer. |
+| PA | Pennsylvania state grants | https://pa.gov/en/grants | `portal_page`, disabled | Not checked; read https://www.pa.gov/privacy-policy. |
+| OH | Ohio Grants Partnership funding opportunities | https://www.grants.ohio.gov/fundingopportunities.aspx | `portal_page`, disabled | Not checked, and the page could not be opened. |
+| GA | Governor's Office of Planning and Budget grant opportunities | https://opb.georgia.gov/node/13841 | `portal_page`, disabled | Not checked; read https://georgia.gov/privacysecurity. The page said "There are currently no active grant opportunities available." |
+| MI | Michigan Department of Education grants | https://michigan.gov/mde/Services/financial-management/grants | `watched_page`, disabled | Not checked; read https://www.michigan.gov/policies. |
+
+To turn a state on, a person reads its terms page, records the result in the registry (Sources screen: terms checked, permits automated reading) and sets the row active. Until then only California shows state listings.
+
+## 8. Tests
 
 - `artifacts/api-server/src/lib/grants/sources/sources.unit.test.ts` (hermetic): registry validation and the terms rule, URL rules, schedule and freshness, page text and links, date and amount grounding, extraction parsing and validation with a recorded (mocked) AI answer including invented fields, the cheap-model choice, demo output, approval through the publication gate, reviewer edits, the webhook secret and notification parsing, the changedetection.io client against a fake API, backend selection, and the fetcher's User-Agent and per-host rate limit.
 - `artifacts/api-server/src/routes/grant-sources.integration.test.ts` (real database and router): the two feeds registered unchanged; role and tenant checks (writer, viewer, locked operator, client-workspace owner, unauthenticated); registry CRUD; a page checked, extracted, queued, approved through the gate and rejected, with nothing published before approval; demo output never approvable; failure and staleness; a check through the job queue; the webhook's secret, validation and dedupe.
 - `routes/permissions.coverage.test.ts` classifies every new route.
+- `artifacts/api-server/src/lib/grants/states/states.unit.test.ts` (hermetic): the Illinois and North Carolina parsers against pages recorded on 7 November 2026 (`states/__fixtures__/`, trimmed, markup unchanged, plus one synthetic row in granted's older markup each), Utah against a synthetic card page, dates, amounts and statuses, the row floors, and the gate never publishing a `listed` row.
+- `artifacts/api-server/src/routes/grants.integration.test.ts` (real database): migration 0035's rows are disabled with terms not checked; a state feed becomes runnable only once its terms are recorded and it is active; the Illinois and North Carolina connectors sync through the gate with synthetic pages, close rows that leave the listing, and fail without changing anything on a broken page; Utah fails plainly without a renderer.
