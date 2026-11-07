@@ -5,9 +5,11 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 interface LoginProps {
   onSuccess: () => void;
+  /** Show the link to self-serve sign-up. */
+  signupOpen?: boolean;
 }
 
-export default function Login({ onSuccess }: LoginProps) {
+export default function Login({ onSuccess, signupOpen = false }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -180,6 +182,11 @@ export default function Login({ onSuccess }: LoginProps) {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+          {signupOpen && (
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              New to GrantCrest? <a href={`${BASE}/signup`} className="text-brand underline-offset-4 hover:underline">Create an account</a>
+            </p>
+          )}
           </>
           )}
         </div>

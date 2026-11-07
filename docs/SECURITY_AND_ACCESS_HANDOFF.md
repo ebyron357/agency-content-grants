@@ -150,3 +150,16 @@ Keep this current at handoff (names and roles only, never credentials). Settings
 | AI provider receives document content for generation | Use a provider account whose data-use terms the owner accepts; demo mode sends nothing externally |
 
 Report a suspected security issue to the owner privately (see `TROUBLESHOOTING_AND_SUPPORT.md`), not in a public GitHub issue.
+
+
+## Self-serve sign-up
+
+Off by default. With `SELF_SERVE_SIGNUP=on`, signed-out visitors to `/` see the public landing page, `/signup` lets anyone create an account, and `/login` (and every other signed-out address) shows the sign-in screen with a "Create an account" link. With it off, every signed-out address shows the sign-in screen exactly as before.
+
+`POST /api/auth/signup { name, email, password, organization }` creates a client workspace named after the organization, the person's account and their owner membership, then signs them in. The same password rules as invitations apply. It answers 404 while sign-up is off and 409 when the email already has an account.
+
+Abuse limits: five counted attempts per address per hour (`rate_limits` key `signup`). An account created and an "already exists" answer both count, so emails cannot be probed in bulk; typos and a closed sign-up do not.
+
+With billing on, a new workspace starts without a plan, so inviting, adding organizations and AI drafting stay closed until a trial or subscription (docs/BILLING.md).
+
+Not yet in place, and worth deciding before opening sign-up to the public: email verification (an account works without proving the address), a bot check such as Cloudflare Turnstile on the form, and an "already exists" answer that does not reveal whether an email is registered.
