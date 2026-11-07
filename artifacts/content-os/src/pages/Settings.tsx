@@ -258,10 +258,10 @@ function ModelConfigTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="font-semibold text-foreground">Pipeline Model Assignment</h3>
+          <h3 className="font-semibold text-foreground">Pipeline model assignment</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Assign specific models to each pipeline stage. Leave blank to use the best available provider automatically.</p>
         </div>
-        {!editing && <Button variant="outline" onClick={startEdit}>Edit Config</Button>}
+        {!editing && <Button variant="outline" onClick={startEdit}>Edit configuration</Button>}
       </div>
 
       <div className="bg-card border border-border rounded-2xl divide-y divide-border">
@@ -304,7 +304,7 @@ function ModelConfigTab() {
 }
 
 function DependenciesTab() {
-  const { data: dependencies } = useListDependencies();
+  const { data: dependencies, isLoading, isError, refetch } = useListDependencies();
   const [filter, setFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -322,26 +322,35 @@ function DependenciesTab() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="font-semibold text-foreground mb-1">Dependency Registry</h3>
+        <h3 className="font-semibold text-foreground mb-1">Dependency registry</h3>
         <p className="text-xs text-muted-foreground">All planned and optional dependencies for the content pipeline. Each entry tracks its install status, purpose, and decision rationale.</p>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      {categories.length > 1 && <div className="flex gap-2 flex-wrap" role="group" aria-label="Filter by category">
         {categories.map(cat => (
           <button
             key={cat}
+            type="button"
+            aria-pressed={filter === cat}
             onClick={() => setFilter(cat)}
             className={`text-xs px-3 py-1 rounded-full border transition-colors ${filter === cat ? 'bg-primary text-white border-brand' : 'border-border text-muted-foreground hover:border-foreground/25'}`}
           >
             {cat === 'all' ? 'All' : cat}
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className="space-y-2">
-        {!filtered.length && (
+        {isLoading && <p role="status" className="text-sm text-muted-foreground">Loading dependencies…</p>}
+        {isError && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/25 bg-red-500/[0.06] p-5 text-sm text-foreground">
+            The dependency list could not load.
+            <Button size="sm" variant="secondary" onClick={() => void refetch()}>Try again</Button>
+          </div>
+        )}
+        {!isLoading && !isError && !filtered.length && (
           <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
-            No dependency results found.
+            No dependencies are recorded yet. When the operator registers optional tools for the content pipeline, they are listed here with their status and purpose.
           </div>
         )}
         {filtered.map(dep => (

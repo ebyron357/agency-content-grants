@@ -49,7 +49,7 @@ export function setStripeApiForTests(api: StripeApi | null): void {
 
 function stripeApi(): StripeApi {
   if (override) return override;
-  if (!client) client = new Stripe(process.env.STRIPE_SECRET_KEY as string, { appInfo: { name: "Content Machine" } });
+  if (!client) client = new Stripe(process.env.STRIPE_SECRET_KEY as string, { appInfo: { name: "GrantCrest" } });
   return client as unknown as StripeApi;
 }
 

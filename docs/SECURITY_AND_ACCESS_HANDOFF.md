@@ -1,10 +1,10 @@
 # Security and Access Handoff
 
-How access to Content Machine works, who controls it, and which controls protect it. Owner: `ebyron357`. No secret values appear in this repository. Updated 4 November 2026 for account security (R1, step 3 of `GRANT_PLATFORM_PLAN.md`): two-factor sign-in, per-browser sessions, sign-out everywhere and the audit log. Step 1 was workspaces and personal accounts; step 2 was per-role permissions.
+How access to GrantCrest (formerly Content Machine) works, who controls it, and which controls protect it. Owner: `ebyron357`. No secret values appear in this repository. Updated 4 November 2026 for account security (R1, step 3 of `GRANT_PLATFORM_PLAN.md`): two-factor sign-in, per-browser sessions, sign-out everywhere and the audit log. Step 1 was workspaces and personal accounts; step 2 was per-role permissions.
 
 ## 1. Account model (actual behaviour)
 
-Content Machine is organized into **workspaces**. A workspace is one organization: the agency itself, or a client nonprofit or business. Every record belongs to exactly one workspace, and no workspace can read or change another's records.
+GrantCrest is organized into **workspaces**. A workspace is one organization: the agency itself, or a client nonprofit or business. Every record belongs to exactly one workspace, and no workspace can read or change another's records.
 
 - **How isolation works.** Each workspace owns its data through its own principal row in `users`. When someone signs in to a workspace, the session carries that principal as `session.userId`. The ownership check that every route already performs therefore limits them to that workspace: brands, projects, documents, media, exports, publishing, API keys, webhooks and all of Grant Studio. A record from another workspace is a 404.
 - **Personal accounts (members).** A member signs in with their email and password, and belongs to one or more workspaces, each with a role. Passwords are hashed with scrypt (random salt, 64-byte key) and must be at least 12 characters, not repetitive, and not contain the email name. Emails are stored lowercased.

@@ -25,7 +25,8 @@ Updated 4 November 2026. Every fact has one current home. If two documents disag
 | `docs/SECURITY_AND_ACCESS_HANDOFF.md` | Account model, roles, provisioning, offboarding, secrets, controls | Product owner | Product owner approval |
 | `docs/DATA_LIFECYCLE_AND_OFFBOARDING.md` | Data inventory, export, deletion, retention, offboarding | Product owner | Approved PR |
 | `docs/TROUBLESHOOTING_AND_SUPPORT.md` | Support path and symptom fixes | Operator | Approved PR |
-| `docs/CLIENT_USER_MANUAL.md` | End-user guide | Product owner | Approved PR |
+| `docs/USER_GUIDE.md` | Task-by-task user guide for grant writers and agency owners; rendered in the app at `/help` | Product owner | Approved PR |
+| `docs/CLIENT_USER_MANUAL.md` | End-user reference manual (grants and content features) | Product owner | Approved PR |
 | `docs/CLIENT_ACCESS_HANDOFF_TEMPLATE.md` | Template filled at client handoff (outside the repo) | Operator | Approved PR |
 | `docs/FINAL_CLIENT_ACCEPTANCE.md` | Acceptance checklist and sign-off | Product owner | Product owner |
 | `docs/automation-api.md` | Automation API and webhook contract | Technical lead | Approved PR |
