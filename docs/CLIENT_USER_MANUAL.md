@@ -1,6 +1,8 @@
-# Content Machine — User Manual
+# GrantCrest — User Manual
 
-Content Machine (shown in the app as **Content OS**) turns a content idea into a researched, reviewed, exportable long-form document: blog posts, articles, guides, manuals, SOPs, reports, white papers, e-books and newsletters.
+GrantCrest finds grants, helps you write and package applications, and turns a content idea into a researched, reviewed, exportable long-form document: blog posts, articles, guides, manuals, SOPs, reports, white papers, e-books and newsletters. The grant workspace inside GrantCrest is called **Grant Studio**; the long-form writing features are the Content Machine.
+
+**Grant writers and agency owners: start with the [GrantCrest user guide](USER_GUIDE.md)**, which walks through every grant task step by step. It also opens inside the app from **Help** in the left rail. This manual is the full reference, including the content features.
 
 ## 1. Signing in
 
@@ -49,11 +51,12 @@ The left rail is on every screen. On a phone it collapses to icons; hover or lon
 | **Distribution** | Connect destinations, schedule and review publishing |
 | **Performance** | What worked, using only metrics actually reported by connected destinations |
 | **Dashboard** | Continue working, production pipeline by stage, recent activity |
-| **Settings** | Provider status, model assignments, dependencies, automation keys and webhooks |
+| **Settings** | Team and two-factor sign-in, billing, provider status, model assignments, dependencies, automation keys and webhooks |
+| **Help** | The [user guide](USER_GUIDE.md), rendered in the app. The footer of every page links to it too |
 
 ## 3. Before your first document: add a brand
 
-**Brands → New brand.** Enter a name, industry and description, then open the brand to add voice, tone, reading level, vocabulary to prefer or avoid, compliance notes, audiences, verified brand facts and brand knowledge. Content Machine uses these in every draft for that brand.
+**Brands → New brand.** Enter a name, industry and description, then open the brand to add voice, tone, reading level, vocabulary to prefer or avoid, compliance notes, audiences, verified brand facts and brand knowledge. GrantCrest uses these in every draft for that brand.
 
 ## 4. Creating content
 
@@ -61,7 +64,7 @@ The left rail is on every screen. On a phone it collapses to icons; hover or lon
 2. Describe what should exist when you are done (for example *"A step-by-step guide for first-time home buyers in the US"*).
 3. Choose the output shape (Blog Post, Article, Guide, Manual, SOP / Process, Report, White Paper, Ebook, Newsletter) and the brand.
 4. Optional: open **Advanced options** to set audience, desired reader outcome, target length, tone/point of view, research depth (Quick, Balanced, Deep) and extra direction.
-5. Choose **Generate Content**. Content Machine builds the brief, research plan and outline, creates the document, drafts every section, runs a quality review and opens the editor. Progress is shown on screen.
+5. Choose **Generate Content**. GrantCrest builds the brief, research plan and outline, creates the document, drafts every section, runs a quality review and opens the editor. Progress is shown on screen.
 
 If the workspace shows **demo mode**, generated text is clearly marked `[DEMO OUTPUT …]`; ask the owner to configure an AI provider for real drafts.
 
@@ -113,7 +116,7 @@ Regular users can view provider status and dependencies. Changing model assignme
 
 ## 10. Getting help
 
-See [`TROUBLESHOOTING_AND_SUPPORT.md`](TROUBLESHOOTING_AND_SUPPORT.md). For anything not covered there, contact the workspace owner using the details in your access handoff.
+Open **Help** in the left rail for the [user guide](USER_GUIDE.md). See [`TROUBLESHOOTING_AND_SUPPORT.md`](TROUBLESHOOTING_AND_SUPPORT.md). For anything not covered there, contact the workspace owner using the details in your access handoff.
 
 ## Grant resources
 

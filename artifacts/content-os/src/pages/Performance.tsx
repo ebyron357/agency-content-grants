@@ -1,4 +1,5 @@
 import { Link } from 'wouter';
+import { friendlyError } from '@/lib/api';
 import { useMemo, useState } from 'react';
 import { PageHeader, PageShell } from '@/components/layout/Page';
 import { useQueryClient } from '@tanstack/react-query';
@@ -287,7 +288,7 @@ export default function Performance() {
       qc.invalidateQueries({ queryKey: getGetPerformanceBestWorstQueryKey() });
       qc.invalidateQueries({ queryKey: getListPerformanceRecommendationsQueryKey({ brandId: activeBrandId }) });
     } catch (err: any) {
-      setIngestNote(err?.data?.error ?? err?.message ?? 'Could not refresh metrics.');
+      setIngestNote(friendlyError(err, 'Could not refresh metrics.'));
     }
   };
 

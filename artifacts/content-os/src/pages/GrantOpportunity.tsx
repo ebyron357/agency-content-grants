@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { ArrowLeft, CalendarPlus, ExternalLink } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
+import { GrantsGovNotice } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -39,7 +40,7 @@ export default function GrantOpportunity() {
   if (data.isError || !data.data) {
     return (
       <PageShell>
-        <StateMessage tone="error" title="Opportunity not found" description={errorMessage(data.error)} action={<Button asChild><Link href="/grant-studio">Back to Grant Studio</Link></Button>} />
+        <StateMessage tone="error" title="This opportunity could not be shown" description={data.isError ? `${errorMessage(data.error).replace(/\.?$/, ".")} It may have closed and left the official listing, or the link may be wrong.` : "It may have closed and left the official listing, or the link may be wrong."} action={<Button asChild><Link href="/grant-studio">Back to Grant Studio</Link></Button>} />
       </PageShell>
     );
   }
@@ -175,6 +176,7 @@ export default function GrantOpportunity() {
           </div>
         </DialogContent>
       </Dialog>
+      <GrantsGovNotice className="mt-8" />
     </PageShell>
   );
 }

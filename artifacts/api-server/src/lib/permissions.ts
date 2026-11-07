@@ -150,6 +150,10 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { method: "*", path: "/billing", needs: "billing.manage" },
   { method: "*", path: "/billing/*", needs: "billing.manage" },
 
+  // Onboarding: the setup wizard adds a Grant Studio organization; hiding the checklist is the same people's call.
+  { method: "POST", path: "/onboarding/organization", needs: "grants.write" },
+  { method: "PUT", path: "/onboarding/dismissed", needs: "grants.write" },
+
   // Content: everything else that writes.
   ...writes("/brands", "content.write"),
   ...writes("/projects", "content.write"),

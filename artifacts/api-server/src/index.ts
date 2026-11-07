@@ -9,6 +9,7 @@ import "./lib/jobs/definitions";
 import { startJobWorker, stopJobWorker } from "./lib/jobs/worker";
 import { startSchedules, stopSchedules } from "./lib/jobs/schedules";
 import { workspacesWithoutPlan } from "./lib/billing/service";
+import { signupConfig } from "./lib/signup/config";
 
 const rawPort = process.env["PORT"];
 
@@ -50,6 +51,10 @@ runMigrations()
           if (list.length) logger.warn({ count: list.length, workspaces: list }, "Billing is on and these client workspaces have no usable plan: they cannot invite, add organizations or draft with AI until they start a trial, subscribe, or are marked agency-managed");
         })
         .catch((err: unknown) => logger.error({ err }, "Could not check workspaces for a billing plan"));
+      // Self sign-up switched on but not usable: say which settings (names only) are missing (docs/SELF_SIGNUP.md).
+      const signup = signupConfig();
+      if (signup.flag && !signup.enabled) logger.warn({ missing: signup.missing, problem: signup.problem }, "Self sign-up is switched on (SELF_SIGNUP_ENABLED=true or SELF_SERVE_SIGNUP=on) but stays off until these are set");
+      else if (signup.enabled) logger.info({ trialPlan: signup.trialPlan }, "Self sign-up is on");
     });
   })
   .catch((err: unknown) => {

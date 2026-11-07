@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { ArrowLeft, ExternalLink, Search, Trash2 } from 'lucide-react';
 import { PageHeader, PageShell, Panel, PanelHeader, StateMessage, LoadingState } from '@/components/layout/Page';
+import { GrantsGovNotice } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -362,6 +363,7 @@ export default function GrantOrganization() {
         <TabsContent value="writing"><SavedWriting applicantId={a.id} /></TabsContent>
         <TabsContent value="profile"><ProfileTab applicant={a} /></TabsContent>
       </Tabs>
+      <GrantsGovNotice className="mt-8" />
     </PageShell>
   );
 }

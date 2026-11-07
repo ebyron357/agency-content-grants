@@ -105,7 +105,7 @@ test("every primary authenticated route passes the accessibility gate on one des
   });
   expect(shell.root).toBe(true);
   expect(shell.rail).not.toBe("rgb(250, 250, 249)"); // legacy stone-50 rail
-  expect(shell.body).toBe("rgb(8, 10, 15)");
+  expect(shell.body).toBe("rgb(22, 22, 24)"); // #161618, the warm charcoal shell (#63)
 
   for (const [path, label] of [
     ["/dashboard", "dashboard"],
@@ -118,6 +118,9 @@ test("every primary authenticated route passes the accessibility gate on one des
     ["/distribution", "distribution"],
     ["/performance", "performance"],
     ["/settings", "settings"],
+    ["/help", "help"],
+    ["/get-started", "getting started"],
+    ["/onboarding", "setup wizard"],
     ["/route-that-does-not-exist", "not found"],
   ] as const) {
     await page.goto(path);
@@ -140,6 +143,21 @@ test("every primary authenticated route passes the accessibility gate on one des
     await expectNoSeriousViolations(page, `project ${tab}`);
   }
 
+  // GrantCrest branding, the in-app guide and the Grants.gov attribution.
+  const grantsGovNotice =
+    "This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services.";
+  await expect(page).toHaveTitle("GrantCrest");
+  for (const path of ["/grant-studio", "/grants"]) {
+    await page.goto(path);
+    await expect(page.getByRole("main").getByText(grantsGovNotice).first()).toBeVisible();
+    await expect(page.getByRole("contentinfo")).toContainText(grantsGovNotice);
+  }
+  await page.getByRole("contentinfo").getByRole("link", { name: "Help and user guide" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "User guide" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The notice PDF checklist" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Guide contents" }).getByRole("link", { name: "Two-factor sign-in" }).click();
+  await expect(page).toHaveURL(/#two-factor-sign-in$/);
+
   // Mobile: the collapsed rail keeps every destination reachable by name.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dashboard");
@@ -153,6 +171,7 @@ test("every primary authenticated route passes the accessibility gate on one des
     "Performance",
     "Dashboard",
     "Settings",
+    "Help",
   ]) {
     await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
   }

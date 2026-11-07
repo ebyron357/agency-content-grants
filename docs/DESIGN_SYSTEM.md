@@ -1,9 +1,9 @@
-# Content OS design system
+# GrantCrest design system
 
 **Status:** current, locked by Issue #8 closeout (2 October 2026).
 **Owner:** product owner (ebyron357). Changes go through a pull request that updates this file and re-runs the accessibility gate.
 
-Content OS uses one visual system for every authenticated route: a **premium dark editorial command center**. There is no light theme. `index.html` sets `class="dark"` on `<html>` and `color-scheme: dark`.
+GrantCrest (formerly Content OS) uses one visual system for every authenticated route: a **premium dark editorial command center**. There is no light theme. `index.html` sets `class="dark"` on `<html>` and `color-scheme: dark`.
 
 ## Tokens
 
@@ -47,13 +47,15 @@ One sans family (Inter) everywhere; no serif headings.
 
 `artifacts/content-os/src/components/layout/`:
 
-- `Sidebar` — dark navigation rail. Identity, primary **New content** action, Grant Studio, Grants, Documents, Brands, Distribution, Performance, Dashboard, Settings, secondary Sign out. Collapses to a 64px icon rail below `md` with tooltips and accessible names; active item has `aria-current="page"` and a brand indicator.
+- `Sidebar` — dark navigation rail. Identity (GrantCrest mark and name), primary **New content** action, Grant Studio, Grants, Documents, Brands, Distribution, Performance, Dashboard, Settings, Help, secondary Sign out. Collapses to a 64px icon rail below `md` with tooltips and accessible names; active item has `aria-current="page"` and a brand indicator.
+- `Brand` — the product name and URL constants, `BrandMark`/`BrandLockup` (rail and sign-in screens), `GrantsGovNotice` (the attribution the Grants.gov API terms require, shown on every screen with Grants.gov data) and `AppFooter` (Help link, grantcrest.co and the notice, at the bottom of every signed-in page).
 - `Page` — `PageShell`, `PageHeader`, `Panel`, `PanelHeader`, `StateMessage` (empty/error state with one recommended action), `LoadingState`.
 
 Shared primitives in `components/ui/` (button, input, select, textarea, card, dialog, alert-dialog, tabs, tooltip, toast) carry the same radius, height and focus-ring rules.
 
 ## Behaviour standards
 
+- Error messages are one plain-language sentence (`friendlyError` in `src/lib/api.ts`): the server's own message, or wording for the kind of failure; never a method, path, status code or HTML page.
 - Every primary screen has an obvious primary action, a useful empty state, a loading state (`role="status"`), an actionable error state (`role="alert"`, retry or route back) and no dead-end navigation.
 - Workflow and settings tabs are `role="tablist"` / `role="tab"` with `aria-selected`; segmented toggles use `aria-pressed`.
 - Every form control has a programmatic label; icon-only buttons have `aria-label`.
@@ -64,7 +66,7 @@ Shared primitives in `components/ui/` (button, input, select, textarea, card, di
 
 ## Enforcement
 
-`artifacts/content-os/e2e/accessibility.spec.ts` (CI job **CI → validate**) logs in and runs axe (WCAG 2.0/2.1 A/AA, critical + serious) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, Grant Studio, Grant Studio → Foundations, Grants, the 404 page and all nine Project Detail workflow tabs. It also asserts the dark shell tokens, that every navigation destination is reachable by name on a 390px viewport, and that there is no horizontal page scroll on mobile.
+`artifacts/content-os/e2e/accessibility.spec.ts` (CI job **CI → validate**) logs in and runs axe (WCAG 2.0/2.1 A/AA, critical + serious) on login, Create, Dashboard, Documents, Brands, Brand detail, Distribution, Performance, Settings, Help, Grant Studio, Grant Studio → Foundations, Grants, the 404 page and all nine Project Detail workflow tabs. It also asserts the dark shell tokens, that every navigation destination is reachable by name on a 390px viewport, that there is no horizontal page scroll on mobile, the GrantCrest page title, the Grants.gov notice on Grant Studio and Grants and in the footer, and that the footer opens the in-app user guide.
 
 Visual evidence for the locked system: `docs/evidence/ui/closeout-2026-10-02/`.
 

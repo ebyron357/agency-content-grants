@@ -4,7 +4,7 @@
  * compliance); the UI only displays what it returns.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
+import { apiDelete, apiGet, apiPatch, apiPost, friendlyError } from '@/lib/api';
 
 export type ApplicantType = 'nonprofit_501c3' | 'nonprofit_other' | 'small_business' | 'for_profit';
 
@@ -611,16 +611,9 @@ export function packageUrl(id: string, draft: boolean): string {
 }
 
 /** Pulls the server's { error } message out of an api helper failure. */
+/** One plain-language sentence for an API error (see friendlyError in lib/api). */
 export function errorMessage(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error);
-  const json = text.slice(text.indexOf('{'));
-  try {
-    const parsed = JSON.parse(json);
-    if (parsed?.error) return String(parsed.error);
-  } catch {
-    // not JSON
-  }
-  return text.replace(/^(GET|POST|PATCH|PUT|DELETE) \S+ failed: \d+ ?/, '') || 'Something went wrong.';
+  return friendlyError(error, 'Something went wrong. Try again.');
 }
 
 export function useInvalidateGrants() {

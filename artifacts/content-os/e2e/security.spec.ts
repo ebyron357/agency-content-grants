@@ -64,7 +64,7 @@ test("an owner turns on two-factor, signs in with a code and reviews sessions an
   await expect(page.getByRole("button", { name: "I have saved them" })).toBeDisabled();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download", exact: true }).click();
-  expect((await download).suggestedFilename()).toBe("content-machine-recovery-codes.txt");
+  expect((await download).suggestedFilename()).toBe("grantcrest-recovery-codes.txt");
   await page.getByRole("button", { name: "I have saved them" }).click();
   await expect(page.getByText(/On since .* 10 recovery codes left/)).toBeVisible();
 
