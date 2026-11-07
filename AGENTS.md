@@ -6,11 +6,11 @@ Finish the Agency Content and Grant Intelligence Platform as an evidence-first, 
 
 ## Current state and authorization
 
-`docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 4 November 2026:
+`docs/GO_NO_GO_DECISION.md` is the controlling decision record and `docs/PROJECT_STATUS.md` is the single current status record. As of 6 November 2026:
 
 - The Content Machine release scope is **VERIFIED COMPLETE** (Issue #8 UI/UX lock and all repository, CI, accessibility, security and production-mode rehearsal gates; Issue #8 is closed).
 - Production is **LIVE** on Render running `d2250c3` (PRs #26–#42: the grant directory, Grant Studio, workspaces and roles, two-factor sign-in). Render's Blueprint Auto Sync deployed it on 4 November when PR #42 changed `render.yaml`; nobody triggered it, and it skipped the production gate. It is **NO-GO**: owner acceptance of Grant Studio and of the new security model is not recorded, and no authenticated `tests/production-smoke.sh` run exists.
-- `main` `fdb352c` is the release candidate. It adds background jobs, templates, place designations, the writing toolkit and the competitiveness rating (PRs #43–#46). It is validated, including an upgrade and rollback rehearsal, but **not deployed**.
+- `ee7b5c8` (merge of PR #50) is the release candidate: `fdb352c` plus the readiness-probe fix. It adds background jobs, templates, place designations, the writing toolkit and the competitiveness rating (PRs #43–#46). It is validated, including an upgrade and rollback rehearsal on `fdb352c`'s code, but **not deployed**. `main` (`3635a0a`) also holds PRs #58, #56, #57 and #55 (migrations `0030`–`0033`, Stripe billing off until configured); they are merged but not cleared for deploy.
 - Deploys, rollbacks, Render settings and paid resources are owner-only; agents must not trigger production deploys or create paid resources.
 
 Agents may maintain, fix and verify the product within the approved scope below, prepare and verify deployments, and update the governing records. No agent may bypass a failing gate merely to meet a schedule.

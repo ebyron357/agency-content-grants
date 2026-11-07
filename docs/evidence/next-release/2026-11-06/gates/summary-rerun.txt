@@ -1,0 +1,5 @@
+05b-db-prepare exit=0 3s
+10b-start-api ok=1 root=200
+11b-integration exit=0 16s
+12b-a11y exit=0 53s
+DONE
