@@ -181,6 +181,17 @@ export async function recordFeedRun(connector: string, result: { status: "succee
     .where(and(eq(grantSourcesTable.connectorType, "feed"), eq(grantSourcesTable.connector, connector)));
 }
 
+/**
+ * The feed connectors, of those named, whose registry row may run now (active,
+ * terms checked and permitting automated reading). The state feeds use this;
+ * a feed with no row does not run.
+ */
+export async function runnableFeedConnectors(connectors: string[]): Promise<Set<string>> {
+  if (connectors.length === 0) return new Set();
+  const rows = await db.select().from(grantSourcesTable).where(and(eq(grantSourcesTable.connectorType, "feed"), inArray(grantSourcesTable.connector, connectors)));
+  return new Set(rows.filter(mayRun).map((r) => r.connector!).filter(Boolean));
+}
+
 export function sourceView(s: GrantSource, now: Date = new Date()) {
   return {
     id: s.id, key: s.key, name: s.name, jurisdictionKind: s.jurisdictionKind, jurisdictionCode: s.jurisdictionCode, connectorType: s.connectorType, connector: s.connector,
