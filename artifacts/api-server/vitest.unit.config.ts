@@ -34,6 +34,7 @@ export default defineConfig({
       "src/lib/grants/templateRegistry.unit.test.ts",
       "src/lib/foundations/foundations.unit.test.ts",
       "src/lib/grants/sources/sources.unit.test.ts",
+      "src/lib/grants/states/states.unit.test.ts",
       "src/lib/ai/providerRequest.test.ts",
       "src/lib/readiness.test.ts",
       "src/lib/sourceStorage.test.ts",
