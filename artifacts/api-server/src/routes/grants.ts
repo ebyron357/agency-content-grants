@@ -67,6 +67,7 @@ import { currentWorker, runJobNow } from "../lib/jobs/worker";
 import { daysUntil } from "../lib/grants/gate";
 import { buildDeadlineCalendar, fileStem } from "../lib/grants/calendar";
 import { CA_SOURCE } from "../lib/grants/california";
+import { STATE_SOURCE_LABELS } from "../lib/grants/states";
 import { PLACE_DESIGNATIONS, PLACE_STATUSES, effectiveStatus, isPlaceKind, needsRecheck, placeCatalog, validGeoRef, COUNTY_FIPS, TRACT_GEOID, type PlaceDesignations, type PlaceRecord } from "../lib/grants/places";
 import {
   DEFAULT_FORMAT,
@@ -248,7 +249,7 @@ function readinessView(applicant: GrantApplicant, items: (typeof grantReadinessI
 }
 
 /** Display names for each source, and California's own wording for the eligibility codes it maps to. */
-const SOURCE_LABELS: Record<string, string> = { grants_gov: "Grants.gov", [CA_SOURCE]: "California Grants Portal" };
+const SOURCE_LABELS: Record<string, string> = { grants_gov: "Grants.gov", [CA_SOURCE]: "California Grants Portal", ...STATE_SOURCE_LABELS };
 const CA_CODE_LABELS: Record<string, string> = { "12": "Nonprofit", "13": "Nonprofit", "22": "Business", "23": "Business", "25": "Other legal entity" };
 
 function eligibilityLabels(o: GrantOpportunity): string[] {

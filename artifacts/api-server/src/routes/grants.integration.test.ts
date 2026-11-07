@@ -14,10 +14,12 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
+import { db, grantApplicantsTable, grantApplicationsTable, grantOpportunitiesTable, grantSourcesTable, grantSyncRunsTable, usersTable, webhookEventsTable } from "@workspace/db";
 import { requireAuth } from "../middleware/requireAuth";
 import grantsRouter from "./grants";
-import { syncCalifornia, syncGrantsGov } from "../lib/grants/ingest";
+import { syncCalifornia, syncGrantsGov, syncStateConnector } from "../lib/grants/ingest";
+import { STATE_FEEDS } from "../lib/grants/states";
+import { runnableFeedConnectors } from "../lib/grants/sources/service";
 import type { CaFetchLike } from "../lib/grants/california";
 import { alertSummaryStats, emitDeadlineReminders, emitMatchAlerts, resetAlertSummaryCache } from "../lib/grants/alerts";
 import type { FetchLike } from "../lib/grants/grantsgov";
@@ -525,6 +527,79 @@ describe("Grant Studio end to end", () => {
     expect(failed.error).toMatch(/503/);
     await db.delete(grantApplicantsTable).where(inArray(grantApplicantsTable.id, [caOrg.id, ncOrg.id]));
     await db.delete(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "ca_grants_portal"));
+  }, 30_000);
+
+  it("registers the state feeds and watch lists disabled, and syncs the Illinois and North Carolina connectors through the gate", async () => {
+    // Migration 0035: every new state source is disabled, none may run, and the terms are recorded as not checked.
+    const stateRows = await db.select().from(grantSourcesTable).where(inArray(grantSourcesTable.id, ["src-il-csfa", "src-nc-grant-directory", "src-ut-funding-portal", "src-tx-egrants", "src-fl-dep-grants", "src-ny-sfs-funding-search", "src-ny-dos-funding", "src-ny-agm-funding", "src-pa-grants", "src-oh-grants-partnership", "src-ga-opb-grants", "src-mi-mde-grants"]));
+    expect(stateRows).toHaveLength(12);
+    for (const r of stateRows) {
+      expect(r, r.key).toMatchObject({ status: "disabled", termsChecked: false, termsPermitAutomation: false, jurisdictionKind: "state" });
+      expect(r.termsNote, r.key).toBeTruthy();
+    }
+    expect(new Set(stateRows.map((r) => r.jurisdictionCode))).toEqual(new Set(["IL", "NC", "UT", "TX", "FL", "NY", "PA", "OH", "GA", "MI"]));
+    const feedKeys = STATE_FEEDS.map((f) => f.source);
+    expect(await runnableFeedConnectors(feedKeys)).toEqual(new Set());
+
+    // A state feed runs only once a person records checked terms that permit automated reading and activates it.
+    await db.update(grantSourcesTable).set({ termsChecked: true, termsPermitAutomation: true, status: "active" }).where(eq(grantSourcesTable.key, "il_csfa"));
+    try {
+      expect(await runnableFeedConnectors(feedKeys)).toEqual(new Set(["il_csfa"]));
+    } finally {
+      await db.update(grantSourcesTable).set({ termsChecked: false, termsPermitAutomation: false, status: "disabled" }).where(eq(grantSourcesTable.key, "il_csfa"));
+    }
+
+    const us = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}`;
+    const ilRow = (i: number, range: string, award = "$1000 - $50000") =>
+      `<tr><td><i class="gms">GMS</i>&nbsp;<a href="https://omb.illinois.gov/public/gata/csfa/GMS.aspx?url=https%3a%2f%2fil.amplifund.com%2fPublic%2fOpportunities%2fDetails%2f00000000-0000-4000-8000-${String(i).padStart(12, "0")}&amp;title=x" target="_blank">Synthetic Illinois Program ${i}</a></td><td>TEST (000)</td><td>${range}</td><td>${award}</td></tr>`;
+    let ilRows = [
+      ilRow(1, `${us(inDays(-5))} - ${us(inDays(40))}`),
+      ilRow(2, `${us(inDays(-400))} - No end date`),
+      ilRow(3, `${us(inDays(-60))} - ${us(inDays(-1))}`),
+      ilRow(4, `${us(inDays(10))} - ${us(inDays(90))}`),
+      ...Array.from({ length: 18 }, (_, i) => ilRow(10 + i, `${us(inDays(-1))} - ${us(inDays(20))}`)),
+    ];
+    const il = STATE_FEEDS.find((f) => f.source === "il_csfa")!;
+    const ilPage = async (url: string) => ({ status: url === il.url ? 200 : 404, body: `<table><tbody>${ilRows.join("")}</tbody></table>` });
+    const ilResult = await syncStateConnector(il, { fetchPage: ilPage });
+    expect(ilResult).toMatchObject({ status: "succeeded", fetched: 22, upserted: 22 });
+    const ilStored = new Map((await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "il_csfa"))).map((r) => [r.title, r]));
+    expect(ilStored.get("Synthetic Illinois Program 1")).toMatchObject({ jurisdiction: "IL", status: "posted", closeDate: inDays(40), publishable: true, awardCeiling: 50000, connectorVersion: "il-csfa@1", officialUrl: "https://il.amplifund.com/Public/Opportunities/Details/00000000-0000-4000-8000-000000000001" });
+    expect(ilStored.get("Synthetic Illinois Program 2")).toMatchObject({ status: "posted", rollingDeadline: true, closeDate: null, publishable: true });
+    expect(ilStored.get("Synthetic Illinois Program 3")).toMatchObject({ status: "closed", publishable: false });
+    expect(ilStored.get("Synthetic Illinois Program 4")).toMatchObject({ status: "forecasted", publishable: true });
+
+    // It reaches applicants like any state program, labelled with its source.
+    const api = client(await login(OWNER));
+    const detail = await api("GET", `/grants/opportunities/${ilStored.get("Synthetic Illinois Program 1")!.id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.data.opportunity).toMatchObject({ sourceLabel: "Illinois CSFA opportunity list", jurisdiction: "IL", federal: false });
+
+    // A listing that leaves the page is closed; a page that parses too few rows changes nothing and fails visibly.
+    ilRows = ilRows.slice(1);
+    expect((await syncStateConnector(il, { fetchPage: ilPage })).status).toBe("succeeded");
+    expect((await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.source, "il_csfa"), eq(grantOpportunitiesTable.title, "Synthetic Illinois Program 1"))))[0]).toMatchObject({ status: "closed", publishable: false });
+    const broken = await syncStateConnector(il, { fetchPage: async () => ({ status: 200, body: "<p>Down for maintenance</p>" }) });
+    expect(broken.status).toBe("failed");
+    expect(broken.error).toMatch(/fewer than the 20 expected/);
+    expect((await db.select().from(grantOpportunitiesTable).where(and(eq(grantOpportunitiesTable.source, "il_csfa"), eq(grantOpportunitiesTable.publishable, true)))).length).toBe(20);
+
+    // North Carolina's directory: stored, never published, nothing guessed.
+    const nc = STATE_FEEDS.find((f) => f.source === "nc_grant_directory")!;
+    const ncBody = `<table><tbody>${Array.from({ length: 21 }, (_, i) => `<tr><td class="app-drupal-data-table__control-cell"><button type="button">+</button></td><td>Synthetic</td><td><a href="https://example.nc.gov/p${i}">Synthetic NC Program ${i}</a></td><td>TEST</td><td>Synthetic description ${i}.</td></tr>`).join("")}</tbody></table>`;
+    const ncResult = await syncStateConnector(nc, { fetchPage: async () => ({ status: 200, body: ncBody }) });
+    expect(ncResult).toMatchObject({ status: "succeeded", fetched: 21 });
+    const ncStored = await db.select().from(grantOpportunitiesTable).where(eq(grantOpportunitiesTable.source, "nc_grant_directory"));
+    expect(ncStored).toHaveLength(21);
+    expect(ncStored.every((r) => r.status === "listed" && !r.publishable && r.jurisdiction === "NC" && r.closeDate === null && r.awardCeiling === null)).toBe(true);
+
+    // Utah cannot run here: no browser renderer.
+    const ut = STATE_FEEDS.find((f) => f.source === "ut_funding_portal")!;
+    const utResult = await syncStateConnector(ut);
+    expect(utResult.status).toBe("failed");
+    expect(utResult.error).toMatch(/only renders in a browser/);
+
+    await db.delete(grantOpportunitiesTable).where(inArray(grantOpportunitiesTable.source, ["il_csfa", "nc_grant_directory", "ut_funding_portal"]));
   }, 30_000);
 
   it("reuses hub alert summaries until the organization, its readiness or the opportunity store changes", async () => {
